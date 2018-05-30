@@ -1,0 +1,5 @@
+ROOT=../../
+RELATIVE=example/lib/
+
+cd ${ROOT}
+sh pg ${RELATIVE}$1
