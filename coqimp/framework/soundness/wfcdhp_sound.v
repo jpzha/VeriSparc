@@ -80,17 +80,17 @@ Proof.
   -
     econstructor; intros.
 
-    +
+    + (** i *)
       inversion H; subst.
-      clear H3 H4 H5 H6 H7.
+      clear H3 H4 H5 H6 H7 H8.
       eapply H2 in H0.
       clear H2.
       simpljoin1.
       split; eauto.
 
-    +
+    + (** jumpl aexp rd *)
       inversion H; subst.
-      clear H2 H4 H5 H6 H7.
+      clear H2 H4 H5 H6 H7 H8.
       eapply H3 in H0.
       clear H3.
       simpljoin1.
@@ -98,9 +98,9 @@ Proof.
       exists x x0 x1 x2 x3 x4.
       split; eauto.
 
-    + 
+    + (** cbe f *)
       inversion H; subst.
-      clear H2 H3 H5 H6 H7.
+      clear H2 H3 H5 H6 H7 H8.
       eapply H4 in H0.
       clear H4.
       simpljoin1; eauto.
@@ -108,33 +108,49 @@ Proof.
       exists x x0 x1 x2 x3 x4.
       split; eauto.
 
-    +
+    + (** cnbe *)
       inversion H; subst.
-      clear H2 H3 H4 H6 H7.
+      clear H2 H3 H4 H6 H7 H8.
       eapply H5 in H0; eauto.
       simpljoin1.
       split; eauto.
       exists x x0 x1 x2 x3 x4.
       eauto.
 
-    +
+    + (** call f *)
       inversion H; subst.
-      clear H2 H3 H4 H5 H7.
+      clear H2 H3 H4 H5 H7 H8.
       eapply H6 in H0.
       simpljoin1.
       split; eauto.
       exists x x0 x1 x2 x3 x4.
       eauto.
 
-    +
+    + (** retl *)
       inversion H; subst.
-      clear H2 H3 H4 H5 H6.
+      clear H2 H3 H4 H5 H6 H8.
       eapply H7 in H0.
       simpljoin1.
       split; eauto.
       exists x x0 x1 x2 x3 x4.
       eauto.
       clear H7.
+      intros.
+      eapply H1 in H4; eauto.
+      destruct H4; eauto.
+      right.
+      simpljoin1.
+      split; eauto.
+
+    + (** ret *)
+      inversion H; subst.
+      clear H2 H3 H4 H5 H6 H7.
+      eapply H8 in H0.
+      simpljoin1.
+      split; eauto.
+      exists x x0 x1 x2 x3 x4.
+      eauto.
+      clear H8.
       intros.
       eapply H1 in H4; eauto.
       destruct H4; eauto.
@@ -159,7 +175,7 @@ Proof.
   - 
     inversion H; subst.
 
-    + 
+    + (** i *)
       econstructor; intros; get_ins_diff_false.
       clear H7.
       split; eauto.
@@ -170,7 +186,7 @@ Proof.
       clear - H8.
       eapply safety_Sn_safety_n; eauto.
 
-    +
+    + (** call f *)
       econstructor; intros; get_ins_diff_false.
       clear H7.
       split; eauto.
@@ -216,7 +232,7 @@ Proof.
       eapply H3 in H18.
       eapply safety_Sn_safety_n; eauto.
 
-    +
+    + (** jumpl aexp rd *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.
@@ -248,7 +264,7 @@ Proof.
       eapply H3 in H.
       eapply safety_Sn_safety_n; eauto.
 
-    +
+    + (** be f *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.
@@ -293,7 +309,7 @@ Proof.
         repeat (split; eauto).
       }
 
-    +
+    + (** bne f *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.
@@ -338,7 +354,27 @@ Proof.
         eapply safety_Sn_safety_n; eauto.
       }
 
-    +
+    + (** retl *)
+      econstructor; intros; get_ins_diff_false.
+      split; eauto.
+      intros.
+      right.
+      clear H5 H7.
+      eapply H6 in H9; eauto.
+      split.
+      eauto.
+      simpl.
+      simpljoin1.
+      lets Hret : H5.
+      eapply H3 in H5.
+      eapply H2 in Hret.
+      destruct_state S2.
+      simpls.
+      rewrite H7 in Hret.
+      inversion Hret; subst.
+      eapply safety_Sn_safety_n; eauto.
+
+    + (** ret *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.
@@ -374,12 +410,12 @@ Proof.
   -
     inversion H; subst.
 
-    +
+    + (** i *)
       econstructor; intros; get_ins_diff_false.
       clear H5.
       split; eauto.
  
-    + 
+    + (** call f *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       clear H5. 
@@ -414,7 +450,7 @@ Proof.
       simpls.
       eapply get_R_merge_still; eauto.
 
-    +
+    + (** jumpl aexp rd *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.
@@ -443,7 +479,7 @@ Proof.
       simpl.
       repeat (split; eauto).
 
-    +
+    + (** be f *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.
@@ -501,7 +537,7 @@ Proof.
         repeat (split; eauto).
       }
 
-    +
+    + (** bne f *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.
@@ -559,7 +595,16 @@ Proof.
         eauto.
       }
 
-    + 
+    + (** retl *)
+      econstructor; intros; get_ins_diff_false.
+      split; eauto.
+      intros.
+      eapply H4 in H7; eauto.
+      left.
+      simpljoin1.
+      eauto.
+
+    + (** ret *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.

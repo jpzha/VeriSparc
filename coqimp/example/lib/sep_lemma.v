@@ -17,7 +17,7 @@ Unset Strict Implicit.
 Require Import logic.
    
 Require Import lemmas.
-(*Require Import lemmas_ins.*)
+Require Import lemmas_ins.
 
 Require Import Coq.Logic.FunctionalExtensionality.
   
@@ -25,68 +25,32 @@ Open Scope nat.
 Open Scope code_scope.
 Open Scope mem_scope.
 
-Definition FReq (p1 p2 : asrt) :=
-  forall rn, (FR rn p1 -> FR rn p2) /\ (FR rn p2 -> FR rn p1).
-
 Lemma astar_subst1 :
   forall p1 p1' p2 s,
     s |= p1 ** p2 -> p1 ==> p1' ->
-    FReq p1 p1' ->
     s |= p1' ** p2.
-Proof. 
+Proof.
   intros.
   sep_star_split_tac.
-  simpl in H5.
+  simpl in H4.
   simpl.
-  simpljoin1. 
-  exists (m, (r0, f0), d0) (m0, (r0, f0), d0).
+  exists (m, (r, f), d) (m0, (r0, f0), d0).
   simpl.
-  do 3 (split; eauto).
-  unfolds regdisj.
-  intros.
-  specialize (H6 rn).
-  simpljoin1.
-  unfolds FReq.
-  specialize (H1 rn).
-  simpljoin1.
-  split.
-  intro.
-  eauto.
-  intro.
-  intro.
-  eapply H6 in H8.
-  eapply H3 in H8.
-  tryfalse.
+  repeat (split; eauto).
 Qed.
 
 Lemma astar_subst2 :
   forall p1 p2 p2' s,
     s |= p1 ** p2 -> p2 ==> p2' ->
-    FReq p2 p2' ->
     s |= p1 ** p2'.
 Proof.
   intros.
   sep_star_split_tac.
-  simpl in H5.
+  simpl in H4.
   simpl.
-  simpljoin1.
-  exists (m, (r0, f0), d0) (m0, (r0, f0), d0).
+  exists (m, (r, f), d) (m0, (r0, f0), d0).
   simpl.
-  split; eauto.
-  do 2 (split; eauto).
-  clear - H6 H1.
-  unfolds regdisj.
-  intro.
-  specialize (H6 rn).
-  simpljoin1.
-  unfolds FReq.
-  specialize (H1 rn).
-  simpljoin1.
-  split; intro; eauto.
-  intro.
-  eapply H2 in H4.
-  eapply H0 in H4.
-  tryfalse.
+  repeat (split; eauto).
 Qed.
 
 Theorem astar_assoc_intro :
@@ -109,6 +73,26 @@ Theorem astar_comm :
 Proof.
   intros.
   eapply sep_star_sym; eauto.
+Qed.
+
+Lemma merge_empR_r_eq :
+  forall R,
+    merge R empR = R.
+Proof.
+  intros.
+  unfold merge.
+  eapply functional_extensionality; eauto.
+  intro.
+  destruct (R x); eauto.
+Qed.
+
+Lemma merge_empR_l_eq :
+  forall R,
+    merge empR R = R.
+Proof.
+  intros.
+  unfold merge.
+  eapply functional_extensionality; eauto.
 Qed.
 
 Lemma merge_empM_r_eq :
@@ -138,12 +122,16 @@ Proof.
   intros.
   destruct_state s.
   simpl.
-  exists (m, (r, f), d) (empM, (r, f), d).
+  exists (m, (r, f), d) (empM, (empR, f), d).
   simpl.
   repeat (split; eauto).
   unfold disjoint.
   intro.
   destruct (m x); simpl; eauto.
+  unfold disjoint.
+  intro. 
+  destruct (r x); simpl; eauto.
+  rewrite merge_empR_r_eq; eauto.
   rewrite merge_empM_r_eq; eauto.
 Qed.
 
@@ -157,23 +145,28 @@ Proof.
   simpljoin1.
   simpl in H2.
   simpljoin1.
+  rewrite merge_empR_r_eq; eauto.
   rewrite merge_empM_r_eq; eauto.
 Qed.
   
 Lemma astar_emp_intro_l :
-  forall p, 
+  forall p,
     p ==> Aemp ** p.
 Proof.
   intros.
   destruct_state s.
   simpl.
-  exists (empM, (r, f), d) (m, (r, f), d).
+  exists (empM, (empR, f), d) (m, (r, f), d).
   simpls.
   repeat (split; eauto).
   unfold disjoint.
   intro.
   simpl; eauto.
   destruct (m x); eauto.
+  unfold disjoint.
+  intro.
+  simpl.
+  destruct (r x); eauto.
 Qed.
 
 Lemma astar_emp_elim_l :
@@ -276,160 +269,11 @@ Fixpoint asrt_rm_nth n p :=
     end
   end.
 
-Lemma FR_get_rm_stable_rev :
-  forall p rn n,
-    FR rn (asrt_get_nth n p) \/ FR rn (asrt_rm_nth n p) ->
-    FR rn p.
-Proof.
-  intro p.
-  induction p; intros;
-    try solve [simpls; eauto; tryfalse];
-    try solve [destruct n; simpls; eauto; try destruct H; tryfalse; eauto].
-
-  {
-    destruct n0.
-    simpl in H.
-    destruct_rneq_H.
-    subst; eauto.
-    simpl; eauto.
-    destruct_rneq.
-    destruct H; tryfalse.
-    simpl in H.
-    destruct_rneq_H.
-    subst.
-    simpl; eauto.
-    destruct_rneq.
-    destruct H; tryfalse.
-  }
-
-  {
-    destruct n.
-    simpl in H.
-    simpl; eauto.
-    simpl in H.
-    assert (FR rn p1 \/ FR rn (asrt_get_nth n p2) \/ FR rn (asrt_rm_nth n p2)).
-    {
-      destruct H; eauto.
-      destruct H; eauto.
-    }
-    destruct H0.
-    simpl; eauto.
-    eapply IHp2 in H0.
-    simpl; eauto.
-  }
-
-  destruct n.
-  simpl in H0.
-  destruct H0; tryfalse.
-  simpl; eauto.
-  simpl in H0.
-  destruct H0; tryfalse.
-  simpl; eauto.
-
-  destruct n.
-  simpl in H0.
-  destruct H0; tryfalse.
-  simpl; eauto.
-  simpl in H0.
-  destruct H0; tryfalse.
-  simpl; eauto.
-Qed.
-
-Lemma FR_get_rm_stable :
-  forall p rn n,
-    FR rn p ->
-    FR rn (asrt_get_nth n p) \/ FR rn (asrt_rm_nth n p).
-Proof.
-  intro p.
-  induction p; intros;
-    try solve [simpls; eauto; tryfalse];
-    try solve [destruct n; simpls; eauto].
-
-  {
-    simpl in H.
-    destruct_rneq_H; tryfalse.
-    subst.
-    destruct n0; simpl; eauto.
-    destruct_rneq.
-    destruct_rneq.
-  }
-
-  simpl in H.
-  destruct H.
-  {
-    eapply IHp1 with (n := n) in H.
-    destruct n.
-    simpl. 
-    left.
-    simpl.
-    eapply FR_get_rm_stable_rev; eauto.
-    right.
-    left.
-    eapply FR_get_rm_stable_rev; eauto.
-  }
-  {
-    eapply IHp2 with (n := n) in H.
-    destruct n.
-    simpl.
-    right.
-    eapply FR_get_rm_stable_rev; eauto.
-    simpl.
-    eapply FR_get_rm_stable_rev in H.
-    eapply or_assoc.
-    assert (FR rn (asrt_get_nth n p2) \/ FR rn p1 <-> FR rn p1 \/ FR rn (asrt_get_nth n p2)).
-    {
-      eapply or_comm; eauto.
-    }
-    rewrite H0.
-    eapply or_assoc.
-    right.
-    eapply IHp2; eauto.
-  }
-Qed.
-  
-Lemma FReq_get_rm_stable :
-  forall p n,
-    FReq p (asrt_get_nth n p ** asrt_rm_nth n p).
-Proof.
-  intros.
-  unfolds FReq.
-  intro.
-  split.
-  {
-    simpl.
-    intro.
-    eapply FR_get_rm_stable; eauto.
-  }
-  {
-    intro.
-    simpl in H.
-    eapply FR_get_rm_stable_rev in H; eauto.
-  }
-Qed.
-
-Lemma FReq_sym :
-  forall p1 p2,
-    FReq p1 p2 <-> FReq p2 p1.
-Proof.
-  intros.
-  split.
-  intro.
-  unfolds FReq.
-  intro.
-  specialize (H rn).
-  simpljoin1; eauto.
-  unfolds FReq.
-  intro.
-  intro.
-  specialize (H rn).
-  simpljoin1; eauto.
-Qed.
-  
 Lemma asrt_lift_nth_stable :
   forall n p s,
     s |= p ->
     s |= asrt_get_nth n p ** asrt_rm_nth n p.
-Proof. 
+Proof.
   intro n.
   induction n; intros.
   -
@@ -443,8 +287,7 @@ Proof.
         try solve [eapply astar_emp_intro_l; eauto].
     specialize (IHn p2).
     eapply astar_subst2 in H; eauto.
-    eapply sep_star_lift in H; eauto. 
-    eapply FReq_get_rm_stable; eauto.
+    eapply sep_star_lift in H; eauto.
 Qed.
 
 Lemma asrt_lift_nth_stable_rev :
@@ -474,8 +317,6 @@ Proof.
     specialize (IHn p2).
     eapply sep_star_lift in H.
     eapply astar_subst2 in H; eauto.
-    eapply FReq_sym; eauto.
-    eapply FReq_get_rm_stable.
 Qed.
 
 Ltac simpl_sep_liftn_in H t :=
@@ -515,77 +356,6 @@ Fixpoint asrt_combine_to_line (p1 : asrt) (p2 : asrt) (n : nat) :=
   | _ => p1 ** p2
   end.
 
-Lemma FR_combine_to_line_stable :
-  forall p1 p2 rn n,
-    FR rn (asrt_combine_to_line p1 p2 n) ->
-    FR rn (p1 ** p2).
-Proof.
-  intro p1.
-  induction p1; intros; simpl;
-    try solve [destruct n; simpl in H; try destruct H; tryfalse; eauto].
-
-  destruct n.
-  {
-    simpl in H.
-    eauto.
-  }
-  {
-    simpl in H.
-    destruct H; eauto.
-    eapply IHp1_2 in H.
-    simpl in H.
-    destruct H; eauto.
-  }
-Qed.
-
-Lemma FR_combine_to_line_stable_rev :
-  forall p1 p2 rn n,
-    FR rn (p1 ** p2) ->
-    FR rn (asrt_combine_to_line p1 p2 n).
-Proof.
-  intro p1.
-  induction p1; intros; simpl;
-    try solve [simpls; destruct H; tryfalse; eauto].
-
-  {
-    destruct n.
-    eauto.
-    simpl in H.
-    rewrite or_assoc in H.
-    destruct H; simpl; eauto.
-  }
-
-  simpl; eauto.
-  simpl; eauto.
-Qed.
-  
-Lemma regdisj_combine_to_line_stable :
-  forall p1 p2 p3 n,
-    regdisj p1 (p2 ** p3) ->
-    regdisj p1 (asrt_combine_to_line p2 p3 n).
-Proof.
-  intros.
-  unfolds regdisj.
-  intro.
-  specialize (H rn).
-  simpljoin1.
-  split.
-  {
-    intro.
-    eapply H in H1.
-    intro.
-    eapply H1.
-    eapply FR_combine_to_line_stable; eauto.
-  }
-  {
-    intro.
-    intro.
-    eapply FR_combine_to_line_stable in H1.
-    eapply H0 in H1.
-    tryfalse.
-  }
-Qed.
-  
 Lemma asrt_combine_to_line_stable :
   forall n p1 p2 s,
     s |= p1 ** p2 ->
@@ -595,55 +365,34 @@ Proof.
   induction n; intros.
   -
     destruct p1; simpls; eauto.
-  - 
+  -
     destruct p1;
       try solve [simpls; eauto].
     simpl.
     sep_star_split_tac.
     simpl in H1, H3.
     simpljoin1.
-    exists (m1, (r2, f2), d2) (merge m2 m0, (r2, f2), d2).
-    split; eauto.
-    repeat (split; eauto).
+    exists (m1, (r1, f2), d2) (merge m2 m0, (merge r2 r0, f2), d2).
+    simpl; repeat (split; eauto).
     eapply disj_sep_merge_still; eauto.
     eapply disj_sym in H3.
     eapply disj_merge_disj_sep1 in H3; eauto.
     eapply disj_sym; eauto.
-    rewrite merge_assoc; eauto.
-    split; eauto.
-    split.
-    eapply IHn; eauto. 
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_sym in H4; eauto.
+    eapply disj_merge_disj_sep1 in H4; eauto.
+    eapply disj_sym; eauto.
+    do 2 rewrite merge_assoc; eauto.
+    eapply IHn; eauto.
     simpl.
     do 2 eexists.
-    split; eauto.
-    Focus 2. 
-    split; eauto.
-    split; eauto.
-    eapply regdisj_star_sepl2 in H4.
-    eauto.
-    simpl. 
-    repeat (split; eauto).
+    simpl; repeat (split; eauto).
     eapply disj_sym in H3.
-    eapply disj_merge_disj_sep2 in H3.
+    eapply disj_merge_disj_sep2 in H3; eauto.
     eapply disj_sym; eauto.
-    eapply regdisj_star_sepl1 in H4.
-    assert (regdisj p1_1 (p1_2 ** p2)).
-    eapply regdisj_star_merge; eauto.
-    eapply regdisj_combine_to_line_stable; eauto.
-Qed.
-
-Lemma FReq_combine_to_line_stable :
-  forall p1 p2 n,
-    FReq (p1 ** p2) (asrt_combine_to_line p1 p2 n).
-Proof.
-  intros.
-  unfolds FReq.
-  intros.
-  split; eauto.
-  intro.
-  eapply FR_combine_to_line_stable_rev; eauto.
-  intro.
-  eapply FR_combine_to_line_stable; eauto.
+    eapply disj_sym in H4.
+    eapply disj_merge_disj_sep2 in H4; eauto.
+    eapply disj_sym; eauto.
 Qed.
 
 Lemma asrt_combine_to_line_stable_rev :
@@ -661,8 +410,6 @@ Proof.
     simpl asrt_combine_to_line in H.
     eapply astar_assoc_intro; eauto.
     eapply astar_subst2; eauto.
-    eapply FReq_sym; eauto.
-    eapply FReq_combine_to_line_stable; eauto.
 Qed.
 
 Inductive asrtTree : Type :=
@@ -747,74 +494,7 @@ Proof.
     rewrite IHp1_1; eauto.
     rewrite app_assoc; eauto.
 Qed.
-
-Lemma FR_lst_to_asrt_app_stable1 :
-  forall l1 l2 rn,
-    FR rn (list_to_asrt l1) ->
-    FR rn (list_to_asrt (l1 ++ l2)).
-Proof.
-  intro l1.
-  induction l1; intros.
-  -
-    simpls; tryfalse.
-  -
-    simpl in H.
-    simpl.
-    destruct H; eauto.
-Qed.
-
-Lemma FR_lst_to_asrt_app_stable2 :
-  forall l1 l2 rn,
-    FR rn (list_to_asrt l2) ->
-    FR rn (list_to_asrt (l1 ++ l2)).
-Proof.
-  intro l1.
-  induction l1; intros.
-  -
-    simpls; eauto.
-  -
-    simpl.
-    eauto.
-Qed.
-
-Lemma FR_lst_to_asrt_app_stable_rev :
-  forall l1 l2 rn,
-    FR rn (list_to_asrt (l1 ++ l2)) ->
-    FR rn (list_to_asrt l1) \/ FR rn (list_to_asrt l2).
-Proof.
-  intro l1.
-  induction l1; intros.
-  -
-    simpls; eauto.
-  -
-    simpls.
-    destruct H; eauto.
-    eapply IHl1 in H.
-    destruct H; eauto.
-Qed.
-
-Lemma FReq_list_to_asrt_stable :
-  forall l1 l2,
-    FReq (list_to_asrt l1 ** list_to_asrt l2) (list_to_asrt (l1 ++ l2)).
-Proof.
-  intros.
-  unfolds FReq.
-  intro.
-  split.
-  {
-    intro.
-    simpls.
-    destruct H.
-    eapply FR_lst_to_asrt_app_stable1; eauto.
-    eapply FR_lst_to_asrt_app_stable2; eauto.
-  }
-  {
-    intro.
-    simpl.
-    eapply FR_lst_to_asrt_app_stable_rev; eauto.
-  }
-Qed.
-  
+    
 Lemma list_asrt_app :
   forall l1 l2 s,
     s |= list_to_asrt l1 ** list_to_asrt l2 ->
@@ -827,9 +507,8 @@ Proof.
     eapply astar_emp_elim_l; eauto.
   -
     simpls list_to_asrt.
-    eapply astar_assoc_elim in H. 
+    eapply astar_assoc_elim in H.
     eapply astar_subst2; eauto.
-    eapply FReq_list_to_asrt_stable; eauto.
 Qed.
 
 Lemma list_asrt_app_rev :
@@ -846,8 +525,6 @@ Proof.
     simpls list_to_asrt.
     eapply astar_assoc_intro; eauto.
     eapply astar_subst2; eauto.
-    eapply FReq_sym.
-    eapply FReq_list_to_asrt_stable; eauto.
 Qed.
     
 Lemma l2a_a2l_stable' :

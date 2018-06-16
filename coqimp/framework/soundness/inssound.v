@@ -16,11 +16,9 @@ Unset Strict Implicit.
       
 Require Import logic. 
 Require Import soundness.
-
-(*
+ 
 Require Import lemmas.
 Require Import lemmas_ins.
-*)
 
 Require Import Coq.Logic.FunctionalExtensionality.
 

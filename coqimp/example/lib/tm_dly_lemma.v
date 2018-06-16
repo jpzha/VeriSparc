@@ -111,6 +111,18 @@ Proof.
   intros; simpl; eauto.
 Qed.
 
+Theorem Regs_TimeReduce :
+  forall fmo fml fmi p,
+    TimReduce (Regs fmo fml fmi ** p) = Regs fmo fml fmi ** (TimReduce p).
+Proof.
+  intros.
+  simpl.
+  unfold Regs, OutRegs, LocalRegs, InRegs.
+  destruct fmo, fml, fmi.
+  simpl.
+  eauto.
+Qed.
+  
 Theorem GenRegs_TimeReduce :
   forall grst p,
     TimReduce (GenRegs grst ** p) = GenRegs grst ** (TimReduce p).
@@ -199,8 +211,19 @@ Proof.
   intros; eauto.
 Qed.
 
+Theorem tmreduce_TimReduce :
+  forall p,
+    TimReduce (p ↓) = (TimReduce p) ↓.
+Proof.
+  intros.
+  simpls.
+  eauto.
+Qed.
+
 Ltac TimReduce_simpl_bas :=
   match goal with
+  | |- context [TimReduce (Regs ?fmo ?fml ?fmi ** ?p)] =>
+    rewrite Regs_TimeReduce; TimReduce_simpl_bas
   | |- context [TimReduce (GenRegs ?grst ** ?p)] =>
     rewrite GenRegs_TimeReduce; TimReduce_simpl_bas
   | |- context [TimReduce (GenRegs_rm_one ?grst ?rr ** ?p)] =>
@@ -223,6 +246,8 @@ Ltac TimReduce_simpl_bas :=
     rewrite disj_TimeReduce; TimReduce_simpl_bas
   | |- context [TimReduce (?p1 ** ?p2)] =>
     rewrite astar_TimReduce; TimReduce_simpl_bas
+  | |- context [TimReduce (?p ↓)] =>
+    rewrite tmreduce_TimReduce; TimReduce_simpl_bas
   | _ => simpl TimReduce
   end.
 
@@ -241,6 +266,10 @@ Ltac TimReduce_simpl_in_bas H :=
   match type of H with
   | _ |= ?p =>
     match p with
+    | context [TimReduce (Regs ?fmo ?fml ?fmi ** ?p)] =>
+      rewrite Regs_TimeReduce in H; TimReduce_simpl_in_bas H
+    | context [TimReduce (GenRegs ?grst ** ?p)] =>
+      rewrite GenRegs_TimeReduce in H; TimReduce_simpl_bas H
     | context [(?rn |=> ?v ** ?p) ↓] =>
       rewrite RegSt_TimeReduce in H; TimReduce_simpl_in_bas H
     | context [(?l |-> ?v ** ?p) ↓] =>
@@ -255,6 +284,8 @@ Ltac TimReduce_simpl_in_bas H :=
       rewrite conj_TimeReduce in H; TimReduce_simpl_in_bas H
     | context [(?p1 \\// ?p2) ↓] =>
       rewrite disj_TimeReduce in H; TimReduce_simpl_in_bas H
+    | context [TimReduce (?p ↓)] =>
+      rewrite tmreduce_TimReduce in H; TimReduce_simpl_bas H
     | _ => simpl TimReduce in H
     end
   end.

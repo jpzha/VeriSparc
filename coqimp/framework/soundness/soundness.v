@@ -53,10 +53,10 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
           exists fp fq L r,
             pc2 = f /\ npc2 = f +ᵢ ($ 4) /\
             Spec f = Some (fp, fq) /\ S2 |= (fp L) ** r /\
-            DlyGenRegFree r /\
+            DlyFrameFree r /\
             (forall S', S' |= (fq L) ** r ->
                         safety_insSeq C S' (pc +ᵢ ($ 8)) (pc +ᵢ ($ 12)) q Spec) /\
-            (forall S', S' |= fq L -> get_R (getregs S') r15 = pc)
+            (forall S', S' |= fq L -> get_R (getregs S') r15 = Some pc)
         )
     ) ->
     safety_insSeq C S pc npc q Spec
@@ -75,7 +75,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         (
           exists fp fq L r,
             Spec pc2 = Some (fp, fq) /\ S2 |= (fp L) ** r /\ (fq L) ** r ==> q /\
-            DlyGenRegFree r /\ npc2 = pc2 +ᵢ ($ 4)
+            DlyFrameFree r /\ npc2 = pc2 +ᵢ ($ 4)
         )
     ) ->
     safety_insSeq C S pc npc q Spec
@@ -92,13 +92,13 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         P__ C (S, pc, npc) (S1, pc1, npc1) ->
         P__ C (S1, pc1, npc1) (S2, pc2, npc2) ->
         (
-          exists v, get_R (getregs S) z = v /\
+          exists v, get_R (getregs S) z = Some v /\
           (
             v <> ($ 0) ->
             (
               exists fp fq L r,
                 Spec pc2 = Some (fp, fq) /\ S2 |= (fp L) ** r /\
-                (fq L ** r) ==> q /\ DlyGenRegFree r /\ npc2 = pc2 +ᵢ ($ 4)
+                (fq L ** r) ==> q /\ DlyFrameFree r /\ npc2 = pc2 +ᵢ ($ 4)
             )
           ) /\
           ( 
@@ -121,13 +121,13 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         P__ C (S, pc, npc) (S1, pc1, npc1) ->
         P__ C (S1, pc1, npc1) (S2, pc2, npc2) ->
         (
-          exists v, get_R (getregs S) z = v /\
+          exists v, get_R (getregs S) z = Some v /\
           (
             v = ($ 0) ->
             (
               exists fp fq L r,
                 Spec pc2 = Some (fp, fq) /\ S2 |= (fp L) ** r /\
-                (fq L ** r) ==> q /\ DlyGenRegFree r /\ npc2 = pc2 +ᵢ ($ 4)
+                (fq L ** r) ==> q /\ DlyFrameFree r /\ npc2 = pc2 +ᵢ ($ 4)
             )
           ) /\
           ( 
@@ -138,7 +138,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
     ) ->
     safety_insSeq C S pc npc q Spec
 
-| ret_seq : forall C S pc npc q Spec,
+| retl_seq : forall C S pc npc q Spec,
     C pc = Some (cretl) ->
     (
       exists S1 S2 pc1 npc1 pc2 npc2,
@@ -152,7 +152,28 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         (
           S2 |= q /\
           (exists f,
-              get_R (getregs S2) r15 = f /\
+              get_R (getregs S2) r15 = Some f /\
+              pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
+          )
+        )
+    ) ->
+    safety_insSeq C S pc npc q Spec
+
+| ret_seq : forall C S pc npc q Spec,
+    C pc = Some (cret) ->
+    (
+      exists S1 S2 pc1 npc1 pc2 npc2,
+        P__ C (S, pc, npc) (S1, pc1, npc1) /\
+        P__ C (S1, pc1, npc1) (S2, pc2, npc2)
+    ) ->
+    (
+      forall S1 S2 pc1 npc1 pc2 npc2,
+        P__ C (S, pc, npc) (S1, pc1, npc1) ->
+        P__ C (S1, pc1, npc1) (S2, pc2, npc2) ->
+        (
+          S2 |= q /\
+          (exists f,
+              get_R (getregs S2) r15 = Some f /\
               pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
           )
         )
@@ -247,6 +268,24 @@ Inductive safety : nat -> CodeHeap -> State -> Label -> Label -> asrt -> nat -> 
     ) ->
     (
       C pc = Some (cretl) ->
+      (
+        (
+          exists S1 S2 pc1 npc1 pc2 npc2,
+            P__ C (S, pc, npc) (S1, pc1, npc1) /\ P__ C (S1, pc1, npc1) (S2, pc2, npc2)
+        ) /\
+        (
+          forall S1 S2 pc1 pc2 npc1 npc2,
+            P__ C (S, pc, npc) (S1, pc1, npc1) ->
+            P__ C (S1, pc1, npc1) (S2, pc2, npc2) ->
+            (
+              (Nat.eqb k 0 = true /\ S2 |= q) \/
+              (Nat.eqb k 0 = false /\ safety n C S2 pc2 npc2 q (Nat.pred k))
+            )
+        )
+      )
+    ) ->
+    (
+      C pc = Some (cret) ->
       (
         (
           exists S1 S2 pc1 npc1 pc2 npc2,

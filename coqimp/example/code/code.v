@@ -150,3 +150,10 @@ Definition Caller : InsSeq :=
   add g0 (Or o0) l0 ;;
   retl ;;
   nop.
+
+Definition sum3_1 : InsSeq :=
+  save sp (Ow (Int.neg ($ 64))) sp ;;
+  add i0 (Or i1) l7 ;;
+  add l7 (Or i2) l7 ;;
+  ret ;;
+  restore l7 (Ow ($ 0)) o0.

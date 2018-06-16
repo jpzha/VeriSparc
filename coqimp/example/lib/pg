@@ -1,5 +1,5 @@
 ROOT=../../
-RELATIVE=example/lib/
+RELATIVE=contextswitch/lib/
 
 cd ${ROOT}
 sh pg ${RELATIVE}$1
