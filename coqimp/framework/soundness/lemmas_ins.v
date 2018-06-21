@@ -1,4 +1,4 @@
-Require Import Coqlib.   
+Require Import Coqlib.    
 Require Import Maps.  
 Require Import LibTactics.
 
@@ -1167,7 +1167,7 @@ Qed.
 
 Lemma dlyfrmfree_notin_changeDly_still :
   forall p M R F D (rsp : SpReg) v n,
-    (M, (R, F), D) |= p -> DlyFrameFree p ->
+    (M, (R, F), D) |= p ->
     ~ indom rsp R ->
     (M, (R, F), (n, rsp, v) :: D) |= p.
 Proof.
@@ -1181,31 +1181,66 @@ Proof.
     simpljoin1.
     repeat (split; eauto).
     intro.
-    eapply H3.
+    eapply H2. 
     unfolds regInDlyBuff.
     destruct r; tryfalse.
     assert (rsp <> s).
     {
-      clear - H1.
+      clear - H0.
       intro.
-      eapply H1.
+      eapply H0.
       subst.
       eapply regset_l_l_indom; eauto.
     }
-    clear - H H0.
+    clear - H H1.
     unfolds set_delay.
     simpls.
     destruct H; subst; tryfalse; eauto.
 
   -
-    simpl in H0.
+    simpls.
+    simpljoin1.
+    eexists.
+    repeat (split; eauto).
+    destruct H2.
+    {
+      left.
+      eapply regdlySt_dlycons_stable; eauto.
+      intro.
+      subst.
+      eapply H0.
+      unfold indom.
+      eexists.
+      unfold RegMap.set.
+      destruct_rneq.
+    }
+    {
+      right.
+      unfolds regSt.
+      simpls.
+      simpljoin1.
+      repeat (split; eauto).
+      intro.
+      eapply H2.
+      destruct H1; eauto.
+      subst.
+      false.
+      eapply H0.
+      unfold indom.
+      eexists.
+      unfold RegMap.set.
+      destruct_rneq.
+    }
+ 
+  -  
+    simpl in H.
     simpls.
     simpljoin1.
     exists x ((S n, rsp, v) :: x0).
     simpls.
     rewrite H.
     split; eauto.
-    lets Ht : H1.
+    lets Ht : H0.
     eapply notindom_after_exedly_pre_still in Ht; eauto.
     eapply IHp; eauto.
     
@@ -1219,12 +1254,12 @@ Proof.
     simpljoin1.
     simpl.
     destruct H; eauto.
-
+ 
   -
     simpl in H0.
     simpljoin1.
     sep_star_split_tac.
-    simpl in H6.
+    simpl in H4.
     simpljoin1.
     simpl.
     exists (m, (r, f0), (n, rsp, v) :: d0) (m0, (r0, f0), (n, rsp, v) :: d0).
@@ -1232,17 +1267,16 @@ Proof.
     repeat (split; eauto).
     eapply IHp1; eauto.
     intro.
-    eapply H1.
+    eapply H0.
     eapply indom_merge_still; eauto.
     eapply IHp2; eauto.
     intro.
-    eapply H1.
+    eapply H0.
     eapply indom_merge_still2; eauto.
 
-  -
+  - 
     simpl in H0, H1.
     simpljoin1.
-    specialize (H1 x).
     simpl.
     exists x.
     eauto.
@@ -1752,10 +1786,21 @@ Proof.
   eapply regst_precise; eauto.
 Qed.
 
+Lemma getR_some_indom :
+  forall R rn v,
+    get_R R rn = Some v ->
+    indom rn R.
+Proof.
+  intros.
+  unfolds get_R.
+  unfold indom.
+  destruct (R rn) eqn:Heqe; eauto.
+Qed.
+
 (*+ Lemmas for exe-delay +*)
 Lemma dlyfrmfree_changeFrm_stable :
-  forall p M R F F' D,
-    DlyFrameFree p ->
+  forall p M (R : RegFile) F F' D,
+    ~ indom cwp R ->
     (M, (R, F), D) |= p ->
     (M, (R, F'), D) |= p.
 Proof.  
@@ -1763,16 +1808,45 @@ Proof.
   induction p; intros; simpls; eauto; tryfalse.
 
   simpljoin1.
+  eexists.
+  repeat (split; eauto).
+  destruct H2.
+  left. 
+  eapply regdlySt_dlyls_relevent; eauto.
+  eauto.
+      
+  simpljoin1.
   do 2 eexists; eauto.
-  
-  simpljoin1. 
-  eapply IHp1 in H0; eauto.
+  split; eauto.
+  eapply IHp; eauto.
+  intro.
+  eapply H.
+  symmetry in H0.
+  eapply exe_delay_dom_eq in H0; eauto.
+  unfold dom_eq in *.
+  simpljoin1; eauto.
+  eapply H0; eauto.
 
+  simpljoin1; eauto.
+  unfolds regSt.
+  simpljoin1.
+  simpls.
+  subst.
+  false.
+  eapply H.
+  unfold indom.
+  eexists.
+  unfold RegMap.set.
+  destruct_rneq.
+
+  simpljoin1; eauto.
+  simpljoin1; eauto.
+   
   simpljoin1.
   destruct H0.
   eapply IHp1 in H0; eauto.
   eapply IHp2 in H0; eauto.
-
+ 
   simpljoin1.
   destruct x, x0.
   destruct p, p0.
@@ -1782,10 +1856,17 @@ Proof.
   exists (m, (r, F'), d0) (m0, (r0, F'), d0).
   simpl.
   repeat (split; eauto).
- 
+  eapply IHp1; eauto.
+  intro.
+  eapply H.
+  eapply indom_merge_still; eauto.
+  eapply IHp2; eauto.
+  intro.
+  eapply H.
+  eapply indom_merge_still2; eauto.
+   
   simpljoin1.
   exists x.
-  specialize (H0 x).
   eauto.
 Qed.
 
@@ -3364,7 +3445,7 @@ Qed.
 
 Lemma ins_safety_property :
   forall s1 s1' s2 s i r,
-    state_union s1 s2 s -> (Q__ s1 (cntrans i) s1') -> s2 |= r -> DlyFrameFree r ->
+    state_union s1 s2 s -> (Q__ s1 (cntrans i) s1') -> s2 |= r ->
     exists s' s2', Q__ s (cntrans i) s' /\ state_union s1' s2' s' /\ s2' |= r.
 Proof.
   intros.
@@ -3377,12 +3458,12 @@ Proof.
   
   - (* ld *) 
     inversion H0; subst.
-    inversion H8; subst. 
+    inversion H7; subst. 
     destruct s2, p, r0.
-    simpl in H.
+    simpl in H. 
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3.
+    simpl in H2.
     simpljoin1.
     simpls.
     subst.
@@ -3398,12 +3479,12 @@ Proof.
 
   - (* st *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3419,12 +3500,12 @@ Proof.
 
   - (* nop *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3436,12 +3517,12 @@ Proof.
   
   - (* add *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3457,12 +3538,12 @@ Proof.
 
   - (* sub *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3478,12 +3559,12 @@ Proof.
 
   - (* subcc *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3508,12 +3589,12 @@ Proof.
 
   - (* and *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3529,12 +3610,12 @@ Proof.
 
   - (* andcc *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3559,12 +3640,12 @@ Proof.
 
   - (* or *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3580,12 +3661,12 @@ Proof.
 
   - (* sll *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3601,12 +3682,12 @@ Proof.
 
   - (* srl *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3622,12 +3703,12 @@ Proof.
 
   - (* set *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3641,12 +3722,12 @@ Proof.
     
   - (* Save *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls.
     subst.
@@ -3660,27 +3741,35 @@ Proof.
     eapply fetch_disj_merge_still1; eauto.
     eapply indom_merge_still; eauto.
     eapply eval_opexp_merge_still; eauto.
-    simpl.
+    simpl. 
     rewrite <- indom_setR_merge_eq1; eauto.
     rewrite <- indom_setR_merge_eq1; eauto.
     erewrite fetch_some_set_win_merge_eq; eauto.
     eapply indom_setwin_still; eauto.
     unfold indom.
-    clear - H9.
+    clear - H8.
     unfolds get_R.
     destruct (R cwp); eauto.
     eapply indom_setR_still; eauto.
-    eapply indom_setwin_still; eauto.
+    eapply indom_setwin_still; eauto. 
     eapply dlyfrmfree_changeFrm_stable; eauto.
-
+    clear - H6 H8.
+    intro.  
+    eapply indom_m2_disj_notin_m1 with (l := cwp) in H6; eauto.
+    eapply H6.
+    eapply indom_setR_still; eauto.
+    eapply indom_setR_still; eauto.
+    eapply indom_setwin_still; eauto.
+    eapply getR_some_indom; eauto.
+     
   - (* Restore *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3. 
+    simpl in H2. 
     simpljoin1.
     simpls. 
     subst.
@@ -3699,22 +3788,30 @@ Proof.
     rewrite <- indom_setR_merge_eq1; eauto. 
     erewrite fetch_some_set_win_merge_eq; eauto.
     eapply indom_setwin_still; eauto.
-    unfold indom.
-    clear - H9.
+    unfold indom. 
+    clear - H8.
     unfolds get_R.
     destruct (R cwp); eauto.
     eapply indom_setR_still; eauto.
     eapply indom_setwin_still; eauto.
     eapply dlyfrmfree_changeFrm_stable; eauto.
-
+    clear - H6 H8.
+    intro.  
+    eapply indom_m2_disj_notin_m1 with (l := cwp) in H6; eauto.
+    eapply H6.
+    eapply indom_setR_still; eauto.
+    eapply indom_setR_still; eauto.
+    eapply indom_setwin_still; eauto.
+    eapply getR_some_indom; eauto.
+    
   - (* rd *)
     inversion H0; subst.
-    inversion H8; subst.
+    inversion H7; subst.
     destruct s2, p, r0.
     simpl in H.
     simpljoin1.
     destruct s2', p, r1.
-    simpl in H3.
+    simpl in H2.
     simpljoin1.
     simpls.
     subst.
@@ -3729,7 +3826,7 @@ Proof.
 
   - (* wr *)
     inversion H0; subst.
-    inversion H8.
+    inversion H7.
     destruct s2, p, r0.
     destruct s2', p, r1.
     simpls.
@@ -3746,7 +3843,7 @@ Proof.
 
   - (* getcwp *)
     inversion H0; subst.
-    inversion H8.
+    inversion H7.
     destruct s2, p, r0.
     destruct s2', p, r1.
     simpls.
@@ -3764,7 +3861,7 @@ Qed.
 Lemma program_step_safety_property :
   forall s1 s1' s2 s r pc pc' npc npc' C,
     state_union s1 s2 s -> (P__ C (s1, pc, npc) (s1', pc', npc')) ->
-    s2 |= r -> DlyFrameFree r ->
+    s2 |= r -> 
     exists s' s2',
       P__ C (s, pc, npc) (s', pc', npc') /\ state_union s1' s2' s' /\
       s2' |= r.
@@ -3776,19 +3873,19 @@ Proof.
   simpl in H.
   simpljoin1.
   inversion H0; subst.
-  eapply exe_delay_safety_property in H7; eauto.
+  eapply exe_delay_safety_property in H6; eauto.
   simpljoin1.
   rename x into R1'.
-  inversion H15; subst.
+  inversion H14; subst.
   - (** NTrans ins *)
-    eapply ins_safety_property in H17; eauto.
+    eapply ins_safety_property in H16; eauto.
     simpljoin1.
     destruct_state x.
     destruct_state x0.
     do 2 eexists.
     split.
     econstructor.
-    eapply H5.
+    eapply H4.
     eapply NTrans; eauto.
     split; eauto.
     simpl.

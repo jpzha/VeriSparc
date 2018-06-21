@@ -760,6 +760,18 @@ Proof.
   rewrite Heqe1; eauto.
 Qed.
 
+Lemma RegMap_set_eq :
+  forall (R : RegFile) s w1 w2,
+    RegMap.set s (Some w1) R = RegMap.set s (Some w2) R ->
+    w1 = w2.
+Proof.
+  intros.
+  eapply equal_f_dep with (x := s) in H.
+  unfolds RegMap.set.
+  destruct_rneq_H.
+  inversion H; eauto.
+Qed.
+
 (*+ Lemmas about Sep Star +*)
 Lemma sep_star_split :
   forall s p1 p2,
@@ -1644,6 +1656,45 @@ Proof.
   repeat (split; eauto).
 Qed.
 
+Lemma regdly_inDuff_eq :
+  forall t M R F D s w t' w0,
+    regdlySt t s w (M, (R, F), (t', s, w0) :: D) ->
+    w = w0.
+Proof.
+  intro t.
+  induction t; intros.
+  -
+    simpls.
+    unfolds inDlyBuff.
+    simpls.
+    simpljoin1.
+    destruct H.
+    inversion H; subst; eauto.
+    unfolds noDup.
+    simpls.
+    destruct (sep_reg_dec s s); tryfalse.
+    eapply dlyitem_in_dlyls_reg_in in H.
+    tryfalse.
+  -
+    simpl in H.
+    destruct H.
+    {
+      unfolds inDlyBuff.
+      simpls.
+      simpljoin1.
+      destruct H.
+      simpljoin1; eauto.
+      unfolds noDup.
+      simpls.
+      destruct (sep_reg_dec s s); tryfalse.
+      eapply dlyitem_in_dlyls_reg_in in H.
+      tryfalse.
+    }
+    {
+      eauto.
+    }
+Qed.
+
 Lemma regdlySt_dlycons_stable :
   forall t t0 s s0 w w0 M R F D,
     regdlySt t s w (M, (R, F), D) -> s <> s0 ->
@@ -2123,6 +2174,230 @@ Proof.
       eauto.
     }
 Qed.
+
+Lemma dly_reduce_rmdly_regdly :
+  forall D D' M (R R' : RegFile) F t (s : SpReg) w,
+    (M, (R, F), D) |= t @ s |==> w -> (R', D') = exe_delay R D ->
+    (M, (R', F), D') |= t @ s |==> w.
+Proof.
+  intro D.
+  induction D; intros.
+  -
+    simpl in H0.
+    simpljoin1.
+    eauto.
+  -
+    destruct a, p.
+    destruct d.
+    {
+      simpl in H0.
+      destruct (exe_delay R D) eqn:Heqe.
+      inversion H0; subst.
+      symmetry in Heqe.
+      destruct (sep_reg_dec s s0); subst.
+      { 
+        lets Ht : H.
+        simpl in H.
+        simpljoin1.
+        destruct H2.
+        {
+          lets Hnotdup : H.
+          eapply regdlySt_noDup in Hnotdup; eauto.
+          lets Hexe_delay : Heqe.
+          simpl in Hnotdup.
+          unfold noDup in Hnotdup.
+          simpl in Hnotdup.
+          destruct (sep_reg_dec s0 s0); tryfalse.
+          eapply regdly_inDuff_eq in H; eauto.
+          subst.
+          simpl.
+          exists w0.
+          symmetry in Heqe.
+          eapply reg_not_in_dlybuff_exe_dly_stable in Heqe; eauto.
+          subst.
+          rewrite indom_setR_eq_RegMap_set; eauto.
+          rewrite regset_twice; eauto.
+          repeat (split; eauto).
+          right.
+          unfold regSt.
+          simpl.
+          repeat (split; eauto).
+          symmetry in Hexe_delay.
+          eapply not_in_exe_dly_stable in Hexe_delay; eauto.
+          eapply regset_l_l_indom; eauto.
+        }
+        {
+          unfolds regSt.
+          simpl in H.
+          simpljoin1.
+          false.
+          eapply H1; eauto.
+        }
+      }
+      {
+        lets Ht : H.
+        simpl in H.
+        simpljoin1.
+        destruct H2.
+        {
+          eapply regdlySt_noteq_cons_remove in H; eauto.
+          eapply IHD; eauto.
+          simpl. 
+          exists x.
+          repeat (split; eauto).
+          symmetry in Heqe.
+          symmetry in Heqe.
+          lets Hexe_delay : Heqe.
+          eapply exe_delay_dom_eq in Heqe.
+          unfold dom_eq in *.
+          rewrite not_indom_set_R_stable; eauto.
+          clear - Heqe n.
+          intro.
+          simpljoin1.
+          eapply H1 in H.
+          unfold indom in *.
+          simpljoin1.
+          unfolds RegMap.set.
+          destruct_rneq_H.
+        }
+        {
+          unfolds regSt.
+          simpl in H.
+          simpljoin1.
+          simpl.
+          eapply RegMap_set_eq in H.
+          subst.
+          exists w. 
+          repeat (split; eauto).
+          symmetry in Heqe.
+          eapply reg_not_in_dlybuff_exe_dly_stable in Heqe; eauto.
+          subst.
+          rewrite not_indom_set_R_stable; eauto.
+          clear - H1.
+          intro.
+          unfold indom in *.
+          simpljoin1.
+          unfolds RegMap.set.
+          destruct_rneq_H.
+          eapply H1; eauto.
+          left.
+          inversion e; subst.
+          eauto.
+          lets Hexe_delay : Heqe.
+          symmetry in Heqe.
+          eapply reg_not_in_dlybuff_exe_dly_stable in Heqe; eauto.
+          subst.
+          right.
+          unfold regSt.
+          simpl. 
+          repeat (split; eauto).
+          rewrite not_indom_set_R_stable; eauto.
+          clear - H1.
+          intro.
+          unfold indom in *.
+          simpljoin1.
+          unfolds RegMap.set.
+          destruct_rneq_H.
+          eapply H1.
+          inversion e; eauto.
+          symmetry in Hexe_delay.
+          eapply not_in_exe_dly_stable in Hexe_delay; eauto.
+        }
+      }
+    }
+    { 
+      simpl in H0.  
+      destruct (exe_delay R D) eqn:Hexe_dly.
+      inversion H0; subst.
+      destruct (sep_reg_dec s0 s); subst.
+      {
+        simpl in H.
+        simpljoin1.
+        destruct H2.
+        {
+          simpl.
+          exists x.
+          lets Ht : Hexe_dly.
+          eapply reg_not_in_dlybuff_exe_dly_stable in Hexe_dly; eauto.
+          subst.
+          repeat (split; eauto).
+          left.
+          eapply regdlySt_dlytim_reduce_stable in H; eauto.
+          eapply regdlySt_notin_subst_sable; eauto.
+          unfold noDup.
+          simpl.
+          destruct (sep_reg_dec s s); eauto.
+          eapply regdlySt_cons_notin in H.
+          eapply not_in_exe_dly_stable; eauto.
+          eapply regdlySt_cons_notin; eauto.
+        }
+        {
+          simpl.
+          eapply reg_not_in_dlybuff_exe_dly_stable in Hexe_dly; eauto.
+          subst.
+          exists x.
+          repeat (split; eauto).
+          right.
+          unfolds regSt.
+          simpls.
+          simpljoin1.
+          repeat (split; eauto).
+          unfolds regSt.
+          simpls.
+          simpljoin1.
+          intro.
+          eapply H1; eauto.
+        }
+      }
+      {
+        simpl in H.
+        simpljoin1.
+        destruct H2.
+        eapply regdlySt_noteq_cons_remove in H; eauto.
+        assert ((empM, (r, F), d0) |= t @ s |==> w).
+        {
+          eapply IHD; eauto.
+          simpl.
+          exists x.
+          repeat (split; eauto).
+        }
+        clear - H0 n.
+        simpls.
+        simpljoin1.
+        exists x.
+        repeat (split; eauto).
+        destruct H1; eauto.
+        left.
+        eapply regdlySt_dlycons_stable; eauto.
+        right.
+        unfolds regSt.
+        simpls.
+        simpljoin1.
+        repeat (split; eauto).
+        intro.
+        eapply H1; eauto. 
+        destruct H0; eauto; tryfalse.
+        clear - H n Hexe_dly.
+        unfolds regSt.
+        simpls.
+        simpljoin1.
+        exists x.
+        lets Ht : Hexe_dly.
+        eapply reg_not_in_dlybuff_exe_dly_stable in Hexe_dly; eauto.
+        subst.
+        repeat (split; eauto).
+        right.
+        unfold regSt.
+        simpl.
+        repeat (split; eauto).
+        intro.
+        eapply H1; eauto.
+        destruct H0; eauto.
+        eapply not_in_exe_dly_stable in Ht; eauto.
+        tryfalse.
+      }
+    }
+Qed.
     
 Lemma inregdly_exe_dly_stable :
   forall D R' D' F t (s : SpReg) w x,
@@ -2565,7 +2840,7 @@ Qed.*)
 
 Lemma dly_frm_free_exe_delay_stable :
   forall p D M R R' D' F,
-    (M, (R, F), D) |= p -> DlyFrameFree p ->
+    (M, (R, F), D) |= p ->
     exe_delay R D = (R', D') ->
     (M, (R', F), D') |= p.
 Proof.
@@ -2577,14 +2852,16 @@ Proof.
   eapply dly_reduce_Aaexp_stable; eauto.
   eapply dly_reduce_Aoexp_stable; eauto.
   eapply dly_reduce_reg_stable; eauto.
-
-  {
+  eapply dly_reduce_rmdly_regdly; eauto.
+   
+  { 
     simpls.
     simpljoin1.
-    eapply IHp in H2; eauto.
+    eapply IHp in H1; eauto.
   }
   
   eapply dly_reduce_pure_stable; eauto.
+  eapply Afrmlist_exe_delay_stable; eauto.
   simpls.
   simpljoin1.
   eauto.
@@ -2592,14 +2869,14 @@ Proof.
   simpljoin1.
   destruct H; eauto.
   sep_star_split_tac.
-  simpl in H5.
+  simpl in H4.
   simpljoin1.
   simpl in H0.
   simpljoin1.
-  eapply exe_dly_sep_split in H1; eauto.
+  eapply exe_dly_sep_split in H0; eauto.
   simpljoin1.
   eapply IHp1 in H; eauto.
-  eapply IHp2 in H4; eauto.
+  eapply IHp2 in H3; eauto.
   simpljoin1.
   simpl.
   do 2 eexists; eauto.
@@ -2940,7 +3217,7 @@ Qed.
 Lemma exe_delay_safety_property :
   forall D (R R' R1 : RegFile) M D' F r,
     (R', D') = exe_delay R D -> disjoint R R1 ->
-    (M, (R1, F), D) |= r -> DlyFrameFree r ->
+    (M, (R1, F), D) |= r ->
     exists R1', disjoint R' R1' /\ (merge R' R1', D') = exe_delay (merge R R1) D /\
            (R1', D') = exe_delay R1 D /\ (M, (R1', F), D') |= r.
 Proof.
@@ -2949,8 +3226,8 @@ Proof.
   {
     eapply exe_delay_dlyls_deterministic; eauto.
   }
-  destruct H3 as [R1' H3].
-  lets Hdom_eq : H3.
+  destruct H2 as [R1' H2].
+  lets Hdom_eq : H2.
   eapply exe_delay_dom_eq in Hdom_eq; eauto.
   exists R1'.
   lets Hmerge : H.

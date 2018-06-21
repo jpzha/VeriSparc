@@ -370,7 +370,7 @@ Inductive wf_seq : funspec -> asrt -> Label -> InsSeq -> asrt -> Prop :=
     (p ↓) ==> r15 |=> v ** p1 ->
     |- {{ (r15 |=> f ** p1) ↓ }} i {{ p2 }} ->
     p2 ==> fp L ** r -> fq L ** r ==> p'-> fq L ==> ((Or r15) ==ₑ f) ->
-    DlyFrameFree r -> wf_seq Spec p' (f +ᵢ ($ 8)) I q ->
+    wf_seq Spec p' (f +ᵢ ($ 8)) I q ->
     wf_seq Spec p f (call f' # i # I) q
 
 | retl_rule : forall p p' q f i Spec,
@@ -384,13 +384,13 @@ Inductive wf_seq : funspec -> asrt -> Label -> InsSeq -> asrt -> Prop :=
 | J_rule : forall p p1 p' q (r1 : GenReg) f f' aexp Spec fp fq L v r i,
     (p ↓) ==> aexp ==ₓ f' -> Spec f' = Some (fp, fq) ->
     (p ↓) ==> r1 |=> v ** p1 -> |- {{ (r1 |=> f ** p1) ↓ }} i {{ p' }} ->
-    p' ==> fp L ** r -> fq L ** r ==> q -> DlyFrameFree r ->
+    p' ==> fp L ** r -> fq L ** r ==> q ->
     wf_seq Spec p f (consJ aexp r1 i) q
 
 | Be_rule : forall p p' q bv Spec L f f' r i I fp fq,
     Spec f' = Some (fp, fq) ->
     p ==> z |=> bv ** Atrue -> |- {{ p ↓↓ }} i {{ p' }} ->
-    (bv =ᵢ ($ 0) = true -> wf_seq Spec p' (f +ᵢ ($ 8)) I q) -> DlyFrameFree r ->
+    (bv =ᵢ ($ 0) = true -> wf_seq Spec p' (f +ᵢ ($ 8)) I q) ->
     ((bv =ᵢ ($ 0) = false) -> ((p' ==> fp L ** r) /\ (fq L ** r ==> q))) ->
     wf_seq Spec p f (be f' # i # I) q
 
@@ -405,7 +405,7 @@ Inductive wf_seq : funspec -> asrt -> Label -> InsSeq -> asrt -> Prop :=
     wf_seq Spec Afalse f I q
 
 | Seq_frame_rule : forall p q I f Spec r,
-    wf_seq Spec p f I q -> DlyFrameFree r ->
+    wf_seq Spec p f I q ->
     wf_seq Spec (p ** r) f I (q ** r )
 
 | Ex_intro_rule : forall q f I {tp:Type} p Spec,

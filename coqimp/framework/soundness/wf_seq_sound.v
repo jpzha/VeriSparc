@@ -163,7 +163,7 @@ Proof.
     renames x to fp, x1 to L, x0 to fq, x2 to r.
     exists fp fq L r.
     repeat (split; eauto).
-
+ 
   - (** call f *)
     inversion H; subst.
     inversion H0; get_ins_diff_false.
@@ -176,7 +176,7 @@ Proof.
     exists fp fq L r.
     repeat (split; eauto).
     intros.
-    eapply H12 in H3.
+    eapply H11 in H3.
     assert (pc +ᵢ ($ 12) = (pc +ᵢ ($ 8)) +ᵢ ($ 4)).
     rewrite Int.add_assoc; eauto.
     rewrite H5.
@@ -282,7 +282,7 @@ Qed.
 
 Lemma safety_ins_seq_frame_property :
   forall I C pc q r Spec m0 m1 r0 r1 f0 d0,
-    LookupC C pc I -> (m0, (r0, f0), d0) |= r -> DlyFrameFree r ->
+    LookupC C pc I -> (m0, (r0, f0), d0) |= r ->
     disjoint m1 m0 -> disjoint r1 r0 ->
     safety_insSeq C (m1, (r1, f0), d0) pc (pc +ᵢ ($ 4)) q Spec ->
     safety_insSeq C (merge m1 m0, (merge r1 r0, f0), d0) pc (pc +ᵢ ($ 4)) (q ** r) Spec.
@@ -292,52 +292,52 @@ Proof.
 
   - (** i *)
     inversion H; subst.
-    inversion H4; get_ins_diff_false.
+    inversion H3; get_ins_diff_false.
     eapply i_seq; eauto.
     {
       simpljoin1.
       destruct_state x.
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0))
-        in H6; eauto.
+        in H5; eauto.
       simpljoin1.
       eauto.
       simpl; eauto.
     }
     { 
       simpljoin1.
-      lets Hsafety : H6.
-      eapply H7 in Hsafety.
-      destruct_state x.
-      clear H7.
+      lets Hsafety : H5.
+      eapply H6 in Hsafety.
+      destruct_state x. 
+      clear H6.
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0))
-        in H6; eauto.
+        in H5; eauto.
       simpljoin1.
       destruct_state x2.
-      simpl in H6.
+      simpl in H5.
       simpljoin1.
       intros.
-      eapply program_step_deterministic in H5; eauto.
+      eapply program_step_deterministic in H4; eauto.
       simpljoin1.
-      lets Hsetp : H11.
-      inversion H11; subst.
-      inversion H25; get_ins_diff_false.
+      lets Hsetp : H10.
+      inversion H10; subst.
+      inversion H24; get_ins_diff_false.
       eapply IHI; eauto.
       simpl; eauto.
     }
 
   - (** J1 *)
     inversion H; subst.
-    inversion H4; get_ins_diff_false.
+    inversion H3; get_ins_diff_false.
     eapply jmpl_seq; eauto. 
     simpljoin1.
-    {
+    { 
       destruct_state x.
-      eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) in H6; eauto.
+      eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) in H5; eauto.
       simpljoin1.
       destruct_state x5.
-      simpl in H6.
+      simpl in H5.
       simpljoin1.
-      eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1)) in H8; eauto.
+      eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1)) in H7; eauto.
       simpljoin1.
       do 6 eexists.
       eauto.
@@ -347,57 +347,57 @@ Proof.
     { 
       intros.
       simpljoin1.
-      lets Hp : H6.  
-      eapply H7 with (S1 := x) in Hp; eauto.
+      lets Hp : H5.  
+      eapply H6 with (S1 := x) in Hp; eauto.
       simpljoin1.
       renames x5 to fp, x6 to fq, x7 to L, x8 to r'.
       eapply program_step_safety_property with
-      (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r) in H6;
+      (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r) in H5;
         eauto.
       simpljoin1.
       destruct_state x.
       destruct_state x5.
-      simpl in H16.
+      simpl in H14.
       simpljoin1. 
       eapply program_step_safety_property with
-      (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1)) (r := r) in H12;
+      (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1)) (r := r) in H11;
         eauto.
       simpljoin1.
       destruct_state x0.
       destruct_state x4.
-      simpl in H19.
+      simpl in H17.
       simpljoin1.
-      clear H7.
-      eapply program_step_deterministic in H6; eauto.
+      clear H6.
+      eapply program_step_deterministic in H5; eauto.
       simpljoin1.
-      eapply program_step_deterministic in H12; eauto.
+      eapply program_step_deterministic in H11; eauto.
       simpljoin1. 
-      exists fp fq L (r' ** r). 
-      eapply disj_sep_star_merge with (p2 := r) in H13; eauto.
-      eapply sep_star_assoc2 in H13.
+      exists fp fq L (r' ** r).  
+      eapply disj_sep_star_merge with (p2 := r) in H12; eauto.
+      eapply sep_star_assoc2 in H12.
       repeat (split; eauto).
       intros.
-      eapply sep_star_assoc in H6.
+      eapply sep_star_assoc in H5.
       eapply sep_star_subst; eauto.
       simpl; eauto.
       simpl; eauto.
     }
 
-  - (** call f *)
-    inversion H; subst.
-    inversion H4; get_ins_diff_false.
+  - (** call f *) 
+    inversion H; subst.  
+    inversion H3; get_ins_diff_false.
     eapply call_seq; eauto.
     {
-      clear H7.
+      clear H6.
       simpljoin1.
-      eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) in H6;
+      eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) in H5;
         eauto.
       simpljoin1.
       destruct_state x.
       destruct_state x6.
-      simpl in H6.
+      simpl in H5.
       simpljoin1.
-      eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) in H7;
+      eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) in H6;
         eauto.
       simpljoin1.
       destruct_state x0.
@@ -411,48 +411,48 @@ Proof.
     }
     {
       simpljoin1.
-      lets Hp : H6.
-      eapply H7 with (S1 := x) in Hp; eauto.
-      clear H7.
+      lets Hp : H5.
+      eapply H6 with (S1 := x) in Hp; eauto.
+      clear H6.
       simpljoin1; eauto.
       renames x5 to fp, x6 to fq, x7 to L, x8 to r'.
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r)
-        in H6; eauto.
+        in H5; eauto.
       simpljoin1.
       destruct_state x.
       destruct_state x4.
-      simpl in H6.
+      simpl in H5.
       simpljoin1.
       eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) (r := r)
-        in H8; eauto.
+        in H7; eauto.
       simpljoin1.
       destruct_state x0.
       destruct_state x3.
-      simpl in H18.
+      simpl in H16.
       simpljoin1.
       intros.
-      eapply program_step_deterministic in H5; eauto.
+      eapply program_step_deterministic in H4; eauto.
       simpljoin1.
-      eapply program_step_deterministic in H8; eauto.
+      eapply program_step_deterministic in H7; eauto.
       simpljoin1.
       exists fp fq L (r' ** r).
       repeat (split; eauto).
-      eapply disj_sep_star_merge with (p2 := r) in H13; eauto.
+      eapply disj_sep_star_merge with (p2 := r) in H12; eauto.
       eapply sep_star_assoc2; eauto.
       intros.
-      eapply sep_star_assoc in H5.
-      eapply sep_star_split in H5.
+      eapply sep_star_assoc in H4.
+      eapply sep_star_split in H4.
       simpljoin1.
       destruct_state x.
       destruct_state x0.
-      simpl in H23.
+      simpl in H21.
       simpljoin1.
       assert (pc +ᵢ ($ 12) = (pc +ᵢ ($ 8)) +ᵢ ($ 4)).
       rewrite Int.add_assoc; eauto.
-      rewrite H25. 
-      eapply H15 in H5.
+      rewrite H23. 
+      eapply H13 in H4.
       eapply IHI; eauto. 
-      rewrite <- H25.
+      rewrite <- H23.
       eauto.
       simpl; eauto.
       simpl; eauto.
@@ -460,24 +460,24 @@ Proof.
 
   - (** retl *)
     inversion H; subst.
-    inversion H4; subst; get_ins_diff_false.
-    clear H H5.
+    inversion H3; subst; get_ins_diff_false.
+    clear H H4. 
     eapply retl_seq; eauto.
     {
       simpljoin1.
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0))
         in H; eauto.
-      simpljoin1.
+      simpljoin1. 
       destruct_state x.
       destruct_state x6.
-      simpl in H7.
+      simpl in H6.
       simpljoin1.
       eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1))
-        in H5; eauto.
-      simpljoin1.
+        in H4; eauto.
+      simpljoin1. 
       destruct_state x0.
       destruct_state x5.
-      simpl in H12.
+      simpl in H6.
       simpljoin1.
       do 6 eexists.
       eauto.
@@ -487,18 +487,18 @@ Proof.
     {
       simpljoin1.
       lets Hp : H.
-      eapply H8 with (S1 := x) in Hp; eauto.
+      eapply H7 with (S1 := x) in Hp; eauto.
       simpljoin1.
-      clear H8.
+      clear H7.
       eapply program_step_safety_property with
       (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r) in H; eauto.
       simpljoin1.
       destruct_state x.
       destruct_state x4.
-      simpl in H8.
+      simpl in H7.
       simpljoin1.
       eapply program_step_safety_property with
-      (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1)) (r := r) in H5; eauto.
+      (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1)) (r := r) in H4; eauto.
       simpljoin1.
       destruct_state x0.
       destruct_state x3.
@@ -508,7 +508,7 @@ Proof.
       intros.
       eapply program_step_deterministic in H; eauto.
       simpljoin1.
-      eapply program_step_deterministic in H5; eauto.
+      eapply program_step_deterministic in H4; eauto.
       simpljoin1.
       split; eauto.
       exists (m3, (r4, f2), d2) (m4, (r5, f2), d2).
@@ -524,8 +524,8 @@ Proof.
 
   - (** ret *)
     inversion H; subst.
-    inversion H4; subst; get_ins_diff_false.
-    clear H H5.
+    inversion H3; subst; get_ins_diff_false.
+    clear H H4.
     eapply ret_seq; eauto.
     {
       simpljoin1.
@@ -534,14 +534,14 @@ Proof.
       simpljoin1.
       destruct_state x.
       destruct_state x6.
-      simpl in H7.
+      simpl in H6.
       simpljoin1.
       eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1))
-        in H5; eauto.
+        in H4; eauto.
       simpljoin1.
       destruct_state x0.
       destruct_state x5.
-      simpl in H12.
+      simpl in H11.
       simpljoin1.
       do 6 eexists.
       eauto.
@@ -551,28 +551,28 @@ Proof.
     {
       simpljoin1.
       lets Hp : H.
-      eapply H8 with (S1 := x) in Hp; eauto.
+      eapply H7 with (S1 := x) in Hp; eauto.
       simpljoin1.
-      clear H8.
+      clear H7.
       eapply program_step_safety_property with
       (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r) in H; eauto.
       simpljoin1.
       destruct_state x.
       destruct_state x4.
-      simpl in H8.
+      simpl in H7.
       simpljoin1.
       eapply program_step_safety_property with
-      (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1)) (r := r) in H5; eauto.
+      (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1)) (r := r) in H4; eauto.
       simpljoin1.
       destruct_state x0.
       destruct_state x3.
-      simpl in H13.
+      simpl in H12.
       simpljoin1.
       simpls.
       intros.
       eapply program_step_deterministic in H; eauto.
       simpljoin1.
-      eapply program_step_deterministic in H5; eauto.
+      eapply program_step_deterministic in H4; eauto.
       simpljoin1.
       split; eauto.
       exists (m3, (r4, f2), d2) (m4, (r5, f2), d2).
@@ -588,11 +588,11 @@ Proof.
     
   - (** be f *)
     inversion H; subst.
-    inversion H4; subst; get_ins_diff_false.
-    clear H H5.
+    inversion H3; subst; get_ins_diff_false.
+    clear H H4.
     eapply be_seq; eauto.
     {
-      clear H7.
+      clear H6.
       simpljoin1.
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r)
         in H; eauto.
@@ -602,7 +602,7 @@ Proof.
       simpls.
       simpljoin1.
       eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) (r := r)
-        in H5; eauto.
+        in H4; eauto.
       simpljoin1.
       do 6 eexists.
       eauto.
@@ -612,8 +612,8 @@ Proof.
     {
       simpljoin1.
       lets Hp : H.
-      eapply H7 with (S1 := x) in H; eauto.
-      clear H7.
+      eapply H6 with (S1 := x) in H; eauto.
+      clear H6.
       simpljoin1.
       simpl in H.
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r)
@@ -621,19 +621,19 @@ Proof.
       simpljoin1.
       destruct_state x.
       destruct_state x7.
-      simpl in H9.
+      simpl in H8.
       simpljoin1.
       eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) (r := r)
-        in H5; eauto.
+        in H4; eauto.
       simpljoin1.
       destruct_state x0.
       destruct_state x6.
-      simpl in H15.
+      simpl in H14.
       simpljoin1.
       intros.
-      eapply program_step_deterministic in H8; eauto.
+      eapply program_step_deterministic in H7; eauto.
       simpljoin1.
-      eapply program_step_deterministic in H5; eauto.
+      eapply program_step_deterministic in H4; eauto.
       simpljoin1. 
       exists x5.
       split; eauto.
@@ -642,36 +642,36 @@ Proof.
       split.
       {
         intros.
-        eapply H6 in H5.
+        eapply H5 in H4.
         simpljoin1.
         renames x to fp, x0 to fq, x6 to L, x7 to r'.
         exists fp fq L (r' ** r).
-        repeat (split; eauto).
-        eapply disj_sep_star_merge with (p2 := r) in H8; eauto.
+        repeat (split; eauto). 
+        eapply disj_sep_star_merge with (p2 := r) in H7; eauto.
         eapply sep_star_assoc2; eauto.
         intros.
-        eapply sep_star_assoc in H22.
+        eapply sep_star_assoc in H20.
         eapply sep_star_subst; eauto.
       }
       {
         intros.
-        lets Hfalse : H5.
-        eapply H7 in H5. 
-        inversion H18; subst.   
-        inversion H33; get_ins_diff_false.
+        lets Hfalse : H4.
+        eapply H6 in H4. 
+        inversion H17; subst.   
+        inversion H32; get_ins_diff_false.
         rewrite get_R_rn_neq_r0 in H; eauto.
-        rewrite get_R_rn_neq_r0 in H35; eauto.
-        eapply regz_exe_delay_stable2 in H35; eauto.
+        rewrite get_R_rn_neq_r0 in H34; eauto.
+        eapply regz_exe_delay_stable2 in H34; eauto.
         eapply get_vl_merge_still in H; eauto.
-        rewrite H35 in H.
+        rewrite H34 in H.
         inversion H; subst.
         tryfalse.
         intro; tryfalse.
         intro; tryfalse.
-        inversion H19; subst. 
-        inversion H38; get_ins_diff_false.
+        inversion H18; subst. 
+        inversion H37; get_ins_diff_false.
         eapply IHI; eauto.
-        clear - H12.
+        clear - H11.
         rewrite Int.add_assoc; eauto.
       }
 
@@ -681,20 +681,20 @@ Proof.
 
   - (** bne aexp *)
     inversion H; subst.
-    inversion H4; subst; get_ins_diff_false.
-    clear H H5.
+    inversion H3; subst; get_ins_diff_false.
+    clear H H4.
     eapply bne_seq; eauto.
     {
-      clear H7.
+      clear H6.
       simpljoin1.
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) in H;
         eauto.
       simpljoin1.
       destruct_state x.
       destruct_state x6.
-      simpl in H6.
+      simpl in H5.
       simpljoin1.
-      eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) in H5;
+      eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) in H4;
         eauto.
       simpljoin1.
       do 6 eexists.
@@ -705,63 +705,63 @@ Proof.
     {
       simpljoin1.
       lets Hp : H.
-      eapply H7 with (S1 := x) in Hp; eauto.
-      clear H7.
+      eapply H6 with (S1 := x) in Hp; eauto.
+      clear H6.
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) in H;
         eauto.
       simpljoin1.
       destruct_state x.
       destruct_state x6.
-      simpl in H7.
-      simpljoin1.
       simpl in H6.
-      eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) in H5;
+      simpljoin1.
+      simpl in H5.
+      eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f2), d1)) in H4;
         eauto.
       simpljoin1.
       destruct_state x0.
       destruct_state x5.
-      simpl in H15.
+      simpl in H14.
       simpljoin1.
       intros.
       eapply program_step_deterministic in H; eauto.
       simpljoin1.
-      eapply program_step_deterministic in H5; eauto.
+      eapply program_step_deterministic in H4; eauto.
       simpljoin1. 
       exists x7.
       repeat (split; eauto).
       simpl.
       eapply get_R_merge_still; eauto.
       intros.
-      eapply H9 in H.
+      eapply H8 in H.
       simpljoin1.
       renames x to fp, x0 to fq, x5 to L, x6 to r'.
       exists fp fq L (r' ** r).
       repeat (split; eauto).
-      eapply disj_sep_star_merge with (p2 := r) in H5; eauto.
+      eapply disj_sep_star_merge with (p2 := r) in H4; eauto.
       eapply sep_star_assoc2; eauto.
       intros.
-      eapply sep_star_assoc in H22.
+      eapply sep_star_assoc in H20.
       eapply sep_star_subst; eauto.
 
       intros.
       lets Hfalse : H.
-      eapply H13 in H.
-      inversion H18; subst. 
-      inversion H33; get_ins_diff_false; subst.
-      rewrite get_R_rn_neq_r0 in H6; eauto. 
-      rewrite get_R_rn_neq_r0 in H35; eauto.
-      eapply regz_exe_delay_stable2 in H35; eauto.
-      eapply get_vl_merge_still in H6; eauto.
-      rewrite H6 in H35.
-      inversion H35; subst.
+      eapply H12 in H.
+      inversion H17; subst. 
+      inversion H32; get_ins_diff_false; subst.
+      rewrite get_R_rn_neq_r0 in H5; eauto. 
+      rewrite get_R_rn_neq_r0 in H34; eauto.
+      eapply regz_exe_delay_stable2 in H34; eauto.
+      eapply get_vl_merge_still in H5; eauto.
+      rewrite H5 in H34.
+      inversion H34; subst.
       tryfalse.
       intro; tryfalse.
       intro; tryfalse.
 
-      inversion H19; subst.
-      inversion H39; get_ins_diff_false.
+      inversion H18; subst.
+      inversion H38; get_ins_diff_false.
       eapply IHI; eauto.
-      clear - H12.
+      clear - H11.
       rewrite Int.add_assoc; eauto.
 
       simpl; eauto.
@@ -821,7 +821,7 @@ Proof.
       rewrite Int.add_assoc; eauto.
     }
     rewrite H9.
-    eapply H14 in H1; eauto.
+    eapply H13 in H1; eauto.
     eapply IHI; eauto.
     rewrite <- H9.
     eauto.
@@ -968,7 +968,7 @@ Proof.
     exists fp fq L r.
     repeat (split; eauto).
     intros.
-    eapply H14 in H1; eauto.
+    eapply H13 in H1; eauto.
     assert (pc +ᵢ ($ 12) = (pc +ᵢ ($ 8)) +ᵢ ($ 4)).
     rewrite Int.add_assoc; eauto.
     rewrite H9.
@@ -1119,14 +1119,14 @@ Theorem wf_seq_call_rule :
     Spec f' = Some (fp, fq) ->
     (p ↓) ==> r15 |=> v ** p1 -> ins_sound ((r15 |=> f ** p1) ↓) p2 i ->
     p2 ==> fp L ** r ->
-    fq L ** r ==> p' -> fq L ==> Or r15 ==ₑ f -> DlyFrameFree r ->
+    fq L ** r ==> p' -> fq L ==> Or r15 ==ₑ f ->
     insSeq_sound Spec p' (f +ᵢ ($ 8)) I q ->
     insSeq_sound Spec p f (call f' # i # I) q.
 Proof. 
   intros.
   unfold insSeq_sound.
   intros.
-  inversion H7; subst.
+  inversion H6; subst.
   eapply call_seq; eauto.
 
   (** progress *)
@@ -1137,7 +1137,7 @@ Proof.
   }
   simpljoin1.
   renames x to R', x0 to D'.
-  lets Hexe_delay : H9.
+  lets Hexe_delay : H8.
   symmetry in Hexe_delay.
   eapply dly_reduce_asrt_stable in Hexe_delay; eauto.
   eapply H0 in Hexe_delay.
@@ -1148,11 +1148,11 @@ Proof.
     eapply exe_delay_no_abort; eauto.
   } 
   simpljoin1.
-  lets Hexe_delay2 : H10.
+  lets Hexe_delay2 : H9.
   renames x to R'', x0 to D''.
-  symmetry in H10.
-  eapply dly_reduce_asrt_stable in H10; eauto.
-  eapply H1 in H10; eauto.
+  symmetry in H9.
+  eapply dly_reduce_asrt_stable in H9; eauto.
+  eapply H1 in H9; eauto.
   simpljoin1.
   exists (m, (set_R R' r15 f, f0), D') x (f +ᵢ ($ 4)) f' f' (f' +ᵢ ($ 4)).
   split; eauto.
@@ -1173,28 +1173,28 @@ Proof.
 
   (** preservation *)
   intros.
-  inversion H9; subst.
-  inversion H22; get_ins_diff_false.
-  clear H19.
-  inversion H10; subst. 
-  inversion H27; get_ins_diff_false.
+  inversion H8; subst.
+  inversion H21; get_ins_diff_false.
+  clear H18.
+  inversion H9; subst. 
+  inversion H26; get_ins_diff_false.
   exists fp fq L r.
   repeat (split; eauto).
-  eapply dly_reduce_asrt_stable in H17; eauto.
-  eapply H0 in H17.
-  eapply reg_vl_change with (v1 := f) in H17; eauto.
-  eapply dly_reduce_asrt_stable in H17; eauto.
-  eapply H1 in H17.
+  eapply dly_reduce_asrt_stable in H16; eauto.
+  eapply H0 in H16.
+  eapply reg_vl_change with (v1 := f) in H16; eauto.
+  eapply dly_reduce_asrt_stable in H16; eauto.
+  eapply H1 in H16.
   simpljoin1.
-  eapply ins_exec_deterministic in H25; eauto.
+  eapply ins_exec_deterministic in H24; eauto.
   simpljoin1.
   eauto.
   intros.
-  eapply H3 in H11.
-  clear - H6 H16 H11.
+  eapply H3 in H10.
+  clear - H5 H15 H10.
   unfolds insSeq_sound.
-  eapply H6 in H16; eauto.
-  rewrite Int.add_assoc in H16; eauto.
+  eapply H5 in H15; eauto.
+  rewrite Int.add_assoc in H15; eauto.
 Qed.
 
 Theorem wf_seq_retl_rule :
@@ -1376,13 +1376,13 @@ Theorem wf_seq_j1_rule :
     Spec f' = Some (fp, fq) ->
     (p ↓) ==> aexp ==ₓ f' -> (p ↓) ==> r1 |=> v ** p1 ->
     ins_sound ((r1 |=> f ** p1) ↓) p' i ->
-    p' ==> fp L ** r -> fq L ** r ==> q -> DlyFrameFree r ->
+    p' ==> fp L ** r -> fq L ** r ==> q -> 
     insSeq_sound Spec p f (consJ aexp r1 i) q.
 Proof.
   intros.
   unfold insSeq_sound.
   intros.
-  inversion H6; subst.
+  inversion H5; subst.
   eapply jmpl_seq; eauto.
 
   (** progress *)
@@ -1393,7 +1393,7 @@ Proof.
   }
   simpljoin1.
   renames x to R', x0 to D'.
-  lets Hexe_delay1 : H8.
+  lets Hexe_delay1 : H7.
   symmetry in Hexe_delay1.
   eapply dly_reduce_asrt_stable in Hexe_delay1; eauto.
   lets Haexp : Hexe_delay1.
@@ -1408,7 +1408,7 @@ Proof.
   }
   simpljoin1.
   renames x to R'', x0 to D''.
-  lets Hexe_delay2 : H9.
+  lets Hexe_delay2 : H8.
   symmetry in Hexe_delay2.
   eapply dly_reduce_asrt_stable in Hexe_delay2; eauto.
   eapply H2 in Hexe_delay2; eauto.
@@ -1437,42 +1437,42 @@ Proof.
   eapply NTrans; eauto.
 
   (** preservation *)
-  intros.
-  inversion H8; subst.
-  eapply dly_reduce_asrt_stable in H15; eauto.
-  lets Haexp : H15.
-  lets Hf1 : H15.
+  intros. 
+  inversion H7; subst.
+  eapply dly_reduce_asrt_stable in H14; eauto.
+  lets Haexp : H14.
+  lets Hf1 : H14.
   eapply H0 in Haexp.
   simpl in Haexp.
   simpljoin1.
-  inversion H20; get_ins_diff_false.
-  rewrite H10 in H30.
-  inversion H30; subst.
-  clear H30.
-  inversion H9; subst. 
-  inversion H28; get_ins_diff_false.
+  inversion H19; get_ins_diff_false.
+  rewrite H9 in H29.
+  inversion H29; subst.
+  clear H29.
+  inversion H8; subst. 
+  inversion H27; get_ins_diff_false.
   exists fp fq L r.
   repeat (split; eauto).
   eapply H1 in Hf1.
   eapply reg_vl_change with (v1 := f) in Hf1; eauto.
-  eapply dly_reduce_asrt_stable in H18; eauto.
-  eapply H2 in H18; eauto.
+  eapply dly_reduce_asrt_stable in H17; eauto.
+  eapply H2 in H17; eauto.
   simpljoin1.
-  eapply ins_exec_deterministic in H26; eauto.
+  eapply ins_exec_deterministic in H25; eauto.
   subst.
   eauto.
 Qed.
 
 Lemma wf_seq_be_rule :
   forall p p' q r f f' i fp fq L I bv Spec,
-    Spec f' = Some (fp, fq) -> DlyFrameFree r ->
+    Spec f' = Some (fp, fq) ->
     p ==> z |=> bv ** Atrue ->
     ins_sound ((p ↓) ↓) p' i ->
     (bv =ᵢ ($ 0) = false -> p' ==> fp L ** r /\ fq L ** r ==> q) ->
     (bv =ᵢ ($ 0) = true -> insSeq_sound Spec p' (f +ᵢ ($ 8)) I q) ->
     insSeq_sound Spec p f (be f'# i#I) q.
 Proof. 
-  introv H Hr.
+  introv H.
   intros.
   unfold insSeq_sound.
   intros.
@@ -1701,14 +1701,14 @@ Qed.
 
 Lemma wf_seq_bne_rule :
   forall p p' q r f f' i fp fq L I bv Spec,
-    Spec f' = Some (fp, fq) -> DlyFrameFree r ->
+    Spec f' = Some (fp, fq) -> 
     p ==> z |=> bv ** Atrue ->
     ins_sound ((p ↓) ↓) p' i ->
     (bv =ᵢ ($ 0) = true -> p' ==> fp L ** r /\ fq L ** r ==> q) ->
     (bv =ᵢ ($ 0) = false -> insSeq_sound Spec p' (f +ᵢ ($ 8)) I q) ->
     insSeq_sound Spec p f (bne f'# i#I) q.
 Proof.
-  introv H Hr.
+  introv H.
   intros.
   unfold insSeq_sound.
   intros.
@@ -1909,17 +1909,17 @@ Qed.
   
 Theorem wf_seq_frame_rule :
   forall p q r f I Spec,
-    insSeq_sound Spec p f I q -> DlyFrameFree r ->
+    insSeq_sound Spec p f I q ->
     insSeq_sound Spec (p ** r) f I (q ** r).
 Proof.
   intros.
   unfolds insSeq_sound.
-  intros.
-  lets HI : H1.
+  intros. 
+  lets HI : H0.
   sep_star_split_tac.
-  simpl in H6.
+  simpl in H5.
   simpljoin1.
-  eapply H in H2; eauto.
+  eapply H in H1; eauto.
   eapply safety_ins_seq_frame_property; eauto.
 Qed.
 
@@ -2024,7 +2024,7 @@ Proof.
     simpl in H0.
     tryfalse.
 
-  -
+  - 
     eapply wf_seq_frame_rule; eauto.
 
   -

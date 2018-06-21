@@ -53,7 +53,6 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
           exists fp fq L r,
             pc2 = f /\ npc2 = f +ᵢ ($ 4) /\
             Spec f = Some (fp, fq) /\ S2 |= (fp L) ** r /\
-            DlyFrameFree r /\
             (forall S', S' |= (fq L) ** r ->
                         safety_insSeq C S' (pc +ᵢ ($ 8)) (pc +ᵢ ($ 12)) q Spec) /\
             (forall S', S' |= fq L -> get_R (getregs S') r15 = Some pc)
@@ -75,7 +74,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         (
           exists fp fq L r,
             Spec pc2 = Some (fp, fq) /\ S2 |= (fp L) ** r /\ (fq L) ** r ==> q /\
-            DlyFrameFree r /\ npc2 = pc2 +ᵢ ($ 4)
+            npc2 = pc2 +ᵢ ($ 4)
         )
     ) ->
     safety_insSeq C S pc npc q Spec
@@ -98,7 +97,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
             (
               exists fp fq L r,
                 Spec pc2 = Some (fp, fq) /\ S2 |= (fp L) ** r /\
-                (fq L ** r) ==> q /\ DlyFrameFree r /\ npc2 = pc2 +ᵢ ($ 4)
+                (fq L ** r) ==> q /\ npc2 = pc2 +ᵢ ($ 4)
             )
           ) /\
           ( 
@@ -127,7 +126,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
             (
               exists fp fq L r,
                 Spec pc2 = Some (fp, fq) /\ S2 |= (fp L) ** r /\
-                (fq L ** r) ==> q /\ DlyFrameFree r /\ npc2 = pc2 +ᵢ ($ 4)
+                (fq L ** r) ==> q /\ npc2 = pc2 +ᵢ ($ 4)
             )
           ) /\
           ( 

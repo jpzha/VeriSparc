@@ -1841,15 +1841,15 @@ Proof.
 Qed.
 
 Lemma frame_ins_sound : forall p q r i,
-    ins_sound p q i -> DlyFrameFree r ->
+    ins_sound p q i ->
     ins_sound (p ** r) (q ** r) i.
-Proof.
+Proof. 
   unfold ins_sound.
   intros. 
-  simpl in H1.
-  destruct H1 as [s1 H1].
-  destruct H1 as [s2 H1].
-  destruct H1 as [Hunion [Hp Hr] ].
+  simpl in H0.
+  destruct H0 as [s1 H0].
+  destruct H0 as [s2 H0].
+  destruct H0 as [Hunion [Hp Hr] ].
   lets Hpp : Hp. 
   eapply H in Hpp.
   destruct Hpp as [s1' [HQ Hq] ].
