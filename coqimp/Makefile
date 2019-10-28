@@ -1,9 +1,9 @@
-COQBIN   := $${coq86bin}
+COQBIN   := $${coq89bin}
 COQC     := $(strip $(COQBIN))coqc
 COQDEP   := $(strip $(COQBIN))coqdep
 COQWC   := $(strip $(COQBIN))coqwc
 
-SUBDIRS  := framework framework/model example example/code example/lib
+SUBDIRS  := framework framework/models example example/code example/lib
 
 COQFLAGS := -R . CertiOS 
 
