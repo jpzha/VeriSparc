@@ -162,7 +162,7 @@ Qed.
 Lemma safety_call_ret :
   forall n C S pc npc q q' Spec Spec' f k,
     safety_insSeq C S pc npc q Spec ->
-    cdhp_subst Spec Spec' -> cdhp_sound Spec C Spec' -> q ==> (Or r15 ==ₑ f) ->
+    cdhp_subst Spec Spec' -> cdhp_sound Spec C Spec' -> q ==> (Or r15 ==ₑ W f) ->
     (forall S', S' |= q -> safety n C S' (f +ᵢ ($ 8)) (f +ᵢ ($ 12)) q' k) ->
     safety n C S pc npc q' (Nat.succ k).
 Proof.
@@ -185,7 +185,7 @@ Proof.
       eapply H3 in H8.
       clear - H8.
       eapply safety_Sn_safety_n; eauto.
- 
+
     + (** call f *)
       econstructor; intros; get_ins_diff_false.
       clear H7.
@@ -231,7 +231,7 @@ Proof.
       intros.
       eapply H3 in H17.
       eapply safety_Sn_safety_n; eauto.
- 
+
     + (** jumpl aexp rd *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
@@ -479,7 +479,7 @@ Proof.
       simpl.
       repeat (split; eauto).
 
-    + (** be f *) 
+    + (** be f *)
       econstructor; intros; get_ins_diff_false.
       split; eauto.
       intros.

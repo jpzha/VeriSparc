@@ -1,4 +1,4 @@
-Require Import Coqlib.             
+Require Import Coqlib.               
 Require Import Maps.      
 Require Import LibTactics.  
        
@@ -163,7 +163,7 @@ Proof.
     renames x to fp, x1 to L, x0 to fq, x2 to r.
     exists fp fq L r.
     repeat (split; eauto).
- 
+    
   - (** call f *)
     inversion H; subst.
     inversion H0; get_ins_diff_false.
@@ -350,7 +350,7 @@ Proof.
       lets Hp : H5.  
       eapply H6 with (S1 := x) in Hp; eauto.
       simpljoin1.
-      renames x5 to fp, x6 to fq, x7 to L, x8 to r'.
+      renames x5 to fp, x6 to fq, x7 to L, x8 to r'. 
       eapply program_step_safety_property with
       (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r) in H5;
         eauto.
@@ -464,7 +464,7 @@ Proof.
     clear H H4. 
     eapply retl_seq; eauto.
     {
-      simpljoin1.
+      simpljoin1. 
       eapply program_step_safety_property with (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0))
         in H; eauto.
       simpljoin1. 
@@ -473,8 +473,8 @@ Proof.
       simpl in H6.
       simpljoin1.
       eapply program_step_safety_property with (s := (m ⊎ m2, (r2 ⊎ r3, f1), d1))
-        in H4; eauto.
-      simpljoin1. 
+        in H4; eauto. 
+      simpljoin1.  
       destruct_state x0.
       destruct_state x5.
       simpl in H6.
@@ -525,7 +525,7 @@ Proof.
   - (** ret *)
     inversion H; subst.
     inversion H3; subst; get_ins_diff_false.
-    clear H H4.
+    clear H H4. 
     eapply ret_seq; eauto.
     {
       simpljoin1.
@@ -541,7 +541,7 @@ Proof.
       simpljoin1.
       destruct_state x0.
       destruct_state x5.
-      simpl in H11.
+      simpl in H12.
       simpljoin1.
       do 6 eexists.
       eauto.
@@ -558,7 +558,7 @@ Proof.
       (s := (m1 ⊎ m0, (r1 ⊎ r0, f0), d0)) (r := r) in H; eauto.
       simpljoin1.
       destruct_state x.
-      destruct_state x4.
+      destruct_state x4. 
       simpl in H7.
       simpljoin1.
       eapply program_step_safety_property with
@@ -1117,9 +1117,9 @@ Qed.
 Theorem wf_seq_call_rule :
   forall p q fp fq L f p1 p2 p' v i Spec r I f',
     Spec f' = Some (fp, fq) ->
-    (p ↓) ==> r15 |=> v ** p1 -> ins_sound ((r15 |=> f ** p1) ↓) p2 i ->
+    (p ↓) ==> r15 |=> v ** p1 -> ins_sound ((r15 |=> W f ** p1) ↓) p2 i ->
     p2 ==> fp L ** r ->
-    fq L ** r ==> p' -> fq L ==> Or r15 ==ₑ f ->
+    fq L ** r ==> p' -> fq L ==> Or r15 ==ₑ W f ->
     insSeq_sound Spec p' (f +ᵢ ($ 8)) I q ->
     insSeq_sound Spec p f (call f' # i # I) q.
 Proof. 
@@ -1136,14 +1136,14 @@ Proof.
     eapply exe_delay_no_abort; eauto.
   }
   simpljoin1.
-  renames x to R', x0 to D'.
+  renames x to R', x0 to D'. 
   lets Hexe_delay : H8.
   symmetry in Hexe_delay.
   eapply dly_reduce_asrt_stable in Hexe_delay; eauto.
   eapply H0 in Hexe_delay.
   lets Hf : Hexe_delay.
-  eapply reg_vl_change with (v1 := f) in Hf; eauto.
-  assert (exists R'' D'', exe_delay (set_R R' r15 f) D' = (R'', D'')).
+  eapply reg_vl_change with (v1 := W f) in Hf; eauto.
+  assert (exists R'' D'', exe_delay (set_R R' r15 (W f)) D' = (R'', D'')).
   {    
     eapply exe_delay_no_abort; eauto.
   } 
@@ -1154,7 +1154,7 @@ Proof.
   eapply dly_reduce_asrt_stable in H9; eauto.
   eapply H1 in H9; eauto.
   simpljoin1.
-  exists (m, (set_R R' r15 f, f0), D') x (f +ᵢ ($ 4)) f' f' (f' +ᵢ ($ 4)).
+  exists (m, (set_R R' r15 (W f), f0), D') x (f +ᵢ ($ 4)) f' f' (f' +ᵢ ($ 4)).
   split; eauto.
   econstructor; eauto.
   eapply Call; eauto.
@@ -1182,7 +1182,7 @@ Proof.
   repeat (split; eauto).
   eapply dly_reduce_asrt_stable in H16; eauto.
   eapply H0 in H16.
-  eapply reg_vl_change with (v1 := f) in H16; eauto.
+  eapply reg_vl_change with (v1 := W f) in H16; eauto.
   eapply dly_reduce_asrt_stable in H16; eauto.
   eapply H1 in H16.
   simpljoin1.
@@ -1202,7 +1202,7 @@ Theorem wf_seq_retl_rule :
     ins_sound ((p ↓) ↓) p' i ->
     p' ==> q -> fretSta ((p ↓) ↓) p' ->
     insSeq_sound Spec p f (retl ;; i) q.
-Proof.
+Proof. 
   intros.
   unfolds insSeq_sound.
   intros.
@@ -1374,8 +1374,8 @@ Qed.
 Theorem wf_seq_j1_rule :
   forall f f' aexp (r1 : GenReg) i p p' p1 q fp fq r Spec L v,
     Spec f' = Some (fp, fq) ->
-    (p ↓) ==> aexp ==ₓ f' -> (p ↓) ==> r1 |=> v ** p1 ->
-    ins_sound ((r1 |=> f ** p1) ↓) p' i ->
+    (p ↓) ==> aexp ==ₓ W f' -> (p ↓) ==> r1 |=> v ** p1 ->
+    ins_sound ((r1 |=> W f ** p1) ↓) p' i ->
     p' ==> fp L ** r -> fq L ** r ==> q -> 
     insSeq_sound Spec p f (consJ aexp r1 i) q.
 Proof.
@@ -1401,8 +1401,8 @@ Proof.
   eapply H0 in Haexp.
   eapply H1 in Hf1.
   lets Hf1' : Hf1.
-  eapply reg_vl_change with (v1 := f) in Hf1'; eauto.
-  assert (exists R'' D'', exe_delay (set_R R' r1 f) D' = (R'', D'')).
+  eapply reg_vl_change with (v1 := W f) in Hf1'; eauto.
+  assert (exists R'' D'', exe_delay (set_R R' r1 (W f)) D' = (R'', D'')).
   {
     eapply exe_delay_no_abort; eauto.
   }
@@ -1413,7 +1413,7 @@ Proof.
   eapply dly_reduce_asrt_stable in Hexe_delay2; eauto.
   eapply H2 in Hexe_delay2; eauto.
   simpljoin1. 
-  exists (m, (set_R R' r1 f, f0), D') x (f +ᵢ ($ 4)) f' f' (f' +ᵢ ($ 4)).
+  exists (m, (set_R R' r1 (W f), f0), D') x (f +ᵢ ($ 4)) f' f' (f' +ᵢ ($ 4)).
   split; eauto.
   econstructor; eauto.
   eapply Jumpl; eauto.
@@ -1454,7 +1454,7 @@ Proof.
   exists fp fq L r.
   repeat (split; eauto).
   eapply H1 in Hf1.
-  eapply reg_vl_change with (v1 := f) in Hf1; eauto.
+  eapply reg_vl_change with (v1 := W f) in Hf1; eauto.
   eapply dly_reduce_asrt_stable in H17; eauto.
   eapply H2 in H17; eauto.
   simpljoin1.
@@ -1466,7 +1466,7 @@ Qed.
 Lemma wf_seq_be_rule :
   forall p p' q r f f' i fp fq L I bv Spec,
     Spec f' = Some (fp, fq) ->
-    p ==> z |=> bv ** Atrue ->
+    p ==> z |=> W bv ** Atrue ->
     ins_sound ((p ↓) ↓) p' i ->
     (bv =ᵢ ($ 0) = false -> p' ==> fp L ** r /\ fq L ** r ==> q) ->
     (bv =ᵢ ($ 0) = true -> insSeq_sound Spec p' (f +ᵢ ($ 8)) I q) ->
@@ -1702,7 +1702,7 @@ Qed.
 Lemma wf_seq_bne_rule :
   forall p p' q r f f' i fp fq L I bv Spec,
     Spec f' = Some (fp, fq) -> 
-    p ==> z |=> bv ** Atrue ->
+    p ==> z |=> W bv ** Atrue ->
     ins_sound ((p ↓) ↓) p' i ->
     (bv =ᵢ ($ 0) = true -> p' ==> fp L ** r /\ fq L ** r ==> q) ->
     (bv =ᵢ ($ 0) = false -> insSeq_sound Spec p' (f +ᵢ ($ 8)) I q) ->

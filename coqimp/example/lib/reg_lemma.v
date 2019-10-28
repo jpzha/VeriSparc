@@ -28,7 +28,7 @@ Open Scope code_scope.
 Open Scope mem_scope.
 
 (*+ Auxiliary Definition +*)
-Definition update_frame (fm : Frame) (n : nat) (v : Word) :=
+Definition update_frame (fm : Frame) (n : nat) (v : Val) :=
   match fm with
   | consfm w0 w1 w2 w3 w4 w5 w6 w7 =>
     match n with
@@ -72,13 +72,13 @@ Definition get_frame_nth' (fm : Frame) (n : nat) :=
     | 5 => w5
     | 6 => w6
     | 7 => w7
-    | _ => ($ 0)
+    | _ => W ($ 0)
     end
   end.
 
 Definition GenRegState : Type := Frame * Frame * Frame * Frame.
 
-Fixpoint upd_genreg (greg_st : GenRegState) (rr : GenReg) (w : Word) : GenRegState :=
+Fixpoint upd_genreg (greg_st : GenRegState) (rr : GenReg) (w : Val) : GenRegState :=
   match greg_st with
   | (fmg, fmo, fml, fmi) =>
     match rr with
@@ -119,7 +119,7 @@ Fixpoint upd_genreg (greg_st : GenRegState) (rr : GenReg) (w : Word) : GenRegSta
 
 Definition get_global_frame (fm : Frame) (rr : GenReg) :=
   match rr with
-  | r0 => Some ($ 0)
+  | r0 => Some (W $ 0)
   | r1 => get_frame_nth fm 1
   | r2 => get_frame_nth fm 2
   | r3 => get_frame_nth fm 3
@@ -169,11 +169,11 @@ Definition get_in_frame (fm : Frame) (rr : GenReg) :=
   | _ => None
   end.
     
-Fixpoint get_genreg_val (greg_st : GenRegState) (rr : GenReg) : Word :=
+Fixpoint get_genreg_val (greg_st : GenRegState) (rr : GenReg) : Val :=
   match greg_st with
   | (fmg, fmo, fml, fmi) =>
     match rr with
-    | r0 => ($ 0)
+    | r0 => (W $ 0)
     | r1 => get_frame_nth' fmg 1
     | r2 => get_frame_nth' fmg 2
     | r3 => get_frame_nth' fmg 3
@@ -208,7 +208,7 @@ Fixpoint get_genreg_val (greg_st : GenRegState) (rr : GenReg) : Word :=
     end
   end.
 
-Fixpoint get_genreg_val' (greg_st : GenRegState) (rr : GenReg) : Word :=
+Fixpoint get_genreg_val' (greg_st : GenRegState) (rr : GenReg) : Val :=
   match greg_st with
   | (fmg, fmo, fml, fmi) =>
     match rr with
@@ -263,15 +263,15 @@ Definition GenRegs (grst : GenRegState) : asrt :=
 Definition eval_opexp_reg (grst : GenRegState) (a : OpExp) :=
   match a with
   | Or r => Some (get_genreg_val grst r)
-  | Ow w => if ($ (-4096)) <=ᵢ w && w <=ᵢ ($ 4095) then Some w else None
-  end.
+  | Ow w => if ($ (-4096)) <=ᵢ w && w <=ᵢ ($ 4095) then Some (W w) else None
+  end. 
 
 Definition eval_addrexp_reg (grst : GenRegState) (b : AddrExp) :=
   match b with
   | Ao a => eval_opexp_reg grst a
   | Aro r a =>
     match eval_opexp_reg grst a with
-    | Some w2 => Some ((get_genreg_val grst r) +ᵢ w2)
+    | Some v2 => val_add (get_genreg_val grst r) v2
     | None => None
     end
   end.
@@ -495,7 +495,7 @@ Proof.
   unfolds GenRegs.
   destruct grst.
   destruct p.
-  destruct p.
+  destruct p. 
   destruct f1, f2, f0, f.
   destruct oexp; simpl in H0.
   destruct g; inversion H0; subst; simpl;
@@ -506,7 +506,7 @@ Proof.
                eapply get_local_frame_get_R; [eauto | simpl; eauto] ];
     try solve [sliftn_in H 4;
                eapply get_in_frame_get_R; [eauto | simpl; eauto] ].
-  destruct (($ (-4096)) <=ᵢ w31 && w31 <=ᵢ ($ 4095)) eqn:Heqe; eauto;
+  destruct (($ (-4096)) <=ᵢ w && w <=ᵢ ($ 4095)) eqn:Heqe; eauto;
     inversion H0; subst; eauto.
   simpl; eauto.
   rewrite Heqe; eauto.
@@ -579,6 +579,13 @@ Proof.
         | simpl; eauto
         ]
       ].
+  eapply get_global_frame_get_R in H;
+    [
+      erewrite H; eauto; destruct_eval_opexp_reg; tryfalse;
+      eval_opexp_reg_to_eval_opexp
+    | simpl; eauto
+    ].
+  destruct v32; simpl in H0; tryfalse; eauto.
 Qed.
   
 Ltac asrt_to_line_in H t :=

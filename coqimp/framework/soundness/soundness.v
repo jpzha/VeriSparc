@@ -55,7 +55,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
             Spec f = Some (fp, fq) /\ S2 |= (fp L) ** r /\
             (forall S', S' |= (fq L) ** r ->
                         safety_insSeq C S' (pc +ᵢ ($ 8)) (pc +ᵢ ($ 12)) q Spec) /\
-            (forall S', S' |= fq L -> get_R (getregs S') r15 = Some pc)
+            (forall S', S' |= fq L -> get_R (getregs S') r15 = Some (W pc))
         )
     ) ->
     safety_insSeq C S pc npc q Spec
@@ -91,7 +91,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         P__ C (S, pc, npc) (S1, pc1, npc1) ->
         P__ C (S1, pc1, npc1) (S2, pc2, npc2) ->
         (
-          exists v, get_R (getregs S) z = Some v /\
+          exists v, get_R (getregs S) z = Some (W v) /\
           (
             v <> ($ 0) ->
             (
@@ -120,7 +120,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         P__ C (S, pc, npc) (S1, pc1, npc1) ->
         P__ C (S1, pc1, npc1) (S2, pc2, npc2) ->
         (
-          exists v, get_R (getregs S) z = Some v /\
+          exists v, get_R (getregs S) z = Some (W v) /\
           (
             v = ($ 0) ->
             (
@@ -151,7 +151,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         (
           S2 |= q /\
           (exists f,
-              get_R (getregs S2) r15 = Some f /\
+              get_R (getregs S2) r15 = Some (W f) /\
               pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
           )
         )
@@ -172,7 +172,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         (
           S2 |= q /\
           (exists f,
-              get_R (getregs S2) r15 = Some f /\
+              get_R (getregs S2) r15 = Some (W f) /\
               pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
           )
         )

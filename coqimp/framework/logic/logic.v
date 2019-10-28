@@ -357,13 +357,13 @@ Definition funspec := Word -> option fspec.
 
 Definition fretSta (p1 p2 : asrt) :=
   forall s s', s |= p1 -> s' |= p2 ->
-          (exists v, (getregs s) r15 = Some v /\
-                (getregs s') r15 = Some v).
+          (exists f, (getregs s) r15 = Some (W f) /\
+                (getregs s') r15 = Some (W f)).
 
 Definition fretStoreSta (p1 p2 : asrt) :=
   forall s s', s |= p1 -> s' |= p2 ->
-          (exists v, (getregs s) r31 = Some v /\
-                (getregs s') r15 = Some v).
+          (exists f, (getregs s) r31 = Some (W f) /\
+                (getregs s') r15 = Some (W f)).
 
 Inductive wf_seq : funspec -> asrt -> Label -> InsSeq -> asrt -> Prop :=
 | seq_rule : forall f i I p p' q Spec,
