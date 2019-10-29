@@ -3,7 +3,7 @@ COQC     := $(strip $(COQBIN))coqc
 COQDEP   := $(strip $(COQBIN))coqdep
 COQWC   := $(strip $(COQBIN))coqwc
 
-SUBDIRS  := framework framework/models example example/code example/lib
+SUBDIRS  := framework framework/models example example/code example/lib ext
 
 COQFLAGS := -R . CertiOS 
 

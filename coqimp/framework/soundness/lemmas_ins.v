@@ -2062,26 +2062,26 @@ Ltac fetch_frame_merge_solve2 :=
   end.
 
 Lemma fetch_frm_disj_merge_still1 :
-  forall R R1 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R R1 (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     disjoint R R1 ->
     fetch_frame (merge R R1) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
 Proof. 
   intros.
-  unfolds fetch_frame.
+  unfold fetch_frame in *.
   fetch_frame_merge_solve1.
   inversion H.
   eauto.
 Qed.
 
 Lemma fetch_frm_disj_merge_still2 :
-  forall R R1 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R R1 (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     disjoint R1 R ->
     fetch_frame (merge R1 R) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
 Proof.
   intros.
-  unfolds fetch_frame.
+  unfold fetch_frame in *.
   fetch_frame_merge_solve2.
   inversion H.
   eauto.
@@ -2108,27 +2108,25 @@ Ltac eval_reg_merge_solve2 :=
   end.
 
 Lemma fetch_frame_disj_merge_stable1 :
-  forall R1 R2 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R1 R2 (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     disjoint R1 R2 ->
     fetch_frame R1 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     fetch_frame (merge R1 R2) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
 Proof.
   intros.
-  unfolds fetch_frame.
-
+  unfold fetch_frame in *.
   eval_reg_merge_solve1.
   eauto.
 Qed.
 
 Lemma fetch_frame_disj_merge_stable2 :
-  forall R1 R2 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R1 R2 (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     disjoint R1 R2 ->
     fetch_frame R2 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     fetch_frame (merge R1 R2) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
 Proof.
   intros.
-  unfolds fetch_frame.
-
+  unfold fetch_frame in *.
   eval_reg_merge_solve2.
   eauto.
 Qed.
@@ -2492,12 +2490,12 @@ Proof.
 Qed.
 
 Lemma fetch_frm_indoms :
-  forall R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     indoms [rr0; rr1; rr2; rr3; rr4; rr5; rr6; rr7] R.
 Proof. 
   intros.   
-  unfolds fetch_frame. 
+  unfold fetch_frame in *. 
   do 8
     match goal with
     | H : context [R ?v] |- _ =>

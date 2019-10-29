@@ -277,7 +277,7 @@ Definition set_R (R : RegFile) (rn : RegName) (v : Val) :=
     R.
 
 (* fetch *)
-Definition fetch_frame (R : RegFile) (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : GenReg) :
+Definition fetch_frame {tp} (R : tp -> option Val) (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) :
   option Frame :=
   match (R rr0), (R rr1), (R rr2),
         (R rr3), (R rr4), (R rr5), (R rr6), (R rr7) with
