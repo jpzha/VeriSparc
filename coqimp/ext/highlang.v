@@ -282,11 +282,11 @@ Inductive HP__ : HProg -> msg -> HProg -> Prop :=
     HP__ ((C, PrimSet), (T, t, K, HM)) tau ((C, PrimSet), (T', t', K'', HM')).
 
 (* star steps *)
-Inductive HP__star_step : HProg -> HProg -> Prop :=
-| zero_step : forall hp, HP__star_step hp hp
-| multi_step : forall hp hp' hp'' m,
-    HP__ hp m hp' -> HP__star_step hp' hp''.
+Inductive star_step {prog msg : Type} (step : prog -> msg -> prog -> Prop) :
+  prog -> prog -> Prop :=
+| zero_step : forall p, star_step step p p
+| multi_step : forall (p p' p'' : prog) m, step p m p' -> star_step step p' p''.
 
 (* High-level Program Safety *)
 Definition HProgSafe (hp : HProg) :=
-  forall hp', HP__star_step hp hp' -> (exists hp'' m,  HP__ hp' m hp'').
+  forall hp', star_step HP__ hp hp' -> (exists hp'' m,  HP__ hp' m hp'').
