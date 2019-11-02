@@ -436,8 +436,7 @@ Notation " Spec '|-' '{{' p '}}' f '#' I '{{' q '}}' " :=
 Definition wf_cdhp (Spec : funspec) (C : CodeHeap) (Spec' : funspec) :=
   forall f L fp fq,
     Spec' f = Some (fp, fq) ->
-    exists I, LookupC C f I /\ wf_seq Spec (fp L) f I (fq L).     
-
+    exists I, LookupC C f I /\ wf_seq Spec (fp L) f I (fq L).
 
 
     
