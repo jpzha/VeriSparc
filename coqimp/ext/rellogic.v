@@ -15,6 +15,7 @@ Require Import highlang.
 Require Import lowlang.
 Require Import logic.
 Require Import reg_lemma.
+Require Import soundness.
 Require Import refinement.
 
 Set Asymmetric Patterns.
@@ -271,27 +272,41 @@ Definition INV (A : primcom) (w : nat) (lv : list Val) (rls : RelState) :=
   match rls with
   | (s, hs, A, w) =>
     wp_stateRel s hs /\ (exists hs', exec_prim (A, hs) (Pdone, hs')) /\ args (getHQ hs) (getHM hs) lv
-  end.
+  end. 
 
-(** Well-formed Spec *)
-Inductive wdSpec : Fspec -> Fspec -> ap :=
-| consWdSpec : forall Fp Fq hprim,
+(** Well-formed Spec *)  
+Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
+| consWdSpec : forall Fp Fq (hprim : ap),
     (
-      forall lv hs hs' f, hprim lv hs hs' -> (getHR hs' r15 = Some (W f)) ->
+      forall lv hs hs' (f : Word), hprim lv hs hs' -> (getHR hs' r15 = Some (W f)) ->
                      get_Hs_pcont hs' = (f +ᵢ ($ 8), f +ᵢ ($ 12))
     ) ->
     (
-      forall lv hs hs' hs_r f, hprim lv hs hs' -> disjoint hs hs_r ->
-                          (hprim lv (hs ⊎ hs_r) (hs' ⊎ hs_r) /\ disjoint hs' hs_r)
+      forall lv (hs1 hs1' hs_r hs hs': HState), hprim lv hs1 hs1' -> hstate_union hs1 hs_r hs ->
+                          (hprim lv hs hs' /\ hstate_union hs1' hs_r hs')
     ) ->
     (
-      forall lv L P_r
-    )
+      forall lv rls rls', exists L num Pr,
+        (INV (Pm hprim lv) num lv rls -> rls ||= (Fp L) ⋆ Pr) /\
+        (rls' ||= (Fq L) ⋆ Pr -> exists num' lv', INV Pdone num' lv' rls')
+    ) ->
+    wdSpec Fp Fq hprim.
 
-Definition wdSpec (Fp : Fspec) (Fq : Fspec) (hprim : ap) :=
-  (
-    
-  )
+(** Well-formed Primitive *)
+Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) :=
+  exists Speci, rel_wf_cdhp Speci C /\
+           (forall f, indom f C ->
+                 (exists L Fp Fq hprim I, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim /\ LookupXC C f I
+                                   /\ wdSpec Fq Fq hprim /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
+
+(*+ Logic Soundness +*)
+
+(** soundness of instruction rule *)
+Definition rel_ins_sound P Q i :=
+  forall s sh A w,
+    (s, sh, A, w) ||= P -> (exists s', (Q__ s (cntrans i) s') /\ (s', sh, A, w) ||= Q).
+
+
 
 
                  
