@@ -537,6 +537,27 @@ Definition simImpsPrimSet (Spec : Funspec) (Cas : XCodeHeap) (PrimSet : apSet) :
           exists hprim L Fp Fq, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim
                            /\ wdSpec Fp Fq hprim /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv). 
 
-
-                 
+(*+ Whole Program Simulation +*)
+Inductive wp_sim : Index -> LProg -> HProg -> Prop :=
+| cons_wp_sim : forall idx LP HP,
+    (* tau step *)
+    (
+      forall LP', LP__ LP tau LP' ->
+             (
+               (exists idx1, idx1 ⩹ idx /\ wp_sim idx1 LP' HP)
+               \/
+               (exists idx1 HP' HP'', star_step HP__ HP HP' /\ HP__ HP' tau HP'' /\ wp_sim idx1 LP' HP'')
+             )
+    ) ->
+    (* event step *)
+    (
+      forall LP' v, LP__ LP (out v) LP' ->
+               (exists idx1 HP' HP'', star_step HP__ HP HP' /\ HP__ HP' (out v) HP'' /\ wp_sim idx1 LP' HP'')
+    ) ->
+    (* abort step *)
+    (
+      forall m, ~ (exists LP', LP__ LP m LP') ->
+           (exists HP', star_step HP__ HP HP' /\ ~ (exists HP'', forall m', HP__ HP' m' HP''))
+    ) ->
+    wp_sim idx LP HP.
 
