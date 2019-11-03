@@ -301,12 +301,241 @@ Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) :=
 
 (*+ Logic Soundness +*)
 
+(** index *)
+Definition Index : Type := nat * nat.
+
+(** Index lt *)
+Inductive LtIndex : Index -> Index -> Prop :=
+| LensReduce : forall n m m', (m' < m)%nat -> LtIndex (n, m') (n, m)
+| BlockReduce : forall n n' m m', (n' < n)%nat -> LtIndex (n', m') (n, m).
+
+Notation "i ⩹ j" := (LtIndex i j) (at level 34, right associativity).
+
 (** soundness of instruction rule *)
 Definition rel_ins_sound P Q i :=
   forall s sh A w,
     (s, sh, A, w) ||= P -> (exists s', (Q__ s (cntrans i) s') /\ (s', sh, A, w) ||= Q).
 
+(** soundness of instruction sequence rule *) 
+CoInductive rel_safety_insSeq :
+  Funspec -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
+| Rsafety_insSeq : forall C (S : State) (pc npc : Word) A (HS : HState) Q idx Spec,
+    (* i_seq *)
+    (
+      forall i, 
+        C pc = Some (c (cntrans i)) ->
+        (
+          (* progress *)
+          exists S' pc' npc',
+            LP__ (C, (S, pc, npc)) tau (C, (S', pc', npc'))
+        ) /\
+        (
+          (* preservation *)
+          forall S' pc' npc',
+            LP__ (C, (S, pc, npc)) tau (C, (S', pc', npc')) ->
+            (
+              (
+                exists idx1, (idx1 ⩹ idx) /\ rel_safety_insSeq Spec idx1 (C, S', pc', npc') (A, HS) Q 
+              )
+              \/
+              (
+                exists HS' idx1, exec_prim (A, HS) (Pdone, HS')
+                            /\ rel_safety_insSeq Spec idx1 (C, S', pc', npc') (Pdone, HS') Q
+              )
+            )
+        )
+    ) ->
+    (* call seq *)
+    (
+      forall f,
+        C pc = Some (c (ccall f)) ->
+        (
+          (* progress *)
+          exists S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+        ) ->
+        (
+          (* preservation *)
+          forall S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+            (
+              exists Fp Fq L r idx1 w A' HS',
+                pc2 = f /\ npc2 = f +ᵢ ($ 4) /\
+                Spec f = Some (Fp, Fq) /\
+                ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+                (S2, HS, A, w) ||= (Fp L) ⋆ r /\
+                (forall S' HS' A' w', (S', HS', A', w') ||= (Fq L) ⋆ r ->
+                                 rel_safety_insSeq Spec idx1 (C, S', (pc +ᵢ ($ 8)), (pc +ᵢ ($ 12))) (A', HS') Q) /\
+                (forall S' HS' A' w', (S', HS', A', w') ||= Fq L ->
+                                 get_R (getregs S') r15 = Some (W pc))
+            )
+        )
+    ) ->
+    (* jmpl *)
+    (
+      forall aexp rd,
+        C pc = Some (c (cjumpl aexp rd)) ->
+        (
+          (* progress *)
+          exists S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+        ) /\
+        (
+          forall S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+            (
+              exists Fp Fq L r idx1 w A' HS',
+                ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+                Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', w) ||= (Fp L) ⋆ r /\
+                (Fq L) ⋆ r ⇒ Q /\ npc2 = pc2 +ᵢ ($ 4)
+            )
+        )
+    ) ->
+    (* be f *)
+    (
+      forall f,
+        C pc = Some (c (cbe f)) ->
+        (
+          exists S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+        ) /\ 
+        (
+          forall S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+            (
+              exists v idx1 w A' HS',
+                ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+                get_R (getregs S) z = Some (W v) /\
+                (
+                  v <> ($ 0) ->
+                  (
+                    exists Fp Fq L r,
+                      Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', w) ||= (Fp L) ⋆ r /\
+                      (Fq L ⋆ r) ⇒ Q /\ npc2 = pc2 +ᵢ ($ 4)
+                  )
+                ) /\
+                ( 
+                  v = ($ 0) ->
+                  rel_safety_insSeq Spec idx1 (C, S2, pc2, npc2) (A', HS') Q
+                )
+            )
+        )
+    ) ->
+    (* retl *)
+    (
+      C pc = Some (c (cretl)) ->
+      (
+        exists S1 S2 pc1 npc1 pc2 npc2,
+          LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+          LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+      ) ->
+      (
+        forall S1 S2 pc1 npc1 pc2 npc2,
+          LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+          LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+          (
+            exists idx1 w A' HS',
+              ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS')))
+              /\ (S2, HS', A', w) ||= Q /\ 
+              (exists f,
+                  get_R (getregs S2) r15 = Some (W f) /\
+                  pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
+              )
+          )
+      )
+    ) ->
+    rel_safety_insSeq Spec idx (C, S, pc, npc) (A, HS) Q.
 
+
+(** soundness of code heap rule *)
+Inductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
+| cons_safety : forall k idx C S pc npc A HS com Q,
+    C pc = Some (c com) ->
+    (* not call ret *)
+    (
+      forall f aexp rd i,
+        (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f))) ->
+        (
+          (* progress *)
+          exists S' pc' npc',
+            LP__ (C, (S, pc, npc)) tau (C, (S', pc', npc'))
+        ) /\
+        (
+          (* preservation *)
+          forall S' pc' npc',
+            LP__ (C, (S, pc, npc)) tau (C, (S', pc', npc')) ->
+            (
+              (
+                exists idx1, (idx1 ⩹ idx) /\ rel_safety k idx1 (C, S', pc', npc') (A, HS) Q 
+              )
+              \/
+              (
+                exists HS' idx1, exec_prim (A, HS) (Pdone, HS')
+                            /\ rel_safety k idx1 (C, S', pc', npc') (Pdone, HS') Q
+              )
+            )
+        )
+    ) ->
+    (* call *)
+    (
+      forall f,
+        C pc = Some (c (ccall f)) ->
+        (
+          (* progress *)
+          exists S1 S2 pc1 pc2 npc1 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+        ) /\
+        (
+          (* preservation *)
+          forall S1 S2 pc1 pc2 npc1 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+            exists idx1 A' HS',
+              ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+              rel_safety (Nat.succ k) idx1 (C, S2, pc2, npc2) (A', HS') Q
+        )
+    ) ->
+    (* retl *)
+    (
+      C pc = Some (c cretl) ->
+      (
+          (* progress *)
+          exists S1 S2 pc1 pc2 npc1 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+      ) /\
+      (
+          (* preservation *)
+          forall S1 S2 pc1 pc2 npc1 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+            exists idx1 A' HS' w ,
+              ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+              (
+                (Nat.eqb k 0 = true /\ (S2, HS, A', w) ||= Q) \/
+                (Nat.eqb k 0 = false /\ rel_safety (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q)
+              )
+      )
+    ) ->
+    rel_safety k idx (C, S, pc, npc) (A, HS) Q.
+
+(** Simulation for Implementation and Primitive *)
+Definition simImpPrim (Cas : XCodeHeap) (f : Word) (P Q : relasrt) (A : primcom) :=
+  forall S HS w, (S, HS, A, w) ||= P ->
+            exists i, rel_safety 0%nat i (Cas, S, f, f +ᵢ ($ 4)) (A, HS) Q.
+
+(** Well-defined Primitive Set Semantics *) 
+Definition simImpsPrimSet (Spec : Funspec) (Cas : XCodeHeap) (PrimSet : apSet) :=
+  forall f lv, indom f Spec ->
+          exists hprim L Fp Fq, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim
+                           /\ wdSpec Fp Fq hprim /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv). 
 
 
                  
