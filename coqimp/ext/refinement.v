@@ -30,11 +30,13 @@ CoInductive Etr :=
 Inductive star_tau_step {prog : Type} (step : prog -> msg -> prog -> Prop) :
   prog -> prog -> Prop :=
 | zero_tau_step : forall p, star_tau_step step p p
-| multi_tau_step : forall (p p' p'' : prog), step p tau p' -> star_tau_step step p' p''.
+| multi_tau_step : forall (p p' p'' : prog), step p tau p' -> star_tau_step step p' p'' ->
+                                             star_tau_step step p p''.
 
 CoInductive Etrace {tprog} (step : tprog -> msg -> tprog -> Prop): tprog -> Etr -> Prop :=
-| Etr_tau : forall P P',
-    star_tau_step step P P' -> Etrace step P' empEtr -> Etrace step P empEtr
+| Etr_tau : forall P P' P'',
+    star_tau_step step P P' -> step P' tau P'' ->
+    Etrace step P'' empEtr -> Etrace step P empEtr
 | Etr_abort : forall P P' m,
     star_tau_step step P P' -> (~ (exists P'', step P' m P'')) -> Etrace step P abortEtr
 | Etr_event : forall P P' P'' v etr,
