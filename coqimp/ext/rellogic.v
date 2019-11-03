@@ -197,7 +197,7 @@ Inductive rel_wf_ins : relasrt -> ins -> relasrt -> Prop :=
 
 Notation " '⊩' '{{' P '}}' i '{{' Q '}}' " := (rel_wf_ins P i Q) (at level 50).
 
-(** well-formed instruction sequence *) Print LProg. Print XCodeHeap. Print Command.
+(** well-formed instruction sequence *)
 Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop :=
 | rel_seq_rule : forall f i I P P' Q Spec,
     ⊩ {{ P ⤈ }} i {{ P' }} -> rel_wf_seq Spec P' (f +ᵢ ($ 4)) I Q ->
