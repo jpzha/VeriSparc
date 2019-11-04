@@ -305,11 +305,13 @@ Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) :=
 Definition Index : Type := nat * nat.
 
 (** Index lt *)
-Inductive LtIndex : Index -> Index -> Prop :=
-| LensReduce : forall n m m', (m' < m)%nat -> LtIndex (n, m') (n, m)
-| BlockReduce : forall n n' m m', (n' < n)%nat -> LtIndex (n', m') (n, m).
-
+Definition LtIndex := lex_ord Nat.lt Nat.lt.
 Notation "i ⩹ j" := (LtIndex i j) (at level 34, right associativity).
+
+Lemma well_founded_LtIndex : well_founded LtIndex.
+Proof.
+  eapply wf_lex_ord; eapply Nat.lt_wf_0.
+Qed.
 
 (** soundness of instruction rule *)
 Definition rel_ins_sound P Q i :=
@@ -546,18 +548,18 @@ Inductive wp_sim : Index -> LProg -> HProg -> Prop :=
              (
                (exists idx1, idx1 ⩹ idx /\ wp_sim idx1 LP' HP)
                \/
-               (exists idx1 HP' HP'', star_step HP__ HP HP' /\ HP__ HP' tau HP'' /\ wp_sim idx1 LP' HP'')
+               (exists idx1 HP' HP'', star_tau_step HP__ HP HP' /\ HP__ HP' tau HP'' /\ wp_sim idx1 LP' HP'')
              )
     ) ->
     (* event step *)
     (
       forall LP' v, LP__ LP (out v) LP' ->
-               (exists idx1 HP' HP'', star_step HP__ HP HP' /\ HP__ HP' (out v) HP'' /\ wp_sim idx1 LP' HP'')
+               (exists idx1 HP' HP'', star_tau_step HP__ HP HP' /\ HP__ HP' (out v) HP'' /\ wp_sim idx1 LP' HP'')
     ) ->
     (* abort step *)
     (
-      forall m, ~ (exists LP', LP__ LP m LP') ->
-           (exists HP', star_step HP__ HP HP' /\ ~ (exists HP'', forall m', HP__ HP' m' HP''))
+      forall m m', ~ (exists LP', LP__ LP m LP') ->
+           (exists HP', star_tau_step HP__ HP HP' /\ ~ (exists HP'', HP__ HP' m' HP''))
     ) ->
     wp_sim idx LP HP.
 
