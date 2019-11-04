@@ -38,15 +38,36 @@ Lemma Hstar_step_code_unchange :
   forall C PrimSet HS HP',
     star_tau_step HP__ (C, PrimSet, HS) HP' ->
     exists HS', HP' = (C, PrimSet, HS').
-Proof.
-Admitted.
+Proof. 
+  intros.
+  remember (C, PrimSet, HS) as HP.
+  generalize dependent C.
+  generalize dependent PrimSet.
+  generalize dependent HS.
+  induction H; intros; eauto; subst.
+  assert ((C, PrimSet, HS) = (C, PrimSet, HS)).
+  eauto.
+  eapply IHstar_tau_step in H1; eauto.
+  destruct H1; subst.
+  inv H0; eauto.
+Qed.
 
 Lemma Lstar_step_code_unchange :
   forall C S LP',
     star_tau_step LP__ (C, S) LP' ->
     exists S', LP' = (C, S').
 Proof.
-Admitted.
+  intros.
+  remember (C, S) as LP.
+  generalize dependent C.
+  generalize dependent S.
+  induction H; intros; eauto; subst.
+  assert ((C, S) = (C, S)); eauto.
+  eapply IHstar_tau_step in H1; eauto.
+  destruct H1; subst.
+  inv H0.
+  eauto.
+Qed.
 
 Lemma n_tau_step_front_back :
   forall n A P P' P'' (step : A -> msg -> A -> Prop),
