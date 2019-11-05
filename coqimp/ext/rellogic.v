@@ -540,7 +540,7 @@ Definition simImpsPrimSet (Spec : Funspec) (Cas : XCodeHeap) (PrimSet : apSet) :
                            /\ wdSpec Fp Fq hprim /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv). 
 
 (*+ Whole Program Simulation +*)
-Inductive wp_sim : Index -> LProg -> HProg -> Prop :=
+CoInductive wp_sim : Index -> LProg -> HProg -> Prop :=
 | cons_wp_sim : forall idx LP HP,
     (* tau step *)
     (

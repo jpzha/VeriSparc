@@ -285,7 +285,8 @@ Inductive HP__ : HProg -> msg -> HProg -> Prop :=
 Inductive star_step {prog msg : Type} (step : prog -> msg -> prog -> Prop) :
   prog -> prog -> Prop :=
 | zero_step : forall p, star_step step p p
-| multi_step : forall (p p' p'' : prog) m, step p m p' -> star_step step p' p''.
+| multi_step : forall (p p' p'' : prog) m, star_step step p p' -> step p' m p'' ->
+                                           star_step step p p''.
 
 (* High-level Program Safety *)
 Definition HProgSafe (hp : HProg) :=

@@ -1,5 +1,5 @@
 (*+ Final Theorem Proof +*)  
-Require Import Coqlib.     
+Require Import Coqlib.        
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -18,6 +18,7 @@ Require Import reg_lemma.
 Require Import soundness.
 Require Import refinement.
 Require Import rellogic.
+Require Import compositionality.
 
 Set Asymmetric Patterns.
 
@@ -397,10 +398,38 @@ Lemma compositionality1 :
   forall Spec C Cas PrimSet S HS pc npc,
     simImpsPrimSet Spec Cas PrimSet ->
     wp_stateRel S HS -> HProgSafe (C, PrimSet, HS) ->
-    get_Hs_pcont HS = (pc, npc) -> C ⊥ Cas ->
+    get_Hs_pcont HS = (pc, npc) -> C ⊥ Cas -> 
     exists idx, wp_sim idx (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
 Proof.
-Admitted.
+  intros.
+  exists (5%nat, 6%nat).
+  destruct HS.
+  destruct p.
+  renames t to K.
+  destruct p.
+  renames t to T, t0 to t. 
+  eapply wfCth_wfRdy_imply_wpsim; eauto.
+  {
+    eapply clt_wfCth; eauto.
+    destruct S.
+    destruct p.
+    destruct r.
+    econstructor; intros.
+    econstructor; simpl; unfold Nat.lt.
+    omega.
+    econstructor; simpl; unfold Nat.lt.
+    omega.
+  }
+  { 
+    intros. 
+    econstructor; intros; subst.
+    clear - H3 H5 H7 H8 H11.
+    exists (5%nat, 6%nat).
+    eapply clt_wfCth; eauto.
+    destruct S0, p, r.
+    econstructor; intros; econstructor; simpl; unfold Nat.lt; omega.
+  }
+Qed.
 
 (** Logic ensures simulation *)
 Lemma logic_ensures_simulation :
