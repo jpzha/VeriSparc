@@ -1,4 +1,4 @@
-(*+ Compositionality +*)   
+(*+ Compositionality +*)    
 Require Import Coqlib.     
 Require Import Maps.
 
@@ -14,6 +14,7 @@ Require Import language.
 Require Import highlang.
 Require Import lowlang.
 Require Import logic.
+Require Import lemmas.
 Require Import reg_lemma.
 Require Import soundness.
 Require Import refinement.
@@ -25,7 +26,21 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 
 Open Scope code_scope.
-Open Scope mem_scope. 
+Open Scope mem_scope.
+
+(** Auxiliary Lemmas about Sep Star *)
+Lemma rel_sep_star_split :
+  forall S HS A w P1 P2,
+    (S, HS, A, w) ||= P1 ⋆ P2 ->
+    exists S1 S2 HS1 HS2 w1 w2, state_union S1 S2 S /\ hstate_union HS1 HS2 HS /\
+                     (S1, HS1, A, w1) ||= P1 /\ (S2, HS2, A, w2) ||= P2 /\ w = (w1 + w1)%nat.
+Proof.
+  intros.
+  simpls. 
+  destruct H as (hs1 & hs2 & s1 & s2 & w1 & w2 & Hhstate_union & Hstate_union & Hw & HP1 & HP2).
+  do 6 eexists. 
+  repeat (split; eauto).
+Qed.
 
 (** Auxiliary Lemmas about Steps *)
 Lemma star_tau_step_impl_star_step :
@@ -75,7 +90,7 @@ Inductive wfHPrimExec : XCodeHeap -> primcom -> HState -> Prop :=
     (
       forall hprim lv T t HQ pc npc HM,
         A = Pm hprim lv -> HS = (T, t, (HQ, pc, npc), HM) ->
-        HH__ C (HQ, pc, npc, HM) (Callevt pc lv) (HQ, pc, npc, HM)
+        HH__ C (HQ, pc, npc, HM) (Callevt pc lv) (HQ, pc, npc, HM) /\ (exists HS', hprim lv HS HS')
     ) ->
     wfHPrimExec C A HS.
 
@@ -83,17 +98,23 @@ Inductive wfHPrimExec : XCodeHeap -> primcom -> HState -> Prop :=
 Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
 | clt_wfCth : forall C Cas S HS pc npc PrimSet idx,
     wp_stateRel S HS -> wfIndex C S pc idx -> 
-    get_Hs_pcont HS = (pc, npc) ->
+    get_Hs_pcont HS = (pc, npc) -> indom pc C ->
     wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS)
 
 | prim_wfCth : forall C Cas Sc HSc S HS Sr HSr w Q Pr A pc npc PrimSet idx k,
     state_union Sc Sr S -> hstate_union HSc HSr HS ->
     rel_safety k idx (Cas, Sc, pc, npc) (A, HSc) Q -> (Sr, HSr, A, w) ||= Pr -> wfHPrimExec C A HS ->
     (
-      forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
-                          HProgSafe (C, PrimSet, HS') ->
-                        exists idx_j, wfCth idx_j (C, Cas) (C ⊎ Cas, (S', f +ᵢ ($ 8), f +ᵢ ($ 12))) (C, PrimSet, HS')
-    ) ->
+      (
+        indom pc PrimSet -> wp_stateRel S HS /\ get_Hs_pcont HS = (pc, npc)
+      ) \/
+      (
+        ~ indom pc PrimSet ->
+        forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
+                       HProgSafe (C, PrimSet, HS') ->
+                       exists idx_j, wfCth idx_j (C, Cas) (C ⊎ Cas, (S', f +ᵢ ($ 8), f +ᵢ ($ 12))) (C, PrimSet, HS')
+      )
+    )->
     wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
 
 (* Well-formed Ready Thread *)
@@ -164,17 +185,57 @@ Proof.
   eapply indom_get_left; eauto.
 Qed.
 
-Lemma LH__progress_HH__progress :
-  forall C Mc Mr LR F pc npc LM' LR' F' D' pc' npc' T t HR b HF M PrimSet,
+Lemma HProg_not_clt_exec_prim :
+  forall C PrimSet HS pc npc,
+    HProgSafe (C, PrimSet, HS) -> ~ indom pc C -> get_Hs_pcont HS = (pc, npc) ->
+    exists lv hprim, PrimSet pc = Some hprim /\ wfHPrimExec C (Pm hprim lv) HS.
+Proof.
+  intros.
+  unfolds HProgSafe.
+  assert (star_step HP__ (C, PrimSet, HS) (C, PrimSet, HS)).
+  econstructor; eauto.
+  eapply H in H2.
+  unfold indom in *.
+  destruct H2 as (HP' & m & HHP__). 
+  inv HHP__.
+  {
+    inv H7; try solve [simpls; inv H1; contradiction H0; eauto].
+  }
+  {
+    inv H7; simpls; inv H1.
+    contradiction H0; eauto.
+  }
+  {  
+    exists lv prim.
+    inv H5; simpls; inv H1.
+    split; eauto.
+    econstructor; intros.
+    inv H2.
+    inv H1.
+    split; eauto.
+    econstructor; eauto.
+  }
+Qed.
+
+Lemma LH__progress_HH_progress :
+  forall C Mc Mr LR F pc npc LM' LR' F' D' pc' npc' T t HR b HF M PrimSet idx,
     LH__ C ((Mc ⊎ Mr ⊎ M, (LR, F), []), pc, npc) tau
          ((LM', (LR', F'), D'), pc', npc') ->
     HProgSafe (C, PrimSet, (T, t, ((HR, b, HF), pc, npc), M)) ->
     indom pc C -> Mc ⊥ Mr -> (Mc ⊎ Mr) ⊥ M ->
     curTRel (Mc, (LR, F)) (t, ((HR, b, HF), pc, npc)) ->
-    exists Mc' M' K',
-      LM' = Mc' ⊎ Mr ⊎ M' /\ Mc' ⊥ Mr -> (Mc' ⊎ Mr) ⊥ M'
-      /\ HP__ (C, PrimSet, (T, t, ((HR, b, HF), pc, npc), M)) tau (C, PrimSet, (T, t, K', M'))
-      /\ curTRel (Mc', (LR', F')) (t, K') /\ D' = nil.
+    wfIndex C (Mc ⊎ Mr ⊎ M, (LR, F), []) pc idx ->
+    exists Mc' M' K' idx',
+      LM' = Mc' ⊎ Mr ⊎ M' /\ Mc' ⊥ Mr /\ (Mc' ⊎ Mr) ⊥ M'
+      /\
+      (
+        HP__ (C, PrimSet, (T, t, ((HR, b, HF), pc, npc), M)) tau (C, PrimSet, (T, t, K', M'))
+        \/
+        (K' = ((HR, b, HF), pc, npc) /\ M' = M /\ idx' ⩹ idx)
+      )
+      /\ curTRel (Mc', (LR', F')) (t, K') /\ D' = nil
+      /\ wfIndex C (Mc' ⊎ Mr ⊎ M', (LR', F'), []) pc' idx'
+      /\ get_Hs_pcont (T, t, K', M') = (pc', npc').
 Proof.
 Admitted.
 
@@ -200,10 +261,11 @@ Lemma wfCth_wfRdy_tau_step_preservation :
                       wfRdy (C, Cas) (C, PrimSet) t1 K1 
       ).
 Proof.
+  (*
   intros.
   lets Ht : classic (indom pc C).
   destruct Ht as [Ht | Ht].
-  {  
+  {   
     inv H2.
     {
       inv H10.
@@ -234,13 +296,103 @@ Proof.
       assert (Mc ⊥ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
       {
         eapply lemmas.disj_sep_merge_still; eauto.
+        clear - H12.
+        eapply lemmas.disj_sym in H12.
+        eapply lemmas_ins.disj_merge_disj_sep in H12.
+        destruct H12.
+        eapply lemmas.disj_sym; eauto.
+      }
+
+      assert ((Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)) ⊥ M).
+      {
+        unfolds Tid.
+        rewrite H2 in H13.
+        eauto.
       }
       
-      unfold Tid in H4.
+      unfolds Tid.
       rewrite H4 in H22.
-      eapply LH__progress_HH__progress in H22; eauto.
+      eapply LH__progress_HH_progress in H22; eauto.
+      Focus 2.
+      rewrite <- H2; eauto.
+      
+      destruct H22 as (Mc' & M'' & K' & idx' & HLM' & Hdisj & Hdisj2 & HHP__
+                       & HcurTRel & HDl & HwfIndex & Hpcont); subst.
+      exists T t K' M'' idx'.
+      split.
+      {
+        destruct HHP__ as [HHP__ | HHP__].
+        right.
+        eexists.
+        split.
+        econstructor; eauto.
+        eauto.
+        left.
+        destruct HHP__ as (HK' & HM'' & Hidx); subst.
+        split; eauto.
+      }
+      split; eauto.
+      econstructor; eauto.
+      econstructor.
+      exact M.
+      instantiate (1 := MT).
+      instantiate (1 := Mc').
+      assert ((Mc' ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM =
+              Mc' ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
+      rewrite merge_assoc; eauto.
+      rewrite H7; eauto.
+      eapply disj_merge_disj_sep1 in Hdisj; eauto.
+      eapply disj_sym.
+      eapply disj_sep_merge_still.
+      clear - Hdisj.
+      eapply disj_merge_disj_sep2 in Hdisj; eauto.
+      eapply disj_sym; eauto.
+      clear - H12.
+      eapply disj_sym in H12.
+      eapply disj_merge_disj_sep2; eauto. 
+      rewrite <- merge_assoc; eauto.
+      eauto.
+      eauto.
+    }
+    {
+      inv H15.
+      clear - H19 H0 Ht.
+      unfold disjoint, indom in *.
+      specialize (H0 pc); simpls.
+      destruct Ht.
+      rewrite H in H0; simpls.
+      rewrite H19 in H0; simpls; tryfalse.
     }
   }
+  {
+    inv H2.
+    {
+      lets Hexec_prim : H1.
+      eapply HProg_not_clt_exec_prim in Hexec_prim; eauto.
+      destruct Hexec_prim as (lv & hprim & Hget_prim & HwfHPrimExec).
+      >>>>>>>>>>>>>>>>>>>>>>>>>
+(*
+      Lemma entry_prim_wfCth_preserve :
+        forall C Cas S HS hprim,
+          C ⊥ Cas -> wp_stateRel S HS -> PrimSet pc = Some hprim ->
+          wfHPrimExec C (Pm hprim lv) HS ->
+          simImpsPrimSet Spec Cas PrimSet ->
+          exists HS' idx1,
+            
+      
+      unfolds simImpsPrimSet.
+      assert (Hindom_f_Spec : indom pc PrimSet).
+      {
+        unfold indom; eauto.
+      }
+ 
+      eapply H with (lv := lv) in Hindom_f_Spec.
+      destruct Hindom_f_Spec as (hprim0 & L & Fp & Fq & HSpec & Hprimset' & HwdSpec & HsimImpSim).
+      rewrite Hget_prim in Hprimset'; inv Hprimset'.*)
+      admit.
+    }
+    admit.
+  }*)
 Admitted.
 
 Lemma wfCth_wfRdy_event_step_preservation :

@@ -1,5 +1,5 @@
 (*+ Final Theorem Proof +*)  
-Require Import Coqlib.        
+Require Import Coqlib.           
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -410,6 +410,55 @@ Proof.
   renames t to T, t0 to t. 
   eapply wfCth_wfRdy_imply_wpsim; eauto.
   {
+    lets Ht : (classic (indom pc C)).
+    destruct Ht as [Ht | Ht].
+    {
+      eapply clt_wfCth; eauto.
+      destruct S.
+      destruct p.
+      destruct r.
+      econstructor; intros.
+      econstructor; simpl; unfold Nat.lt.
+      omega.
+      econstructor; simpl; unfold Nat.lt.
+      omega.
+    }
+    {
+      lets Hprim_exec : H1.
+      eapply HProg_not_clt_exec_prim in Hprim_exec; eauto.
+      destruct Hprim_exec as (lv & hprim & Hprimset & HwfHPrimExec).
+      unfolds simImpsPrimSet.
+      lets HSpec : Hprimset.
+      eapply H with (lv := lv) in HSpec. 
+      destruct HSpec as (L & Fp & Fq & HSpec & Hget_prim & HwdSpec & HsimpImpPrim).
+      unfolds simImpPrim.
+      inv HwdSpec.
+      clear H4 H5.
+      destruct H6 as (num & Pr & Hwdpre & Hwdpost).
+      assert (INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
+      {
+        unfold INV.
+        split; eauto.
+        clear - HwfHPrimExec.
+        inv HwfHPrimExec.
+        destruct K.
+        destruct p.
+        destruct h.
+        assert (Pm hprim lv = Pm hprim lv); eauto.
+        eapply H in H0; eauto.
+        destruct H0.
+        split; eauto.
+        destruct H1.
+        exists x.
+        econstructor; eauto.
+        inv H0; eauto.
+      }
+
+      eapply Hwdpre in H4.
+      
+      >>>>>>>>>>>>>>>>
+    }
+    
     eapply clt_wfCth; eauto.
     destruct S.
     destruct p.
