@@ -57,12 +57,12 @@ Inductive wfHPrimExec : XCodeHeap -> primcom -> HState -> Prop :=
 (** Well-formed Current Thread *)
 Inductive wfCth : Index -> LProg -> HProg -> Prop :=
 | clt_wfCth : forall C Cas S HS pc npc PrimSet idx,
-    C ⊥ Cas -> indom pc C -> wp_stateRel S HS -> wfIndex C S pc idx -> 
+    indom pc C -> wp_stateRel S HS -> wfIndex C S pc idx -> 
     get_Hs_pcont HS = (pc, npc) ->
     wfCth idx (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS)
 
 | prim_wfCth : forall C Cas Sc HSc S HS Sr HSr w Q Pr A pc npc PrimSet idx k,
-    C ⊥ Cas -> state_union Sc Sr S -> hstate_union HSc HSr HS ->
+    state_union Sc Sr S -> hstate_union HSc HSr HS ->
     rel_safety k idx (Cas, Sc, pc, npc) (A, HSc) Q -> (Sr, HSr, A, w) ||= Pr -> wfHPrimExec C A HS ->
     (
       forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
@@ -83,4 +83,15 @@ Inductive wfRdy : XCodeHeap -> XCodeHeap * apSet -> Tid -> tlocst -> Prop :=
     wfRdy C (C', PrimSet) t K.
 
 (* Compositionality Proof *)
-Lemma wfCth_wfRdy_imply_wpsim : 
+Lemma wfCth_wfRdy_imply_wpsim :
+  forall idx C Cas S pc npc PrimSet T t K M Spec,
+    simImpsPrimSet Spec Cas PrimSet -> C ⊥ Cas -> 
+    HProgSafe (C, PrimSet, (T, t, K, M)) ->
+    wfCth idx (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
+    (
+      forall t' K', (ThrdMap.set t None T) t' = Some K' ->
+                    wfRdy (C ⊎ Cas) (C, PrimSet) t' K' 
+    ) ->
+    wp_sim idx (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)).
+Proof.
+Admitted.
