@@ -14,6 +14,7 @@ Require Import language.
 Require Import highlang.
 Require Import lowlang.
 Require Import logic.
+Require Import lemmas.
 Require Import reg_lemma.
 Require Import soundness.
 Require Import refinement.
@@ -391,7 +392,100 @@ Proof.
   intros.
   unfold Etr_Refinement; intros.
   eapply wp_sim_ensures_refinement'; eauto.
-Qed.
+Qed. Print wfCth.
+
+Lemma inital_wfCth_holds :
+  forall Spec C Cas PrimSet S HS pc npc,
+    simImpsPrimSet Spec Cas PrimSet ->
+    wp_stateRel S HS -> HProgSafe (C, PrimSet, HS) ->
+    get_Hs_pcont HS = (pc, npc) -> C ⊥ Cas ->
+    exists idx, wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
+Proof.
+  intros.
+  destruct HS.
+  destruct p.
+  renames t to K.
+  destruct p.
+  renames t to T, t0 to t.
+  lets Ht : (classic (indom pc C)).
+  destruct Ht as [Ht | Ht].
+  {
+    exists (5%nat, 6%nat).
+    eapply clt_wfCth; eauto.
+    destruct S.
+    destruct p.
+    destruct r.
+    econstructor; intros.
+    econstructor; simpl; unfold Nat.lt.
+    omega.
+    econstructor; simpl; unfold Nat.lt.
+    omega.
+  }
+  {
+    lets Hprim_exec : H1.
+    eapply HProg_not_clt_exec_prim in Hprim_exec; eauto. 
+    destruct Hprim_exec as (lv & hprim & Hprimset & HwfHPrimExec).
+    unfolds simImpsPrimSet.
+    lets HSpec : Hprimset.
+    assert (HwdSpec : exists Fp Fq, Spec pc = Some (Fp, Fq) /\ wdSpec Fp Fq hprim).
+    { 
+      clear - H HSpec.
+      eapply H with (L := nil) in HSpec.
+      destruct HSpec as (lv & Fp & Fq & HSpec & HPrimSet & HAprim & HwdSpec & HsimImpPrim).
+      do 2 eexists.
+      split; eauto.
+    }
+    destruct HwdSpec as (Fp & Fq & HSpec_pc & HwdSpec).
+    inv HwdSpec.
+    clear H4 H5.
+    specialize (H6 lv).
+    destruct H6 as (num & Pr & L & Hwf_pre & Hwf_post).
+    assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
+    unfold INV.
+    split; eauto. 
+    clear - HwfHPrimExec.
+    inv HwfHPrimExec.
+    assert (Pm hprim lv = Pm hprim lv); eauto.
+    destruct K.
+    destruct p.
+    assert ((T, t, (h, w0, w), m) = (T, t, (h, w0, w), m)); eauto.
+    eapply H in H0; eauto.
+    destruct H0.
+    destruct H2.
+    inv H0.
+    split; eauto.
+    eexists.
+    econstructor; eauto.
+    lets Hpre_hold : Hinv.
+    eapply Hwf_pre in Hpre_hold; eauto.
+    (*lets Hpre_tmp : Hpre_hold.*)
+    eapply rel_sep_star_split in Hpre_hold.
+    destruct Hpre_hold as (S1 & S2 & HS1 & HS2 & w1 & w2 & Hstate_union & Hhstate_union & Hfp & Hpr & Hnum).
+    lets Hsim : HSpec.
+    eapply H with (L := L) in Hsim; eauto.
+    destruct Hsim as (lv0 & Fp0 & Fq0 & HSpec0 & HPrimSet0 & HFp_imp_prim & HwdSpec0 & Hsim).
+    rewrite HSpec_pc in HSpec0.
+    inv HSpec0.
+    assert (lv = lv0).
+    {
+      clear - Hwf_pre Hfp HFp_imp_prim Hpr.
+      eapply HFp_imp_prim in Hfp; eauto.
+      clear - Hfp; simpls.
+      simpljoin1.
+      inv H2; eauto.
+    }
+    subst lv.
+    unfold simImpPrim in Hsim.
+    eapply Hsim in Hfp.
+    destruct Hfp as [idx HsimM].
+    destruct idx.
+    exists (n, Nat.succ (Nat.succ n0)).
+    eapply prim_wfCth; eauto.
+    instantiate (1 := Fq0 L).
+    instantiate (1 := 0%nat).
+    
+    eapply H with (lv := lv) in HSpec.
+  }
 
 (* Compositionality1 *)
 Lemma compositionality1 :
@@ -401,13 +495,13 @@ Lemma compositionality1 :
     get_Hs_pcont HS = (pc, npc) -> C ⊥ Cas -> 
     exists idx, wp_sim idx (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
 Proof.
-  intros.
+  intros. 
   exists (5%nat, 6%nat).
   destruct HS.
   destruct p.
   renames t to K.
   destruct p.
-  renames t to T, t0 to t. 
+  renames t to T, t0 to t.  
   eapply wfCth_wfRdy_imply_wpsim; eauto.
   {
     lets Ht : (classic (indom pc C)).
@@ -423,13 +517,69 @@ Proof.
       econstructor; simpl; unfold Nat.lt.
       omega.
     }
-    {
+    {  
       lets Hprim_exec : H1.
-      eapply HProg_not_clt_exec_prim in Hprim_exec; eauto.
+      eapply HProg_not_clt_exec_prim in Hprim_exec; eauto. 
       destruct Hprim_exec as (lv & hprim & Hprimset & HwfHPrimExec).
       unfolds simImpsPrimSet.
       lets HSpec : Hprimset.
-      eapply H with (lv := lv) in HSpec. 
+      assert (HwdSpec : exists Fp Fq, Spec pc = Some (Fp, Fq) /\ wdSpec Fp Fq hprim).
+      { 
+        clear - H HSpec.
+        eapply H with (L := nil) in HSpec.
+        destruct HSpec as (lv & Fp & Fq & HSpec & HPrimSet & HAprim & HwdSpec & HsimImpPrim).
+        do 2 eexists.
+        split; eauto.
+      }
+      destruct HwdSpec as (Fp & Fq & HSpec_pc & HwdSpec).
+      inv HwdSpec.
+      clear H4 H5.
+      specialize (H6 lv).
+      destruct H6 as (num & Pr & L & Hwf_pre & Hwf_post).
+      assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
+      unfold INV.
+      split; eauto. 
+      clear - HwfHPrimExec.
+      inv HwfHPrimExec.
+      assert (Pm hprim lv = Pm hprim lv); eauto.
+      destruct K.
+      destruct p.
+      assert ((T, t, (h, w0, w), m) = (T, t, (h, w0, w), m)); eauto.
+      eapply H in H0; eauto.
+      destruct H0.
+      destruct H2.
+      inv H0.
+      split; eauto.
+      eexists.
+      econstructor; eauto.
+      lets Hpre_hold : Hinv.
+      eapply Hwf_pre in Hpre_hold; eauto.
+      (*lets Hpre_tmp : Hpre_hold.*)
+      eapply rel_sep_star_split in Hpre_hold.
+      destruct Hpre_hold as (S1 & S2 & HS1 & HS2 & w1 & w2 & Hstate_union & Hhstate_union & Hfp & Hpr & Hnum).
+      lets Hsim : HSpec.
+      eapply H with (L := L) in Hsim; eauto.
+      destruct Hsim as (lv0 & Fp0 & Fq0 & HSpec0 & HPrimSet0 & HFp_imp_prim & HwdSpec0 & Hsim).
+      rewrite HSpec_pc in HSpec0.
+      inv HSpec0.
+      assert (lv = lv0).
+      {
+        clear - Hwf_pre Hfp HFp_imp_prim Hpr.
+        eapply HFp_imp_prim in Hfp; eauto.
+        clear - Hfp; simpls.
+        simpljoin1.
+        inv H2; eauto.
+      }
+      subst lv.
+      unfold simImpPrim in Hsim.
+      eapply Hsim in Hfp.
+      destruct Hfp as [idx HsimM].
+      eapply prim_wfCth; eauto.
+      
+      
+      eapply H with (lv := lv) in HSpec.
+      >>>>>>>>>>>>>>>>
+      
       destruct HSpec as (L & Fp & Fq & HSpec & Hget_prim & HwdSpec & HsimpImpPrim).
       unfolds simImpPrim.
       inv HwdSpec.

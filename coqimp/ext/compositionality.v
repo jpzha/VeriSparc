@@ -1,5 +1,5 @@
 (*+ Compositionality +*)    
-Require Import Coqlib.     
+Require Import Coqlib.      
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -66,6 +66,86 @@ Proof.
   eapply multi_step; eauto.
 Qed.
 
+(** Auxiliary Lemmas about rel_safety *)
+Lemma rel_safety_idx_inc_still :
+  forall k idx idx1 C S pc npc A HS Q,
+    rel_safety k idx (C, S, pc, npc) (A, HS) Q -> idx ⩹ idx1 ->
+    rel_safety k idx1 (C, S, pc, npc) (A, HS) Q.
+Proof.
+  cofix Hp; intros.
+  inv H.
+  econstructor; eauto; intros.
+  {
+    clear H12 H13.
+    eapply H11 in H.
+    destruct H.
+    split; eauto.
+    intros.
+    eapply H1 in H2.
+    destruct H2.
+    left.
+    simpljoin1.
+    exists idx.
+    split; eauto.
+    right.
+    simpljoin1.
+    destruct x0.
+    eexists.
+    exists (Nat.succ (Nat.succ n), n0).
+    split; eauto.
+    eapply Hp; eauto.
+    econstructor; eauto.
+  }
+  {
+    clear H11 H13.
+    eapply H12 in H; eauto.
+    destruct H.
+    split; eauto.
+    intros.
+    eapply H1 with (S2 := S2) in H2; eauto.
+    simpljoin1.
+    destruct H2.
+    exists idx A HS.
+    split; eauto.
+    simpljoin1; eauto.
+    destruct x.
+    do 3 eexists.
+    split.
+    eauto.
+    instantiate (1 := (Nat.succ (Nat.succ n), n0)).
+    eapply Hp; eauto.
+    econstructor; eauto.
+  }
+  {
+    clear H11 H12. 
+    eapply H13 in H; eauto; clear H13.
+    destruct H.
+    split; eauto.
+    intros.
+    eapply H1 with (S2 := S2) in H2; eauto.
+    simpljoin1.
+    destruct H2. 
+    exists idx A HS x2.
+    split; eauto.
+    destruct H4.
+    left; eauto.
+    simpljoin1; subst; eauto.
+    simpljoin1.
+    right; eauto.
+
+    destruct x.
+    exists (Nat.succ (Nat.succ n), n0) x0 x1 x2.
+    split; eauto.
+    destruct H4. 
+    left; eauto.
+    right.
+    simpljoin1.
+    split; eauto.
+    eapply Hp; eauto.
+    econstructor; eauto.
+  }
+Qed.
+
 (** Define Well-formed Current Thread and Well-formed Ready *)
 Inductive wfIndex : XCodeHeap -> State -> Word -> Index -> Prop :=
 | cons_wfIndex : forall C M R F D idx pc,
@@ -94,6 +174,9 @@ Inductive wfHPrimExec : XCodeHeap -> primcom -> HState -> Prop :=
     ) ->
     wfHPrimExec C A HS.
 
+Definition wfPrimIndex (idx : Index) :=
+  exists idx1 idx2, idx1 ⩹ idx2 /\ idx2 ⩹ idx.
+
 (** Well-formed Current Thread *)
 Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
 | clt_wfCth : forall C Cas S HS pc npc PrimSet idx,
@@ -104,17 +187,12 @@ Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
 | prim_wfCth : forall C Cas Sc HSc S HS Sr HSr w Q Pr A pc npc PrimSet idx k,
     state_union Sc Sr S -> hstate_union HSc HSr HS ->
     rel_safety k idx (Cas, Sc, pc, npc) (A, HSc) Q -> (Sr, HSr, A, w) ||= Pr -> wfHPrimExec C A HS ->
+    wfPrimIndex idx ->
     (
-      (
-        indom pc PrimSet -> wp_stateRel S HS /\ get_Hs_pcont HS = (pc, npc)
-      ) \/
-      (
-        ~ indom pc PrimSet ->
-        forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
-                       HProgSafe (C, PrimSet, HS') ->
-                       exists idx_j, wfCth idx_j (C, Cas) (C ⊎ Cas, (S', f +ᵢ ($ 8), f +ᵢ ($ 12))) (C, PrimSet, HS')
-      )
-    )->
+      forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
+                     HProgSafe (C, PrimSet, HS') ->
+                     wp_stateRel S' HS' /\ get_Hs_pcont HS' = (f +ᵢ ($ 8), f +ᵢ ($ 12))
+    ) ->
     wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
 
 (* Well-formed Ready Thread *)

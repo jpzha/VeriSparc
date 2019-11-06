@@ -275,29 +275,29 @@ Definition INV (A : primcom) (w : nat) (lv : list Val) (rls : RelState) :=
   end. 
 
 (** Well-formed Spec *)  
-Inductive wdSpec : Fpre -> Fpost -> ap -> list Val -> list Logic_var -> Prop :=
-| consWdSpec : forall Fp Fq (hprim : ap) lv L,
+Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
+| consWdSpec : forall Fp Fq (hprim : ap),
     (
-      forall hs hs' (f : Word), hprim lv hs hs' -> (getHR hs' r15 = Some (W f)) ->
+      forall lv hs hs' (f : Word), hprim lv hs hs' -> (getHR hs' r15 = Some (W f)) ->
                                 get_Hs_pcont hs' = (f +ᵢ ($ 8), f +ᵢ ($ 12))
     ) ->
     (
-      forall (hs1 hs1' hs_r hs hs': HState), hprim lv hs1 hs1' -> hstate_union hs1 hs_r hs ->
+      forall lv (hs1 hs1' hs_r hs hs': HState), hprim lv hs1 hs1' -> hstate_union hs1 hs_r hs ->
                                              (hprim lv hs hs' /\ hstate_union hs1' hs_r hs')
     ) ->
     (
-      exists num Pr,
-        (forall rls, INV (Pm hprim lv) num lv rls -> rls ||= (Fp L) ⋆ Pr) /\
+      forall lv, exists num Pr L,
+        (forall rls, INV (Pm hprim lv) num lv rls <-> rls ||= (Fp L) ⋆ Pr) /\
         (forall rls', rls' ||= (Fq L) ⋆ Pr -> exists num' lv', INV Pdone num' lv' rls')
     ) ->
-    wdSpec Fp Fq hprim lv L.
+    wdSpec Fp Fq hprim.
 
 (** Well-formed Primitive *)
 Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) :=
   exists Speci, rel_wf_cdhp Speci C /\
-           (forall f lv, indom f C ->
-                 (exists L Fp Fq hprim I, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim /\ LookupXC C f I
-                                   /\ wdSpec Fq Fq hprim lv L /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
+           (forall f L, indom f C ->
+                        (exists Fp Fq hprim I, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim /\ LookupXC C f I
+                                               /\ wdSpec Fq Fq hprim /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
 
 (*+ Logic Soundness +*)
 
@@ -456,7 +456,7 @@ CoInductive rel_safety_insSeq :
 
 
 (** soundness of code heap rule *)
-Inductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
+CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
 | cons_safety : forall k idx C S pc npc A HS com Q,
     C pc = Some (c com) ->
     (* not call ret *)
@@ -535,9 +535,10 @@ Definition simImpPrim (Cas : XCodeHeap) (f : Word) (P Q : relasrt) (A : primcom)
 
 (** Well-defined Primitive Set Semantics *) 
 Definition simImpsPrimSet (Spec : Funspec) (Cas : XCodeHeap) (PrimSet : apSet) :=
-  forall f lv hprim, PrimSet f = Some hprim ->
-          exists L Fp Fq, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim
-                           /\ wdSpec Fp Fq hprim lv L /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv). 
+  forall f L hprim, PrimSet f = Some hprim ->
+                    exists lv Fp Fq, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim 
+                                     /\ (Fp L ⇒ (RAprim (Pm hprim lv)) ⋆ RAtrue)
+                                     /\ wdSpec Fp Fq hprim /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv). 
 
 (*+ Whole Program Simulation +*)
 CoInductive wp_sim : Index -> LProg -> HProg -> Prop :=
