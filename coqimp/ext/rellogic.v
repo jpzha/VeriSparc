@@ -523,7 +523,7 @@ CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (p
               (
                 (Nat.eqb k 0 = true /\ (S2, HS, A', w) ||= Q) \/
                 (Nat.eqb k 0 = false /\ rel_safety (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q)
-              )
+              ) /\ (0%nat, 0%nat) ⩹ idx1
       )
     ) ->
     rel_safety k idx (C, S, pc, npc) (A, HS) Q.

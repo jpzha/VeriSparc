@@ -1,5 +1,5 @@
 (*+ Final Theorem Proof +*)  
-Require Import Coqlib.           
+Require Import Coqlib.            
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -392,7 +392,7 @@ Proof.
   intros.
   unfold Etr_Refinement; intros.
   eapply wp_sim_ensures_refinement'; eauto.
-Qed. Print wfCth.
+Qed.
 
 Lemma inital_wfCth_holds :
   forall Spec C Cas PrimSet S HS pc npc,
@@ -423,8 +423,8 @@ Proof.
   }
   {
     lets Hprim_exec : H1.
-    eapply HProg_not_clt_exec_prim in Hprim_exec; eauto. 
-    destruct Hprim_exec as (lv & hprim & Hprimset & HwfHPrimExec).
+    eapply HProg_not_clt_exec_prim in Hprim_exec; eauto.
+    destruct Hprim_exec as (lv & hprim & Hprimset & HwfHPrimExec & Hnpc).
     unfolds simImpsPrimSet.
     lets HSpec : Hprimset.
     assert (HwdSpec : exists Fp Fq, Spec pc = Some (Fp, Fq) /\ wdSpec Fp Fq hprim).
@@ -436,8 +436,9 @@ Proof.
       split; eauto.
     }
     destruct HwdSpec as (Fp & Fq & HSpec_pc & HwdSpec).
-    inv HwdSpec.
-    clear H4 H5.
+    inv HwdSpec. 
+    clear H5.
+    rename H4 into Hret.
     specialize (H6 lv).
     destruct H6 as (num & Pr & L & Hwf_pre & Hwf_post).
     assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
@@ -478,14 +479,39 @@ Proof.
     unfold simImpPrim in Hsim.
     eapply Hsim in Hfp.
     destruct Hfp as [idx HsimM].
-    destruct idx.
-    exists (n, Nat.succ (Nat.succ n0)).
+    destruct idx. 
+    exists (Nat.succ (Nat.succ n), n0).
     eapply prim_wfCth; eauto.
     instantiate (1 := Fq0 L).
-    instantiate (1 := 0%nat).
-    
-    eapply H with (lv := lv) in HSpec.
+    instantiate (1 := 0%nat). 
+    eapply rel_safety_idx_inc_still; eauto.
+    econstructor; eauto.
+
+    intros. 
+    assert (wp_stateRel S' HS').
+    {
+      clear - Hwf_post H4.
+      eapply Hwf_post in H4.
+      simpljoin1.
+      inv H; eauto.
+    }
+    split; eauto.
+    eapply Hwf_post in H4.
+    clear - H4 H5 H7 H8 Hret.
+    inv H8.
+    inv H3.
+    inv H15.
+    specialize (H r15).
+    simpljoin1.
+    simpl in H5.
+    simpl.
+    inv H7.
+    eapply Hret in H18; eauto.
+    simpl.
+    rewrite H5 in H.
+    inv H; eauto.
   }
+Qed.
 
 (* Compositionality1 *)
 Lemma compositionality1 :
@@ -495,139 +521,20 @@ Lemma compositionality1 :
     get_Hs_pcont HS = (pc, npc) -> C ⊥ Cas -> 
     exists idx, wp_sim idx (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
 Proof.
-  intros. 
-  exists (5%nat, 6%nat).
+  intros.
+  lets HwfCth : H.
+  eapply inital_wfCth_holds in HwfCth; eauto.
+  destruct HwfCth as (idx & HwfCth).
+  exists idx.
   destruct HS.
   destruct p.
   renames t to K.
   destruct p.
-  renames t to T, t0 to t.  
+  renames t to T, t0 to t.
   eapply wfCth_wfRdy_imply_wpsim; eauto.
-  {
-    lets Ht : (classic (indom pc C)).
-    destruct Ht as [Ht | Ht].
-    {
-      eapply clt_wfCth; eauto.
-      destruct S.
-      destruct p.
-      destruct r.
-      econstructor; intros.
-      econstructor; simpl; unfold Nat.lt.
-      omega.
-      econstructor; simpl; unfold Nat.lt.
-      omega.
-    }
-    {  
-      lets Hprim_exec : H1.
-      eapply HProg_not_clt_exec_prim in Hprim_exec; eauto. 
-      destruct Hprim_exec as (lv & hprim & Hprimset & HwfHPrimExec).
-      unfolds simImpsPrimSet.
-      lets HSpec : Hprimset.
-      assert (HwdSpec : exists Fp Fq, Spec pc = Some (Fp, Fq) /\ wdSpec Fp Fq hprim).
-      { 
-        clear - H HSpec.
-        eapply H with (L := nil) in HSpec.
-        destruct HSpec as (lv & Fp & Fq & HSpec & HPrimSet & HAprim & HwdSpec & HsimImpPrim).
-        do 2 eexists.
-        split; eauto.
-      }
-      destruct HwdSpec as (Fp & Fq & HSpec_pc & HwdSpec).
-      inv HwdSpec.
-      clear H4 H5.
-      specialize (H6 lv).
-      destruct H6 as (num & Pr & L & Hwf_pre & Hwf_post).
-      assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
-      unfold INV.
-      split; eauto. 
-      clear - HwfHPrimExec.
-      inv HwfHPrimExec.
-      assert (Pm hprim lv = Pm hprim lv); eauto.
-      destruct K.
-      destruct p.
-      assert ((T, t, (h, w0, w), m) = (T, t, (h, w0, w), m)); eauto.
-      eapply H in H0; eauto.
-      destruct H0.
-      destruct H2.
-      inv H0.
-      split; eauto.
-      eexists.
-      econstructor; eauto.
-      lets Hpre_hold : Hinv.
-      eapply Hwf_pre in Hpre_hold; eauto.
-      (*lets Hpre_tmp : Hpre_hold.*)
-      eapply rel_sep_star_split in Hpre_hold.
-      destruct Hpre_hold as (S1 & S2 & HS1 & HS2 & w1 & w2 & Hstate_union & Hhstate_union & Hfp & Hpr & Hnum).
-      lets Hsim : HSpec.
-      eapply H with (L := L) in Hsim; eauto.
-      destruct Hsim as (lv0 & Fp0 & Fq0 & HSpec0 & HPrimSet0 & HFp_imp_prim & HwdSpec0 & Hsim).
-      rewrite HSpec_pc in HSpec0.
-      inv HSpec0.
-      assert (lv = lv0).
-      {
-        clear - Hwf_pre Hfp HFp_imp_prim Hpr.
-        eapply HFp_imp_prim in Hfp; eauto.
-        clear - Hfp; simpls.
-        simpljoin1.
-        inv H2; eauto.
-      }
-      subst lv.
-      unfold simImpPrim in Hsim.
-      eapply Hsim in Hfp.
-      destruct Hfp as [idx HsimM].
-      eapply prim_wfCth; eauto.
-      
-      
-      eapply H with (lv := lv) in HSpec.
-      >>>>>>>>>>>>>>>>
-      
-      destruct HSpec as (L & Fp & Fq & HSpec & Hget_prim & HwdSpec & HsimpImpPrim).
-      unfolds simImpPrim.
-      inv HwdSpec.
-      clear H4 H5.
-      destruct H6 as (num & Pr & Hwdpre & Hwdpost).
-      assert (INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
-      {
-        unfold INV.
-        split; eauto.
-        clear - HwfHPrimExec.
-        inv HwfHPrimExec.
-        destruct K.
-        destruct p.
-        destruct h.
-        assert (Pm hprim lv = Pm hprim lv); eauto.
-        eapply H in H0; eauto.
-        destruct H0.
-        split; eauto.
-        destruct H1.
-        exists x.
-        econstructor; eauto.
-        inv H0; eauto.
-      }
-
-      eapply Hwdpre in H4.
-      
-      >>>>>>>>>>>>>>>>
-    }
-    
-    eapply clt_wfCth; eauto.
-    destruct S.
-    destruct p.
-    destruct r.
-    econstructor; intros.
-    econstructor; simpl; unfold Nat.lt.
-    omega.
-    econstructor; simpl; unfold Nat.lt.
-    omega.
-  }
-  { 
-    intros. 
-    econstructor; intros; subst.
-    clear - H3 H5 H7 H8 H11.
-    exists (5%nat, 6%nat).
-    eapply clt_wfCth; eauto.
-    destruct S0, p, r.
-    econstructor; intros; econstructor; simpl; unfold Nat.lt; omega.
-  }
+  intros.
+  econstructor; intros; subst.
+  eapply inital_wfCth_holds; eauto.
 Qed.
 
 (** Logic ensures simulation *)

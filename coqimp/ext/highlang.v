@@ -264,7 +264,7 @@ Inductive HH__ : XCodeHeap -> tlocst * Memory -> msg -> tlocst * Memory -> Prop 
     HH__ C (((HR, b, HF), pc, npc), HM) (out v) ((((HR, b, HF), npc, npc +ᵢ ($ 4)), HM))
 
 | HCallEvt : forall C HQ (pc npc : Word) HM lv,
-    ~ indom pc C -> args HQ HM lv ->
+    ~ indom pc C -> args HQ HM lv -> npc = pc +ᵢ ($ 4) ->
     HH__ C ((HQ, pc, npc), HM) (Callevt pc lv) ((HQ, pc, npc), HM).
 
 Inductive HP__ : HProg -> msg -> HProg -> Prop :=

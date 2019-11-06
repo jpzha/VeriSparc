@@ -1,5 +1,5 @@
-(*+ Compositionality +*)    
-Require Import Coqlib.      
+(*+ Compositionality +*)     
+Require Import Coqlib.       
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -67,6 +67,25 @@ Proof.
 Qed.
 
 (** Auxiliary Lemmas about rel_safety *)
+Lemma LtIndex_Trans :
+  forall idx1 idx2 idx3,
+    idx1 ⩹ idx2 -> idx2 ⩹ idx3 ->
+    idx1 ⩹ idx3.
+Proof.
+  intros.
+  unfolds LtIndex.
+  destruct idx1, idx2, idx3.  
+  inv H.
+  inv H0.
+  eapply lex_ord_left.
+  eapply Nat.lt_trans; eauto.
+  eapply lex_ord_left; eauto.
+  inv H0.
+  eapply lex_ord_left; eauto.
+  eapply lex_ord_right; eauto.
+  eapply Nat.lt_trans; eauto.
+Qed.
+
 Lemma rel_safety_idx_inc_still :
   forall k idx idx1 C S pc npc A HS Q,
     rel_safety k idx (C, S, pc, npc) (A, HS) Q -> idx ⩹ idx1 ->
@@ -75,7 +94,7 @@ Proof.
   cofix Hp; intros.
   inv H.
   econstructor; eauto; intros.
-  {
+  {  
     clear H12 H13.
     eapply H11 in H.
     destruct H.
@@ -128,20 +147,34 @@ Proof.
     exists idx A HS x2.
     split; eauto.
     destruct H4.
+    split.
     left; eauto.
     simpljoin1; subst; eauto.
     simpljoin1.
-    right; eauto.
+    eapply LtIndex_Trans; eauto.
 
+    split.
+    right; eauto.
+    simpljoin1.
+    split; eauto.
+    eapply LtIndex_Trans; eauto.
+    simpljoin1; eauto.
+    
     destruct x.
     exists (Nat.succ (Nat.succ n), n0) x0 x1 x2.
     split; eauto.
-    destruct H4. 
+    destruct H4.
+    split.
     left; eauto.
+    eapply LtIndex_Trans; eauto.
+    econstructor; eauto.
+    split.
     right.
     simpljoin1.
     split; eauto.
     eapply Hp; eauto.
+    econstructor; eauto.
+    eapply LtIndex_Trans; eauto.
     econstructor; eauto.
   }
 Qed.
@@ -174,9 +207,6 @@ Inductive wfHPrimExec : XCodeHeap -> primcom -> HState -> Prop :=
     ) ->
     wfHPrimExec C A HS.
 
-Definition wfPrimIndex (idx : Index) :=
-  exists idx1 idx2, idx1 ⩹ idx2 /\ idx2 ⩹ idx.
-
 (** Well-formed Current Thread *)
 Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
 | clt_wfCth : forall C Cas S HS pc npc PrimSet idx,
@@ -187,10 +217,9 @@ Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
 | prim_wfCth : forall C Cas Sc HSc S HS Sr HSr w Q Pr A pc npc PrimSet idx k,
     state_union Sc Sr S -> hstate_union HSc HSr HS ->
     rel_safety k idx (Cas, Sc, pc, npc) (A, HSc) Q -> (Sr, HSr, A, w) ||= Pr -> wfHPrimExec C A HS ->
-    wfPrimIndex idx ->
     (
       forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
-                     HProgSafe (C, PrimSet, HS') ->
+                     HProgSafe (C, PrimSet, HS') -> (exec_prim (A, HS) (Pdone, HS')) -> 
                      wp_stateRel S' HS' /\ get_Hs_pcont HS' = (f +ᵢ ($ 8), f +ᵢ ($ 12))
     ) ->
     wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
@@ -266,7 +295,7 @@ Qed.
 Lemma HProg_not_clt_exec_prim :
   forall C PrimSet HS pc npc,
     HProgSafe (C, PrimSet, HS) -> ~ indom pc C -> get_Hs_pcont HS = (pc, npc) ->
-    exists lv hprim, PrimSet pc = Some hprim /\ wfHPrimExec C (Pm hprim lv) HS.
+    exists lv hprim, PrimSet pc = Some hprim /\ wfHPrimExec C (Pm hprim lv) HS /\ npc = pc +ᵢ ($ 4).
 Proof.
   intros.
   unfolds HProgSafe.
@@ -285,7 +314,8 @@ Proof.
   }
   {  
     exists lv prim.
-    inv H5; simpls; inv H1.
+    inv H5; simpls; inv H1. 
+    split; eauto.
     split; eauto.
     econstructor; intros.
     inv H2.
@@ -339,6 +369,68 @@ Lemma wfCth_wfRdy_tau_step_preservation :
                       wfRdy (C, Cas) (C, PrimSet) t1 K1 
       ).
 Proof.
+  intros.
+  lets Ht : classic (indom pc C).
+  destruct Ht.
+  {
+    inv H2.
+    Focus 2.
+    inv H16.
+    clear - H0 H5 H20.
+    unfold disjoint in *.
+    unfold indom in H5.
+    simpljoin1.
+    specialize (H0 pc).
+    rewrite H in H0.
+    rewrite H20 in H0; simpls; tryfalse.
+
+    eapply LP__local1 in H4; eauto.
+    inv H4.
+    inv H13.
+    simpl in H10; symmetry in H10; inv H10. 
+    destruct K.
+    destruct p.
+    destruct h.
+    destruct p.
+    renames h0 to HR, z to b, h to HF.
+    simpl in H16; inv H16.
+    unfolds Tid.
+
+    assert ((Mc ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM =
+              Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
+    {
+      rewrite <- lemmas.merge_assoc; eauto.
+    }
+    
+    assert (((Mc ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M =
+            Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M).
+    {
+      rewrite H2; eauto.
+    }
+
+    assert (Mc ⊥ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
+    {
+      eapply lemmas.disj_sep_merge_still; eauto.
+      clear - H19.
+      eapply lemmas.disj_sym in H19.
+      eapply lemmas_ins.disj_merge_disj_sep in H19.
+      destruct H19.
+      eapply lemmas.disj_sym; eauto.
+    }
+
+    assert ((Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)) ⊥ M).
+    { 
+      rewrite <- H2; eauto.
+    }
+
+    rewrite H4 in H18.
+    eapply LH__progress_HH_progress in H18; eauto.
+    Focus 2.
+    rewrite <- H2; eauto.
+
+    
+  }
+  
   (*
   intros.
   lets Ht : classic (indom pc C).
