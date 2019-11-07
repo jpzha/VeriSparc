@@ -267,6 +267,16 @@ Inductive HH__ : XCodeHeap -> tlocst * Memory -> msg -> tlocst * Memory -> Prop 
     ~ indom pc C -> args HQ HM lv -> npc = pc +ᵢ ($ 4) ->
     HH__ C ((HQ, pc, npc), HM) (Callevt pc lv) ((HQ, pc, npc), HM).
 
+Definition getK_pc (K : tlocst) :=
+  match K with
+  | (Q, pc, npc) => pc
+  end.
+
+Definition getK_npc (K : tlocst) :=
+  match K with
+  | (Q, pc, npc) => npc
+  end.
+
 Inductive HP__ : HProg -> msg -> HProg -> Prop :=
 | Htau_step : forall C PrimSet T t K K' HM HM',
     HH__ C (K, HM) tau (K', HM') ->

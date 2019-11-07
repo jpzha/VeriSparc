@@ -66,8 +66,7 @@ Definition hstate_union (hs1 hs2 hs : HState) :=
 (** high-level primcom transition *)
 Inductive exec_prim : primcom * HState -> primcom * HState -> Prop :=
 | PrimExec : forall (prim : ap) lv hs hs',
-    prim lv hs hs' -> exec_prim (Pm prim lv, hs) (Pdone, hs')
-| PdoneExec : forall hs, exec_prim (Pdone, hs) (Pdone, hs).
+    prim lv hs hs' -> exec_prim (Pm prim lv, hs) (Pdone, hs').
 
 (* get register file from current thread's local state *)
 Definition getHR_K (K : tlocst) :=
@@ -271,7 +270,8 @@ Definition rel_wf_cdhp (Spec : Funspec) (C : XCodeHeap) :=
 Definition INV (A : primcom) (w : nat) (lv : list Val) (rls : RelState) :=
   match rls with
   | (s, hs, A, w) =>
-    wp_stateRel s hs /\ (exists hs', exec_prim (A, hs) (Pdone, hs')) /\ args (getHQ hs) (getHM hs) lv
+    wp_stateRel s hs /\ ((exists hs', exec_prim (A, hs) (Pdone, hs') /\ A <> Pdone) \/ A = Pdone)
+                         /\ args (getHQ hs) (getHM hs) lv
   end. 
 
 (** Well-formed Spec *)  
@@ -457,8 +457,9 @@ CoInductive rel_safety_insSeq :
 
 (** soundness of code heap rule *)
 CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
-| cons_safety : forall k idx C S pc npc A HS com Q,
-    C pc = Some (c com) ->
+| cons_safety : forall k idx C S pc npc A HS Q f aexp i rd, 
+    ( forall pc0, C pc0 = None \/ C pc0 = Some (c (cntrans i)) \/ C pc0 = Some (c (cjumpl aexp rd)) \/ 
+             C pc = Some (c (ccall f)) \/ C pc = Some (c cretl)) ->
     (* not call ret *)
     (
       forall f aexp rd i,
@@ -521,7 +522,7 @@ CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (p
             exists idx1 A' HS' w ,
               ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
               (
-                (Nat.eqb k 0 = true /\ (S2, HS, A', w) ||= Q) \/
+                (Nat.eqb k 0 = true /\ (S2, HS, A', w) ||= Q /\ A' = Pdone) \/
                 (Nat.eqb k 0 = false /\ rel_safety (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q)
               ) /\ (0%nat, 0%nat) ⩹ idx1
       )
