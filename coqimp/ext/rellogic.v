@@ -454,12 +454,25 @@ CoInductive rel_safety_insSeq :
     ) ->
     rel_safety_insSeq Spec idx (C, S, pc, npc) (A, HS) Q.
 
+Definition legal_com (oc : option Command) :=
+  match oc with
+  | Some cc => match cc with
+              | c cc' => match cc' with
+                        | cntrans i => True 
+                        | cjumpl aexp rr => True
+                        | ccall f => True
+                        | cretl => True
+                        | _ => False
+                        end
+              | _ => False
+              end
+  | _ => False
+  end.                 
 
 (** soundness of code heap rule *)
 CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
-| cons_safety : forall k idx C S pc npc A HS Q f aexp i rd, 
-    ( forall pc0, C pc0 = None \/ C pc0 = Some (c (cntrans i)) \/ C pc0 = Some (c (cjumpl aexp rd)) \/ 
-             C pc = Some (c (ccall f)) \/ C pc = Some (c cretl)) ->
+| cons_safety : forall k idx C S pc npc A HS Q, 
+    legal_com (C pc) -> legal_com (C npc) ->
     (* not call ret *)
     (
       forall f aexp rd i,
@@ -522,7 +535,7 @@ CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (p
             exists idx1 A' HS' w ,
               ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
               (
-                (Nat.eqb k 0 = true /\ (S2, HS, A', w) ||= Q /\ A' = Pdone) \/
+                (Nat.eqb k 0 = true /\ (S2, HS', A', w) ||= Q /\ A' = Pdone) \/
                 (Nat.eqb k 0 = false /\ rel_safety (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q)
               ) /\ (0%nat, 0%nat) ⩹ idx1
       )

@@ -1,5 +1,5 @@
 (*+ Compositionality +*)      
-Require Import Coqlib.          
+Require Import Coqlib.           
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -266,9 +266,9 @@ Proof.
   cofix Hp; intros.
   inv H.
   econstructor; eauto; intros.
-  {  
-    clear H12 H13.
-    eapply H11 in H.
+  {   
+    clear H13 H14.
+    eapply H12 in H.
     destruct H.
     split; eauto.
     intros.
@@ -288,8 +288,8 @@ Proof.
     econstructor; eauto.
   }
   {
-    clear H11 H13.
-    eapply H12 in H; eauto.
+    clear H12 H14.
+    eapply H13 in H; eauto.
     destruct H.
     split; eauto.
     intros.
@@ -308,8 +308,8 @@ Proof.
     econstructor; eauto.
   }
   {
-    clear H11 H12. 
-    eapply H13 in H; eauto; clear H13.
+    clear H12 H13. 
+    eapply H14 in H; eauto; clear H14.
     destruct H.
     split; eauto.
     intros.
@@ -391,7 +391,7 @@ CoInductive rel_safety_aux :
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
             exists idx1,
-              idx1 ⩹ idx /\ rel_safety (Nat.succ k) idx1 (C, S2, pc2, npc2) (A, HS) Q
+              idx1 ⩹ idx /\ rel_safety_aux (Nat.succ k) idx1 (C, S2, pc2, npc2) (A, HS) Q
         )
     ) ->
     (* retl *)
@@ -409,9 +409,9 @@ CoInductive rel_safety_aux :
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
             exists idx1 A' HS' w,
-              (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS, A', w) ||= Q) \/
+              (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS', A', w) ||= Q) \/
               (Nat.eqb k 0 = false /\ idx1 ⩹ idx /\ A' = A /\ HS = HS' /\
-               rel_safety_aux (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q))
+               rel_safety_aux (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q) /\ (0%nat, 0%nat) ⩹ idx1)
     ) ->
     rel_safety_aux k idx (C, S, pc, npc) (A, HS) Q.
 
@@ -529,19 +529,419 @@ Inductive Lsafety : nat -> nat * LProg -> nat * LProg -> Prop :=
     ) ->
     Lsafety (Nat.succ n) (k, (C, (S, pc, npc))) (k', (C, (S', pc', npc'))).
 
+Lemma legel_pc_ : forall (C : XCodeHeap) pc,
+    legal_com (C pc) ->
+    exists i aexp rd f,
+      (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f)))
+      \/ C pc = Some (c (ccall f)) \/ C pc = Some (c cretl).
+Proof.
+  intros.
+  destruct (C pc) eqn:Heqe; simpls; tryfalse. 
+  destruct c; simpls; try solve [do 4 eexists; right; eauto]; tryfalse.
+  destruct c; simpls; try solve [do 4 eexists; eauto]; tryfalse.
+  Unshelve.
+  exact (Ao (Ow ($ 1))).
+  exact r0.
+  exact ($ 1).
+  exact nop.
+  exact (Ao (Ow ($ 1))).
+  exact r0.
+  exact nop.
+  exact ($ 1).
+  exact nop.
+  exact (Ao (Ow ($ 1))).
+  exact r0.
+  exact ($ 1).
+  exact nop.
+  exact (Ao (Ow ($ 1))).
+  exact r0.
+Qed.
+
 Lemma rel_safety_imp_rel_safety_aux' :
   forall k idx C S pc npc A HS Q,
     rel_safety k idx (C, S, pc, npc) (A, HS) Q ->
     well_founded LtIndex -> A <> Pdone ->
     exists k' S' pc' npc' idx' HS' n, Lsafety n (k, (C, (S, pc, npc))) (k', (C, (S', pc', npc'))) /\ 
                                  exec_prim (A, HS) (Pdone, HS') /\
-                                 (rel_safety k' idx' (C, S', pc', npc') (Pdone, HS') Q 
-                                  \/ (Nat.eqb k 0 = true /\ C pc = Some (c cretl) /\ (n = 1)%nat /\
-                                     exists w, (S', HS', Pdone, w) ||= Q)).
+                                 rel_safety k' idx' (C, S', pc', npc') (Pdone, HS') Q /\
+                                 (Nat.eqb k 0 = true -> C pc = Some (c cretl) -> (n = 0)%nat). 
 Proof.
-Admitted.
+  intros.
+  unfolds well_founded.
+  specialize (H0 idx).
+  generalize dependent k.
+  generalize dependent C.
+  generalize dependent S.
+  generalize dependent pc.
+  generalize dependent npc.
+  generalize dependent A.
+  generalize dependent HS.
+  generalize dependent Q.
+  induction H0; intros. 
+ inv H2.
+ lets Hwf_com : H11.
+ assert (exists i aexp rd f,
+            (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f)))
+            \/ C pc = Some (c (ccall f)) \/ C pc = Some (c cretl)).
+ {
+   clear - Hwf_com.
+   eapply legel_pc_; eauto.
+ }
+  
+ destruct H2 as (i & aexp & rd & f & Hcom).
+ destruct Hcom as [Hcom | Hcom].
+ {
+   lets Ht : Hcom.
+   eapply H14 in Ht; clear H14 H15 H16.
+   simpljoin1.
+   lets Hcont : H2.
+   eapply H3 in Hcont; eauto.
+   clear H3.
+   destruct Hcont as [Hcont | Hcont].
+   {
+     simpljoin1.
+     eapply H0 in H4; eauto.
+     simpljoin1.
+     do 6 eexists.
+     exists (Nat.succ x10).
+     split.
+     econstructor; eauto.
+     repeat (destruct Hcom as [Hcom | Hcom]; eauto).
+     intros.
+     repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
+     intros.
+     repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
+     split; eauto.
+     split; eauto.
+     intros.
+     repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
+   }
+   {
+     simpljoin1.
+     do 6 eexists.
+     exists 1%nat.
+     split.
+     econstructor; eauto.
+     repeat (destruct Hcom as [Hcom | Hcom]; eauto).
+     intros.
+     clear H5.
+     do 3 eexists.
+     split; eauto.
+     econstructor; eauto.
+     intros.
+     repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
+     intros.
+     repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
+     split; eauto.
+     split; eauto.
+     intros.
+     repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
+   }
+ } 
+ destruct Hcom as [Hcom | Hcom].
+ {
+   lets Ht : Hcom.
+   eapply H15 in Ht; clear H14 H15 H16.
+   simpljoin1. 
+   assert (Hnpc : x2 = npc).
+   {
+     clear - Hcom H2.
+     inv H2.
+     inv H9; CElim C.
+     eauto.
+   }
+   subst x2.
 
+   lets Hcont : H4.
+   eapply H3 in Hcont; eauto; clear H3.
+   simpljoin1.
+   destruct H3.
+   {
+     simpljoin1; subst.
+     eapply H0 in H5; eauto.
+     simpljoin1.
+     do 6 eexists.
+     exists (Nat.succ x13).
+     split.
+     econstructor; eauto.
+     intros.
+     repeat (destruct H9 as [H9 | H9]; CElim C).
+     Focus 2.
+     intros; CElim C.
+     intros.
+     clear H9.
+     do 6 eexists.
+     split; eauto.
+     split; eauto.
+     split; eauto.
+     intros; CElim C.
+   }
+   {
+     do 6 eexists.
+     exists 1%nat.
+     split.
+     econstructor; eauto.
+     intros.
+     repeat (destruct H6 as [H6 | H6]; CElim C).
+     Focus 2.
+     intros; CElim C.
+     intros.
+     clear H6.
+     do 6 eexists.
+     split; eauto.
+     split; eauto.
+     econstructor; eauto. 
+     assert (x6 = Pdone).
+     {
+       inv H3; eauto.
+     }
+     subst x6.
+     split; eauto.
+     split; eauto.
+     intros; CElim C.
+   }
+   Unshelve.
+   exact nop.
+   exact (Ao (Ow ($ 1))).
+   exact r0.
+   exact nop.
+   exact (Ao (Ow ($ 1))).
+   exact r0.
+ } 
+ {
+   lets Ht : Hcom.
+   eapply H16 in Ht; eauto; clear H14 H15 H16.
+   simpljoin1.
+   lets Hcont : H2. 
+   eapply H3 with (S1 := x0) in Hcont; eauto; clear H3.
+   simpljoin1.
+   destruct H3.
+   {
+     simpljoin1.
+     destruct H5.
+     simpljoin1; tryfalse.
+     simpljoin1.
+     eapply H0 in H7; eauto.
+     simpljoin1.
+     do 6 eexists.
+     exists (Nat.succ x15).
+     split.
+     econstructor; eauto.
+     intros.
+     repeat (destruct H12 as [H12 | H12]; CElim C).
+     intros; CElim C.
+     intros.
+     clear H12.
+     do 6 eexists.
+     split; eauto.
+     split; eauto.
+     split; eauto.
+     intros; tryfalse.
+   }
+   {
+     destruct H5.
+     {  
+       simpljoin1; subst.
+       destruct x6.
+       do 4 eexists.
+       exists (Nat.succ n, n0).
+       exists x8 0%nat. 
+       split.
+       econstructor; eauto.
+       split; eauto.
+       split; intros; eauto.
+       econstructor; eauto.
+       intros. 
+       repeat (destruct H8 as [H8 | H8]; CElim C).
+       intros; CElim C.
+       intros.
+       clear H8. 
+       split; eauto.
+       do 6 eexists; eauto.
+       intros. 
+       assert ((C, (x0, x2, x4)) = (C, (S1, pc1, npc1))).
+       {
+         eapply LP_deterministic; eauto.
+         simpl; eauto.
+       }
+       inv H10.
+       assert (pc1 = npc).
+       {
+         clear - Hcom H2.
+         inv H2.
+         inv H9; CElim C.
+         eauto.
+       }
+       subst pc1.
+       assert (exists i aexp rd f,
+            (C npc = Some (c (cntrans i)) \/ C npc = Some (c (cjumpl aexp rd)) \/ C npc = Some (c (cbe f)))
+            \/ C npc = Some (c (ccall f)) \/ C npc = Some (c cretl)).
+       { 
+         clear - H13.
+         eapply legel_pc_; eauto.
+       }
+       assert ((C, (x1, x3, x5)) = (C, (S2, pc2, npc2))).
+       {
+         simpljoin1.
+         assert (exists cc', C npc = Some (c cc')).
+         {
+           destruct H10; eauto.
+           repeat (destruct H10 as [H10 | H10]; eauto).
+           destruct H10; eauto.
+         }
+         simpljoin1.
+         eapply LP_deterministic; eauto.
+         simpl; eauto.
+       }
+       inv H12.
+       do 4 eexists.
+       split.
+       left.
+       instantiate (3 := (n, n0)).
+       split; econstructor; eauto.
+       split.
+       left; eauto.
+       eauto.
+     }
+     {
+       simpljoin1.
+       do 6 eexists.
+       exists 1%nat.
+       split.
+       econstructor; eauto.
+       intros.
+       repeat (destruct H8 as [H8 | H8]; CElim C).
+       intros; CElim C.
+       intros.
+       clear H8.
+       do 6 eexists.
+       split; eauto.
+       split; eauto.
+       right; eauto.
+       split; eauto.
+       econstructor; eauto.
+       assert (x7 = Pdone).
+       {
+         inv H3; eauto.
+       }
+       subst x7.
+       split; eauto.
+       split; eauto.
+       intros; tryfalse.
+     }
+   }
+   Unshelve.
+   exact nop.
+   exact (Ao (Ow ($ 1))).
+   exact r0.
+   exact ($ 1).
+   exact nop.
+   exact (Ao (Ow ($ 1))).
+   exact r0.
+   exact ($ 1).
+ }
+Qed.
+ 
 (** equivalence between rel_safety and rel_safety_aux *)
+Lemma rel_safety_imp_rel_safety_aux1 :
+  forall k C S pc npc HS HS' Q idx A,
+    rel_safety k idx (C, S, pc, npc) (Pdone, HS') Q -> A <> Pdone -> exec_prim (A, HS) (Pdone, HS') ->
+    rel_safety_aux k idx (C, S, pc, npc) (A, HS) Q.
+Proof.
+  cofix Hp; intros.
+  inv H.
+  assert (exists i aexp rd f,
+            (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f)))
+            \/ C pc = Some (c (ccall f)) \/ C pc = Some (c cretl)).
+  {
+    eapply legel_pc_; eauto.
+  }
+  simpljoin1. 
+  econstructor; eauto.
+  {
+    destruct H; eauto.
+    repeat (destruct o as [o | o]; eauto).
+  }
+  {
+    intros.
+    eapply H13 in H2; clear H13 H14 H15 H.
+    simpljoin1.
+    split.
+    do 3 eexists; eauto.
+    intros.
+    eapply H2 in H3.
+    destruct H3.
+    simpljoin1.
+    eexists.
+    split; eauto.
+    simpljoin1.
+    inv H3.
+  }
+  {
+    intros.
+    eapply H14 in H2; clear H13 H14 H15 H.
+    simpljoin1.
+    split.
+    do 6 eexists.
+    split; eauto.
+    intros. 
+    eapply H2 with (S1 := S1) in H4; eauto.
+    simpljoin1.
+    destruct H4.
+    simpljoin1.
+    eexists. 
+    split; eauto.
+    inv H4.
+  }
+  {
+    intros.
+    eapply H15 in H2; clear H13 H14 H15 H.
+    simpljoin1.
+    split.
+    do 6 eexists.
+    split; eauto.
+    intros.
+    eapply H2 with (S1 := S1) in H4; eauto.
+    simpljoin1.
+    destruct H4.
+    simpljoin1.
+    destruct H6.
+    simpljoin1. 
+    do 4 eexists.
+    left; eauto.
+    simpljoin1.
+    do 4 eexists.
+    right.
+    split; eauto.
+    split; eauto.
+    inv H4.
+  }
+  Unshelve.
+  exact (5%nat, 5%nat).
+  exact 4%nat.
+Qed.
+
+Lemma Lsafety_imp_rel_safety_aux :
+  forall n k C S pc npc S' pc' npc' HS HS' k' idx Q A,
+    Lsafety n (k, (C, (S, pc, npc))) (k', (C, (S', pc', npc'))) ->
+    exec_prim (A, HS) (Pdone, HS') -> rel_safety k' idx (C, S', pc', npc') (Pdone, HS') Q ->
+    A <> Pdone ->
+    rel_safety_aux k (idx_sum (0%nat, n) idx) (C, S, pc, npc) (A, HS) Q.
+Proof.
+
+Lemma rel_safety_imp_rel_safety_aux2 :
+  forall k C S pc npc HS Q idx A,
+    rel_safety k idx (C, S, pc, npc) (A, HS) Q -> A <> Pdone ->
+    exists idx', rel_safety_aux k (idx_sum idx idx') (C, S, pc, npc) (A, HS) Q.
+Proof.
+  intros.
+  eapply rel_safety_imp_rel_safety_aux' in H; eauto.
+  Focus 2.
+  eapply well_founded_LtIndex; eauto.
+  simpljoin1.
+  exists x3.
+
+
 Lemma rel_safety_imp_rel_safety_aux :
   forall k idx C S pc npc A HS Q A' HS',
     rel_safety k idx (C, S, pc, npc) (A', HS') Q ->
