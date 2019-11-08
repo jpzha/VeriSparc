@@ -409,9 +409,9 @@ CoInductive rel_safety_aux :
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
             exists idx1 A' HS' w,
-              (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS', A', w) ||= Q) \/
+              (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS', A', w) ||= Q /\ (0%nat, 0%nat) ⩹ idx1) \/
               (Nat.eqb k 0 = false /\ idx1 ⩹ idx /\ A' = A /\ HS = HS' /\
-               rel_safety_aux (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q) /\ (0%nat, 0%nat) ⩹ idx1)
+               rel_safety_aux (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q))
     ) ->
     rel_safety_aux k idx (C, S, pc, npc) (A, HS) Q.
 
@@ -492,9 +492,8 @@ Qed.
 
 Inductive Lsafety : nat -> nat * LProg -> nat * LProg -> Prop :=
 | bas_Lsafety : forall k C S pc npc,  Lsafety 0%nat (k, (C, (S, pc, npc))) (k, (C, (S, pc, npc)))  
-| cons_Lsafety : forall k k' C S S' pc npc pc' npc' i aexp rd f n,
-    (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f))
-     \/ C pc = Some (c (ccall f)) \/ C pc = Some (c cretl)) ->
+| cons_Lsafety : forall k k' C S S' pc npc pc' npc' n,
+    legal_com (C pc) -> legal_com (C npc) ->
     (
         forall f aexp rd i,
           (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f))) ->
@@ -522,9 +521,8 @@ Inductive Lsafety : nat -> nat * LProg -> nat * LProg -> Prop :=
             (* progress *)
             exists S1 pc1 npc1 S2 pc2 npc2,
               LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
-              LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) /\
-              ((Nat.eqb k 0 = true /\ S' = S2 /\ pc' = pc2 /\ npc' = npc2) \/ 
-               (Nat.eqb k 0 = false /\ Lsafety n (Nat.pred k, (C, (S2, pc2, npc2))) (k', (C, (S', pc', npc')))))
+              LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) /\ 
+              (Nat.eqb k 0 = false /\ Lsafety n (Nat.pred k, (C, (S2, pc2, npc2))) (k', (C, (S', pc', npc'))))
           )
     ) ->
     Lsafety (Nat.succ n) (k, (C, (S, pc, npc))) (k', (C, (S', pc', npc'))).
@@ -578,19 +576,19 @@ Proof.
   generalize dependent HS.
   generalize dependent Q.
   induction H0; intros. 
- inv H2.
- lets Hwf_com : H11.
- assert (exists i aexp rd f,
-            (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f)))
+  inv H2.
+  lets Hwf_com : H11.
+  assert (exists i aexp rd f,
+             (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f)))
             \/ C pc = Some (c (ccall f)) \/ C pc = Some (c cretl)).
- {
+  {
    clear - Hwf_com.
    eapply legel_pc_; eauto.
  }
   
- destruct H2 as (i & aexp & rd & f & Hcom).
- destruct Hcom as [Hcom | Hcom].
- {
+  destruct H2 as (i & aexp & rd & f & Hcom).
+  destruct Hcom as [Hcom | Hcom].
+  {
    lets Ht : Hcom.
    eapply H14 in Ht; clear H14 H15 H16.
    simpljoin1.
@@ -606,7 +604,6 @@ Proof.
      exists (Nat.succ x10).
      split.
      econstructor; eauto.
-     repeat (destruct Hcom as [Hcom | Hcom]; eauto).
      intros.
      repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
      intros.
@@ -616,13 +613,12 @@ Proof.
      intros.
      repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
    }
-   {
+   { 
      simpljoin1.
      do 6 eexists.
      exists 1%nat.
      split.
      econstructor; eauto.
-     repeat (destruct Hcom as [Hcom | Hcom]; eauto).
      intros.
      clear H5.
      do 3 eexists.
@@ -638,8 +634,8 @@ Proof.
      repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
    }
  } 
- destruct Hcom as [Hcom | Hcom].
- {
+  destruct Hcom as [Hcom | Hcom].
+  {
    lets Ht : Hcom.
    eapply H15 in Ht; clear H14 H15 H16.
    simpljoin1. 
@@ -700,15 +696,8 @@ Proof.
      split; eauto.
      intros; CElim C.
    }
-   Unshelve.
-   exact nop.
-   exact (Ao (Ow ($ 1))).
-   exact r0.
-   exact nop.
-   exact (Ao (Ow ($ 1))).
-   exact r0.
  } 
- {
+  {
    lets Ht : Hcom.
    eapply H16 in Ht; eauto; clear H14 H15 H16.
    simpljoin1.
@@ -817,7 +806,6 @@ Proof.
        do 6 eexists.
        split; eauto.
        split; eauto.
-       right; eauto.
        split; eauto.
        econstructor; eauto.
        assert (x7 = Pdone).
@@ -830,15 +818,6 @@ Proof.
        intros; tryfalse.
      }
    }
-   Unshelve.
-   exact nop.
-   exact (Ao (Ow ($ 1))).
-   exact r0.
-   exact ($ 1).
-   exact nop.
-   exact (Ao (Ow ($ 1))).
-   exact r0.
-   exact ($ 1).
  }
 Qed.
  
@@ -913,11 +892,9 @@ Proof.
     do 4 eexists.
     right.
     split; eauto.
-    split; eauto.
     inv H4.
   }
   Unshelve.
-  exact (5%nat, 5%nat).
   exact 4%nat.
 Qed.
 
@@ -926,95 +903,226 @@ Lemma Lsafety_imp_rel_safety_aux :
     Lsafety n (k, (C, (S, pc, npc))) (k', (C, (S', pc', npc'))) ->
     exec_prim (A, HS) (Pdone, HS') -> rel_safety k' idx (C, S', pc', npc') (Pdone, HS') Q ->
     A <> Pdone ->
+    (Nat.eqb k 0 = true -> C pc = Some (c cretl) -> (n = 0)%nat) ->
     rel_safety_aux k (idx_sum (0%nat, n) idx) (C, S, pc, npc) (A, HS) Q.
 Proof.
+  cofix Hp; intros.
+  renames H3 to Hstrong.
+  inv H.
+  {
+    destruct idx; simpl.
+    eapply rel_safety_imp_rel_safety_aux1; eauto.
+  }
+  {
+    assert (exists i aexp rd f,
+            (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f)))
+            \/ C pc = Some (c (ccall f)) \/ C pc = Some (c cretl)).
+    {
+      clear - H10.
+      eapply legel_pc_; eauto.
+    }
+    destruct H as (i & aexp & rd & f & Hcom).
+    destruct Hcom as [Hcom | Hcom].
+    {
+      lets Hcom' : Hcom.
+      eapply H15 in Hcom; clear H15 H16 H17.
+      simpljoin1.
+      econstructor; eauto.
+      {
+        instantiate (1 := f).
+        instantiate (1 := rd).
+        instantiate (1 := aexp).
+        instantiate (1 := i).
+        repeat (destruct Hcom' as [Hcom' | Hcom']; eauto).
+      }
+      {
+        intros.
+        clear H4.
+        split; eauto.
+        intros.
+        exists (idx_sum (0%nat, n0) idx).
+        split.
+        eapply idx_sum_pre_lt.
+        unfold LtIndex.
+        eapply lex_ord_right.
+        unfold Nat.succ.
+        eapply Nat.lt_succ_diag_r.
+        assert ((C, (x, x0, x1)) = (C, (S'0, pc'0, npc'0))).
+        {
+          destruct Hcom' as [Hcom' | Hcom'].
+          eapply LP_deterministic; eauto.
+          simpl; eauto.
+          destruct Hcom' as [Hcom' | Hcom'].
+          eapply LP_deterministic; eauto.
+          simpl; eauto.
+          eapply LP_deterministic; eauto.
+          simpl; eauto.
+        }  
+        inv H5; eauto.
+        eapply Hp; eauto.
+        intros.
+        clear - H3 H5 H6.
+        inv H3; eauto.
+        eapply H16 in H6.
+        clear - H5 H6.
+        simpljoin1.
+        tryfalse.
+      }
+
+      intros.
+      repeat (destruct Hcom' as [Hcom' | Hcom']; CElim C).
+      intros.
+      repeat (destruct Hcom' as [Hcom' | Hcom']; CElim C).
+    }
+    assert (exists i aexp rd f,
+            (C npc = Some (c (cntrans i)) \/ C npc = Some (c (cjumpl aexp rd)) \/ C npc = Some (c (cbe f)))
+            \/ C npc = Some (c (ccall f)) \/ C npc = Some (c cretl)).
+    {
+      clear - H14.
+      eapply legel_pc_; eauto.
+    }
+    destruct H as (i0 & aexp0 & rd0 & f0 & Hcom_npc).
+    destruct Hcom as [Hcom | Hcom].
+    {
+      lets Hcom' : Hcom.
+      eapply H16 in Hcom; clear H15 H16 H17.
+      simpljoin1.
+      econstructor; eauto.
+      intros.
+      repeat (destruct H5 as [H5 | H5]; CElim C).
+      intros.
+      clear H5.
+      split; eauto.
+      do 6 eexists.
+      split; eauto.
+      intros.
+      assert ((C, (x, x0, x1)) = (C, (S1, pc1, npc1))).
+      {
+        eapply LP_deterministic; eauto.
+        simpl; eauto.
+      }
+      inv H7.
+      assert (pc1 = npc).
+      {
+        clear - H Hcom'.
+        inv H.
+        inv H9; CElim C.
+        eauto.
+      }
+      subst pc1.
+      assert ((C, (x2, x3, x4)) = (C, (S2, pc2, npc2))).
+      {
+        destruct Hcom_npc as [Hcom_npc | Hcom_npc].
+        repeat (destruct Hcom_npc as [Hcom_npc | Hcom_npc];
+                [eapply LP_deterministic; eauto; simpl; eauto | idtac]).
+        eapply LP_deterministic; eauto; simpl; eauto.
+        destruct Hcom_npc;
+          eapply LP_deterministic; eauto; simpl; eauto.
+      }
+      inv H7.
+
+      exists (idx_sum (0%nat, n0) idx).
+      split.
+      eapply idx_sum_pre_lt.
+      unfold LtIndex.
+      eapply lex_ord_right.
+      unfold Nat.succ.
+      eapply Nat.lt_succ_diag_r.
+
+      eapply Hp; eauto.
+      intros.
+      clear - H7.
+      simpls; tryfalse.
+
+      intros; CElim C.
+    }
+    {
+      lets Hcom' : Hcom.
+      eapply H17 in Hcom; clear H15 H16 H17.
+      simpljoin1.
+      econstructor; eauto.
+      {
+        intros.
+        repeat (destruct H6 as [H6 | H6]; CElim C).
+      }
+      {
+        intros; CElim C.
+      }
+      {
+        intros.
+        clear H6.
+        split; eauto.
+        do 6 eexists.
+        split; eauto.
+        intros.
+        assert ((C, (x, x0, x1)) = (C, (S1, pc1, npc1))).
+        {
+          eapply LP_deterministic; eauto.
+          simpl; eauto.
+        }
+        inv H8.
+        assert (npc = pc1).
+        { 
+          clear - Hcom' H.
+          inv H.
+          inv H9; CElim C.
+          eauto.
+        }
+        subst npc.
+        assert ((C, (x2, x3, x4)) = (C, (S2, pc2, npc2))).
+        { 
+          destruct Hcom_npc as [Hcom_npc | Hcom_npc].
+          repeat (destruct Hcom_npc as [Hcom_npc | Hcom_npc];
+                  [eapply LP_deterministic; eauto; simpl; eauto | idtac]).
+          eapply LP_deterministic; eauto; simpl; eauto.
+          destruct Hcom_npc; eapply LP_deterministic; eauto; simpl; eauto.
+        }
+        inv H8.
+        exists (idx_sum (0%nat, n0) idx).
+        do 3 eexists.
+        right; eauto.
+        split; eauto.
+        split; eauto.
+        eapply idx_sum_pre_lt; eauto.
+        eapply lex_ord_right.
+        eapply Nat.lt_succ_diag_r; eauto.
+        split; eauto.
+        split; eauto. 
+
+        eapply Hp; eauto.
+        clear - H5; intros.
+        inv H5; eauto.
+        eapply H16 in H0; clear H14 H15 H16.
+        simpljoin1; tryfalse.
+      }
+    }
+  }
+  Unshelve.
+  exact (Ao (Ow ($ 1))).
+  exact r0.
+  exact nop.
+  exact (Ao (Ow ($ 1))).
+  exact r0.
+  exact ($ 5).
+  exact nop.
+  exact 5%nat.
+Qed.
 
 Lemma rel_safety_imp_rel_safety_aux2 :
   forall k C S pc npc HS Q idx A,
     rel_safety k idx (C, S, pc, npc) (A, HS) Q -> A <> Pdone ->
-    exists idx', rel_safety_aux k (idx_sum idx idx') (C, S, pc, npc) (A, HS) Q.
+    exists idx', rel_safety_aux k idx' (C, S, pc, npc) (A, HS) Q.
 Proof.
   intros.
   eapply rel_safety_imp_rel_safety_aux' in H; eauto.
   Focus 2.
   eapply well_founded_LtIndex; eauto.
   simpljoin1.
-  exists x3.
-
-
-Lemma rel_safety_imp_rel_safety_aux :
-  forall k idx C S pc npc A HS Q A' HS',
-    rel_safety k idx (C, S, pc, npc) (A', HS') Q ->
-    well_founded LtIndex -> exec_prim (A, HS) (A', HS') ->
-    exists idx', rel_safety_aux k (idx_sum idx idx') (C, S, pc, npc) (A, HS) Q.
-Proof.
-  intros.
-  unfolds well_founded.
-  specialize (H0 idx).
-  generalize dependent C.
-  generalize dependent S.
-  generalize dependent pc.
-  generalize dependent npc.
-  generalize dependent A.
-  generalize dependent HS.
-  generalize dependent A'.
-  generalize dependent HS'.
-  induction H0; intros.
-  inv H2.
-  destruct H12.
-  {
-    clear H14 H15.
-    assert (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f))); eauto.
-    eapply H13 in H3; clear H13.
-    destruct H3 as [Hprog Hpreserve].
-    destruct Hprog as (S' & pc' & npc' & HLP__).
-    lets Hpreserve' : HLP__.
-    eapply Hpreserve in Hpreserve'; eauto.
-    clear Hpreserve.
-
-    destruct Hpreserve' as [Hpreserve1 | Hpreserve2].
-    destruct Hpreserve1 as (idx1 & Hidx_lt & Hrel_safety).
-    lets Hrel_safety_aux : Hidx_lt.
-    eapply H0 in Hrel_safety_aux; eauto.
-    destruct Hrel_safety_aux as [idx'' Hrel_safety_aux].
-    exists idx''.
-    econstructor; eauto; intros; CElim C.
-    destruct H3.
-    rewrite H2 in H3; inv H3.
-    split.
-    do 2 eexists; eauto.
-    intros.
-    assert ((C, (S', pc', npc')) = (C, (S'0, pc'0, npc'0))).
-    {
-      eapply LP_deterministic; eauto.
-      simpl; eauto.
-    } 
-    exists (idx_sum idx1 idx'').
-    split.
-    clear - Hidx_lt.
-    eapply idx_sum_pre_lt; eauto.
-    inv H4.
-    eauto.
-
-    destruct H3; CElim C.
-    destruct Hpreserve2 as (HS'' & idx1 & Hexec_prim & Hrel_safety).
-    destruct x.
-    assert (Hrel_safety_aux : (n, n0) ⩹ (Nat.succ n, n0)).
-    econstructor; eauto.
+  exists (idx_sum (0%nat, x5) x3).
+  eapply Lsafety_imp_rel_safety_aux; eauto.
+Qed.
     
 
-    >>>>>>>>>>>>>>>>>>>>>>>>>>>
-    
-    eexists.
-    econstructor.
-    eauto.
- 
-    2 : introv Hcontr; rewrite Hcontr in H2; tryfalse.
-    2 : introv Hcontr; rewrite Hcontr in H2; tryfalse.
-
-    intros.
-  }
-*)
 (** Define Well-formed Current Thread and Well-formed Ready *)
 Inductive wfIndex : XCodeHeap -> State -> Word -> Index -> Prop :=
 | cons_wfIndex : forall C M R F D idx pc,
@@ -1040,8 +1148,7 @@ Inductive wfHPrimExec : XCodeHeap -> primcom -> HState -> Prop :=
       forall hprim lv T t HQ pc npc HM,
         A = Pm hprim lv -> HS = (T, t, (HQ, pc, npc), HM) -> 
         HH__ C (HQ, pc, npc, HM) (Callevt pc lv) (HQ, pc, npc, HM) /\
-        (exists HS' pc' npc', hprim lv HS HS' /\ get_Hs_pcont HS' = (pc', npc')
-                         /\ indom pc' C /\ indom npc' C)
+        (exists HS' pc' npc', hprim lv HS HS' /\ get_Hs_pcont HS' = (pc', npc'))
     ) ->
     wfHPrimExec C A HS.
 
@@ -1054,7 +1161,7 @@ Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
 
 | prim_wfCth : forall C Cas Sc HSc S HS Sr HSr w Q Pr A pc npc PrimSet idx k,
     state_union Sc Sr S -> hstate_union HSc HSr HS ->
-    rel_safety k idx (Cas, Sc, pc, npc) (A, HSc) Q -> (Sr, HSr, A, w) ||= Pr -> wfHPrimExec C A HS ->
+    rel_safety_aux k idx (Cas, Sc, pc, npc) (A, HSc) Q -> (Sr, HSr, A, w) ||= Pr -> wfHPrimExec C A HS ->
     (
       forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
                      HProgSafe (C, PrimSet, HS') -> (exec_prim (A, HS) (Pdone, HS')) -> 
@@ -1229,9 +1336,13 @@ Proof.
     destruct H0.
     simpljoin1.
     inv H0.
-    split; eauto.
-    eexists. 
+    split.
+    left.
+    eexists.
+    split.
     econstructor; eauto.
+    intro; tryfalse.
+    simpl; eauto.
     lets Hpre_hold : Hinv.
     eapply Hwf_pre in Hpre_hold; eauto.
     (*lets Hpre_tmp : Hpre_hold.*)
@@ -1249,18 +1360,18 @@ Proof.
       clear - Hfp; simpls.
       simpljoin1.
       inv H2; eauto.
-    }
+    } 
     subst lv.
     unfold simImpPrim in Hsim.
     eapply Hsim in Hfp.
     destruct Hfp as [idx HsimM].
-    destruct idx. 
-    exists (Nat.succ (Nat.succ n), n0).
+    lets HsimM' : HsimM.
+    eapply rel_safety_imp_rel_safety_aux2 in HsimM'; eauto.
+    Focus 2.
+    intro; tryfalse.
+    destruct HsimM' as [idx' HsimM'].
+    exists idx'.
     eapply prim_wfCth; eauto.
-    instantiate (1 := Fq0 L).
-    instantiate (1 := 0%nat). 
-    eapply rel_safety_idx_inc_still; eauto.
-    econstructor; eauto.
 
     intros. 
     assert (wp_stateRel S' HS').
@@ -1284,12 +1395,6 @@ Proof.
     inv H7.
     eapply Hret in H18; eauto.
     simpl.
-    rewrite H5 in H.
-    split.
-    inv H; eauto.
-
-    inv H; eauto.
-    
     rewrite H5 in H.
     inv H; eauto.
   }
@@ -1337,7 +1442,7 @@ Lemma wfCth_wfRdy_tau_step_preservation :
         forall t1 K1, (ThrdMap.set t0 None T') t1 = Some K1 ->
                       wfRdy (C, Cas) (C, PrimSet) t1 K1 
       ).
-Proof.
+Proof. 
   intros.
   lets Ht : classic (indom pc C). 
   destruct Ht.
@@ -1346,15 +1451,12 @@ Proof.
     Focus 2.
     inv H16.
     clear - H0 H5 H20.
-    unfold disjoint in *.
-    unfold indom in H5.
+    unfold indom in *.
     simpljoin1.
+    unfold disjoint in *.
     specialize (H0 pc).
-    rewrite H in H0.
-    repeat 
-      match goal with
-      | H : ?A \/ ?B |- _ => destruct H as [Hcas | ?H]; [rewrite Hcas in H0; tryfalse | ..]
-      end.
+    rewrite H in H0; simpls.
+    repeat (destruct H20 as [H20 | H20]; [rewrite H20 in H0; simpls; tryfalse | idtac]).
     rewrite H20 in H0; simpls; tryfalse.
 
     eapply LP__local1 in H4; eauto.
@@ -1422,142 +1524,22 @@ Proof.
     split; eauto.
   }
   {
-    Lemma 
-    
     inv H2; tryfalse.
-  }
-  (*
-  intros.
-  lets Ht : classic (indom pc C).
-  destruct Ht as [Ht | Ht].
-  {   
-    inv H2.
+    inv H16.
+    assert ((Cas pc = Some (c (cntrans i)) \/
+             Cas pc = Some (c (cjumpl aexp rd)) \/
+             Cas pc = Some (c (cbe f))) \/ Cas pc = Some (c (ccall f)) \/ Cas pc = Some (c cretl)).
     {
-      inv H10.
-      eapply LP__local1 in H4; eauto.
-      inv H4.
-      simpl in H18.
-      destruct K.
-      destruct p.
-      destruct h.
-      destruct p.
-      renames h0 to HR, z to b, h to HF.
-      simpl in H15.
-      inv H15.
-      inv H18.
-
-      assert ((Mc ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM =
-              Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
-      {
-        rewrite <- lemmas.merge_assoc; eauto.
-      }
-             
-      assert (((Mc ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M =
-              Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M).
-      {
-        rewrite H2; eauto.
-      }
-
-      assert (Mc ⊥ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
-      {
-        eapply lemmas.disj_sep_merge_still; eauto.
-        clear - H12.
-        eapply lemmas.disj_sym in H12.
-        eapply lemmas_ins.disj_merge_disj_sep in H12.
-        destruct H12.
-        eapply lemmas.disj_sym; eauto.
-      }
-
-      assert ((Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)) ⊥ M).
-      {
-        unfolds Tid.
-        rewrite H2 in H13.
-        eauto.
-      }
-      
-      unfolds Tid.
-      rewrite H4 in H22.
-      eapply LH__progress_HH_progress in H22; eauto.
-      Focus 2.
-      rewrite <- H2; eauto.
-      
-      destruct H22 as (Mc' & M'' & K' & idx' & HLM' & Hdisj & Hdisj2 & HHP__
-                       & HcurTRel & HDl & HwfIndex & Hpcont); subst.
-      exists T t K' M'' idx'.
-      split.
-      {
-        destruct HHP__ as [HHP__ | HHP__].
-        right.
-        eexists.
-        split.
-        econstructor; eauto.
-        eauto.
-        left.
-        destruct HHP__ as (HK' & HM'' & Hidx); subst.
-        split; eauto.
-      }
-      split; eauto.
-      econstructor; eauto.
-      econstructor.
-      exact M.
-      instantiate (1 := MT).
-      instantiate (1 := Mc').
-      assert ((Mc' ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM =
-              Mc' ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
-      rewrite merge_assoc; eauto.
-      rewrite H7; eauto.
-      eapply disj_merge_disj_sep1 in Hdisj; eauto.
-      eapply disj_sym.
-      eapply disj_sep_merge_still.
-      clear - Hdisj.
-      eapply disj_merge_disj_sep2 in Hdisj; eauto.
-      eapply disj_sym; eauto.
-      clear - H12.
-      eapply disj_sym in H12.
-      eapply disj_merge_disj_sep2; eauto. 
-      rewrite <- merge_assoc; eauto.
-      eauto.
-      eauto.
+      clear - H20.
+      repeat (destruct H20 as [H20 | H20]; eauto).
     }
+
+    clear H20.
+    destruct H2.
     {
-      inv H15.
-      clear - H19 H0 Ht.
-      unfold disjoint, indom in *.
-      specialize (H0 pc); simpls.
-      destruct Ht.
-      rewrite H in H0; simpls.
-      rewrite H19 in H0; simpls; tryfalse.
+      
     }
   }
-  {
-    inv H2.
-    {
-      lets Hexec_prim : H1.
-      eapply HProg_not_clt_exec_prim in Hexec_prim; eauto.
-      destruct Hexec_prim as (lv & hprim & Hget_prim & HwfHPrimExec).
-      >>>>>>>>>>>>>>>>>>>>>>>>>
-(*
-      Lemma entry_prim_wfCth_preserve :
-        forall C Cas S HS hprim,
-          C ⊥ Cas -> wp_stateRel S HS -> PrimSet pc = Some hprim ->
-          wfHPrimExec C (Pm hprim lv) HS ->
-          simImpsPrimSet Spec Cas PrimSet ->
-          exists HS' idx1,
-            
-      
-      unfolds simImpsPrimSet.
-      assert (Hindom_f_Spec : indom pc PrimSet).
-      {
-        unfold indom; eauto.
-      }
- 
-      eapply H with (lv := lv) in Hindom_f_Spec.
-      destruct Hindom_f_Spec as (hprim0 & L & Fp & Fq & HSpec & Hprimset' & HwdSpec & HsimImpSim).
-      rewrite Hget_prim in Hprimset'; inv Hprimset'.*)
-      admit.
-    }
-    admit.
-  }*)
 Admitted.
 
 Lemma wfCth_wfRdy_event_step_preservation :
