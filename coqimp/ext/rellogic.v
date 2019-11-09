@@ -513,8 +513,8 @@ CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (p
           forall S1 S2 pc1 pc2 npc1 npc2,
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
-            exists idx1 A' HS',
-              ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+            exists idx1 idx2 A' HS',
+              ((idx1 ⩹ idx2 /\ idx2 ⩹ idx /\  A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
               rel_safety (Nat.succ k) idx1 (C, S2, pc2, npc2) (A', HS') Q
         )
     ) ->
@@ -532,8 +532,8 @@ CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (p
           forall S1 S2 pc1 pc2 npc1 npc2,
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
-            exists idx1 A' HS' w ,
-              ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+            exists idx1 idx2 A' HS' w ,
+              ((idx1 ⩹ idx2 /\ idx2 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
               (
                 (Nat.eqb k 0 = true /\ (S2, HS', A', w) ||= Q /\ A' = Pdone /\ (0%nat, 0%nat) ⩹ idx1) \/
                 (Nat.eqb k 0 = false /\ rel_safety (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q)
@@ -552,14 +552,20 @@ Definition simImpsPrimSet (Spec : Funspec) (Cas : XCodeHeap) (PrimSet : apSet) :
   forall f L hprim, PrimSet f = Some hprim ->
                     exists lv Fp Fq, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim 
                                      /\ (Fp L ⇒ (RAprim (Pm hprim lv)) ⋆ RAtrue)
-                                     /\ wdSpec Fp Fq hprim /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv). 
+                                     /\ wdSpec Fp Fq hprim /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv).
+
+Inductive n_tau_step {prog : Type} (step : prog -> msg -> prog -> Prop) :
+  nat -> prog -> prog -> Prop :=
+| tau_step0 : forall p, n_tau_step step 0%nat p p
+| tau_step_Sn : forall (p p' p'' : prog) n, n_tau_step step n p p' -> step p' tau p'' ->
+                                       n_tau_step step (S n) p p''.
 
 (*+ Whole Program Simulation +*)
 CoInductive wp_sim : Index -> LProg -> HProg -> Prop :=
 | cons_wp_sim : forall idx LP HP,
     (* tau step *)
     (
-      forall LP', LP__ LP tau LP' ->
+      forall LP', LP__ LP tau LP' -> 
              (
                (exists idx1, idx1 ⩹ idx /\ wp_sim idx1 LP' HP)
                \/

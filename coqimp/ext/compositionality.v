@@ -1,5 +1,5 @@
 (*+ Compositionality +*)      
-Require Import Coqlib.           
+Require Import Coqlib.            
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -68,12 +68,6 @@ Proof.
 Qed.
 
 (** Auxiliary Lemmas about multi-steps *)
-Inductive n_tau_step {prog : Type} (step : prog -> msg -> prog -> Prop) :
-  nat -> prog -> prog -> Prop :=
-| tau_step0 : forall p, n_tau_step step 0%nat p p
-| tau_step_Sn : forall (p p' p'' : prog) n, n_tau_step step n p p' -> step p' tau p'' ->
-                                             n_tau_step step (S n) p p''.
-
 Lemma Hstar_step_code_unchange :
   forall C PrimSet HS HP',
     star_tau_step HP__ (C, PrimSet, HS) HP' ->
@@ -296,11 +290,12 @@ Proof.
     eapply H1 with (S2 := S2) in H2; eauto.
     simpljoin1.
     destruct H2.
-    exists idx A HS.
-    split; eauto.
+    exists x0 idx A HS.
+    split; eauto. 
     simpljoin1; eauto.
+    simpljoin1; eauto.    
     destruct x.
-    do 3 eexists.
+    do 4 eexists.
     split.
     eauto.
     instantiate (1 := (Nat.succ (Nat.succ n), n0)).
@@ -316,39 +311,33 @@ Proof.
     eapply H1 with (S2 := S2) in H2; eauto.
     simpljoin1.
     destruct H2. 
-    exists idx A HS x2.
+    exists x0 idx A HS x3.
     split; eauto.
+    simpljoin1; eauto.
     destruct H4.
-    split.
     left; eauto.
     simpljoin1; subst; eauto.
-    simpljoin1.
+    split; eauto.
+    split; eauto.
+    split; eauto.
     eapply LtIndex_Trans; eauto.
 
-    split.
     right; eauto.
     simpljoin1.
     split; eauto.
-    eapply LtIndex_Trans; eauto.
-    simpljoin1; eauto.
-    
-    destruct x.
-    exists (Nat.succ (Nat.succ n), n0) x0 x1 x2.
-    split; eauto.
     destruct H4.
-    split.
-    left; eauto.
-    eapply LtIndex_Trans; eauto.
-    econstructor; eauto.
-    split.
-    right.
     simpljoin1.
+    do 5 eexists.
     split; eauto.
-    eapply Hp; eauto.
-    econstructor; eauto.
-    eapply LtIndex_Trans; eauto.
-    econstructor; eauto.
+    simpljoin1.
+    do 5 eexists.
+    split; eauto.
   }
+  Unshelve.
+  exact (5%nat, 6%nat).
+  exact (5%nat, 6%nat).
+  exact (5%nat, 6%nat).
+  exact 5%nat.
 Qed.
 
 (** Auxiliary rel_safety *)
@@ -390,8 +379,8 @@ CoInductive rel_safety_aux :
           forall S1 S2 pc1 pc2 npc1 npc2,
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
-            exists idx1,
-              idx1 ⩹ idx /\ rel_safety_aux (Nat.succ k) idx1 (C, S2, pc2, npc2) (A, HS) Q
+            exists idx1 idx2,
+              idx1 ⩹ idx2 /\ idx2 ⩹ idx /\ rel_safety_aux (Nat.succ k) idx1 (C, S2, pc2, npc2) (A, HS) Q
         )
     ) ->
     (* retl *)
@@ -408,9 +397,9 @@ CoInductive rel_safety_aux :
           forall S1 S2 pc1 pc2 npc1 npc2,
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
-            exists idx1 A' HS' w,
+            exists idx1 idx2 A' HS' w,
               (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS', A', w) ||= Q /\ (0%nat, 0%nat) ⩹ idx1) \/
-              (Nat.eqb k 0 = false /\ idx1 ⩹ idx /\ A' = A /\ HS = HS' /\
+              (Nat.eqb k 0 = false /\ idx1 ⩹ idx2 /\ idx2 ⩹ idx /\ A' = A /\ HS = HS' /\
                rel_safety_aux (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q))
     ) ->
     rel_safety_aux k idx (C, S, pc, npc) (A, HS) Q.
@@ -499,9 +488,10 @@ Inductive Lsafety : nat -> nat * LProg -> nat * LProg -> Prop :=
           (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f))) ->
           (
             (* progress *)
-            exists S1 pc1 npc1,
+            exists S1 pc1 npc1 n',
               LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
-              Lsafety n (k, (C, (S1, pc1, npc1))) (k', (C, (S', pc', npc')))
+              Lsafety n' (k, (C, (S1, pc1, npc1))) (k', (C, (S', pc', npc'))) /\
+              (n = Nat.succ n')
           )
     ) ->
     (
@@ -509,23 +499,26 @@ Inductive Lsafety : nat -> nat * LProg -> nat * LProg -> Prop :=
           C pc = Some (c (ccall f)) ->
           (
             (* progress *)
-            exists S1 pc1 npc1 S2 pc2 npc2,
+            exists S1 pc1 npc1 S2 pc2 npc2 n',
               LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
               LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) /\ 
-              Lsafety n (Nat.succ k, (C, (S2, pc2, npc2))) (k', (C, (S', pc', npc')))
+              Lsafety n' (Nat.succ k, (C, (S2, pc2, npc2))) (k', (C, (S', pc', npc'))) /\
+              (n = Nat.succ (Nat.succ n'))
           )
     ) ->
     (
           C pc = Some (c (cretl)) ->
           (
             (* progress *)
-            exists S1 pc1 npc1 S2 pc2 npc2,
+            exists S1 pc1 npc1 S2 pc2 npc2 n',
               LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
               LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) /\ 
-              (Nat.eqb k 0 = false /\ Lsafety n (Nat.pred k, (C, (S2, pc2, npc2))) (k', (C, (S', pc', npc'))))
+              (Nat.eqb k 0 = false /\
+               Lsafety n' (Nat.pred k, (C, (S2, pc2, npc2))) (k', (C, (S', pc', npc'))) /\
+               n = Nat.succ (Nat.succ n'))
           )
     ) ->
-    Lsafety (Nat.succ n) (k, (C, (S, pc, npc))) (k', (C, (S', pc', npc'))).
+    Lsafety n (k, (C, (S, pc, npc))) (k', (C, (S', pc', npc'))).
 
 Lemma legel_pc_ : forall (C : XCodeHeap) pc,
     legal_com (C pc) ->
@@ -602,8 +595,11 @@ Proof.
      simpljoin1.
      do 6 eexists.
      exists (Nat.succ x10).
-     split.
+     split. 
      econstructor; eauto.
+     intros.
+     do 4 eexists.
+     split; eauto.
      intros.
      repeat (destruct Hcom as [Hcom | Hcom]; CElim C).
      intros.
@@ -620,8 +616,10 @@ Proof.
      split.
      econstructor; eauto.
      intros.
-     clear H5.
-     do 3 eexists.
+     clear H5. 
+     do 4 eexists.
+     split; eauto.
+     instantiate (1 := 0%nat).
      split; eauto.
      econstructor; eauto.
      intros.
@@ -656,25 +654,25 @@ Proof.
      simpljoin1; subst.
      eapply H0 in H5; eauto.
      simpljoin1.
-     do 6 eexists.
-     exists (Nat.succ x13).
-     split.
+     do 6 eexists.   
+     exists (Nat.succ (Nat.succ x14)).
+     split. 
      econstructor; eauto.
      intros.
-     repeat (destruct H9 as [H9 | H9]; CElim C).
-     Focus 2.
+     repeat (destruct H10 as [H10 | H10]; CElim C).
+     intros; CElim C. 
+     do 7 eexists.
+     split; eauto.
+     
      intros; CElim C.
-     intros.
-     clear H9.
-     do 6 eexists.
      split; eauto.
      split; eauto.
-     split; eauto.
-     intros; CElim C.
+     intros; tryfalse.
+     eapply LtIndex_Trans; eauto.
    }
    {
      do 6 eexists.
-     exists 1%nat.
+     exists 2%nat.
      split.
      econstructor; eauto.
      intros.
@@ -683,20 +681,21 @@ Proof.
      intros; CElim C.
      intros.
      clear H6.
-     do 6 eexists.
+     do 7 eexists.
+     split; eauto.
      split; eauto.
      split; eauto.
      econstructor; eauto. 
-     assert (x6 = Pdone).
+     assert (x7 = Pdone).
      {
        inv H3; eauto.
      }
-     subst x6.
+     subst x7.
      split; eauto.
      split; eauto.
      intros; CElim C.
    }
- } 
+  } 
   {
    lets Ht : Hcom.
    eapply H16 in Ht; eauto; clear H14 H15 H16.
@@ -713,7 +712,7 @@ Proof.
      eapply H0 in H7; eauto.
      simpljoin1.
      do 6 eexists.
-     exists (Nat.succ x15).
+     exists (Nat.succ (Nat.succ x16)).
      split.
      econstructor; eauto.
      intros.
@@ -721,30 +720,31 @@ Proof.
      intros; CElim C.
      intros.
      clear H12.
-     do 6 eexists.
+     do 7 eexists.
      split; eauto.
      split; eauto.
      split; eauto.
      intros; tryfalse.
+     eapply LtIndex_Trans; eauto.
    }
    {
      destruct H5.
      {  
        simpljoin1; subst.
        destruct x6.
-       do 4 eexists.
-       exists (Nat.succ n, n0).
-       exists x8 0%nat. 
+       do 4 eexists. 
+       exists (Nat.succ (Nat.succ n), n0).
+       exists x9 0%nat. 
        split.
        econstructor; eauto.
        split; eauto.
        split; intros; eauto.
        econstructor; eauto.
        intros. 
-       repeat (destruct H8 as [H8 | H8]; CElim C).
+       repeat (destruct H7 as [H7 | H7]; CElim C).
        intros; CElim C.
        intros.
-       clear H8. 
+       clear H7. 
        split; eauto.
        do 6 eexists; eauto.
        intros. 
@@ -783,42 +783,47 @@ Proof.
          simpl; eauto.
        }
        inv H12.
-       do 4 eexists.
+       do 5 eexists.
        split.
-       left.
+       left.  
+       instantiate (3 := (Nat.succ n, n0)).
        instantiate (3 := (n, n0)).
-       split; econstructor; eauto.
        split.
-       left; eauto.
-       eauto.
+       econstructor; eauto.
+       split.
+       econstructor; eauto.
+       split; eauto.
+  
+       left.
+       split; eauto.
      }
      {
        simpljoin1.
        do 6 eexists.
-       exists 1%nat.
+       exists 2%nat.
        split.
        econstructor; eauto.
-       intros.
-       repeat (destruct H8 as [H8 | H8]; CElim C).
+       intros. 
+       repeat (destruct H7 as [H7 | H7]; CElim C).
        intros; CElim C.
        intros.
-       clear H8.
-       do 6 eexists.
+       do 7 eexists.
+       split; eauto.
        split; eauto.
        split; eauto.
        split; eauto.
        econstructor; eauto.
-       assert (x7 = Pdone).
+       assert (x8 = Pdone).
        {
          inv H3; eauto.
        }
-       subst x7.
+       subst x8.
        split; eauto.
        split; eauto.
        intros; tryfalse.
      }
    }
- }
+  }
 Qed.
  
 (** equivalence between rel_safety and rel_safety_aux *)
@@ -868,7 +873,7 @@ Proof.
     simpljoin1.
     destruct H4.
     simpljoin1.
-    eexists. 
+    exists x9 x10. 
     split; eauto.
     inv H4.
   }
@@ -886,15 +891,18 @@ Proof.
     simpljoin1.
     destruct H6.
     simpljoin1. 
-    do 4 eexists.
+    do 5 eexists.
     left; eauto.
     simpljoin1.
-    do 4 eexists.
+    exists x9 x10.
+    do 3 eexists.
     right.
+    split; eauto.
     split; eauto.
     inv H4.
   }
   Unshelve.
+  exact (4%nat, 4%nat).
   exact 4%nat.
 Qed.
 
@@ -935,12 +943,12 @@ Proof.
         instantiate (1 := i).
         repeat (destruct Hcom' as [Hcom' | Hcom']; eauto).
       }
-      {
+      { 
         intros.
         clear H4.
         split; eauto.
         intros.
-        exists (idx_sum (0%nat, n0) idx).
+        exists (idx_sum (0%nat, x2) idx).
         split.
         eapply idx_sum_pre_lt.
         unfold LtIndex.
@@ -1021,7 +1029,13 @@ Proof.
       }
       inv H7.
 
-      exists (idx_sum (0%nat, n0) idx).
+      exists (idx_sum (0%nat, x5) idx) (idx_sum (0%nat, Nat.succ x5) idx).
+      split.
+      eapply idx_sum_pre_lt.
+      unfold LtIndex.
+      eapply lex_ord_right.
+      unfold Nat.succ.
+      eapply Nat.lt_succ_diag_r.
       split.
       eapply idx_sum_pre_lt.
       unfold LtIndex.
@@ -1078,7 +1092,7 @@ Proof.
           destruct Hcom_npc; eapply LP_deterministic; eauto; simpl; eauto.
         }
         inv H8.
-        exists (idx_sum (0%nat, n0) idx).
+        exists (idx_sum (0%nat, x5) idx) (idx_sum (0%nat, Nat.succ x5) idx).
         do 3 eexists.
         right; eauto.
         split; eauto.
@@ -1086,6 +1100,11 @@ Proof.
         eapply idx_sum_pre_lt; eauto.
         eapply lex_ord_right.
         eapply Nat.lt_succ_diag_r; eauto.
+        split; eauto.
+        eapply idx_sum_pre_lt; eauto.
+        eapply lex_ord_right.
+        eapply Nat.lt_succ_diag_r; eauto.
+
         split; eauto.
         split; eauto. 
 
@@ -1193,6 +1212,15 @@ Proof.
   destruct H0; tryfalse.
 Qed.
 
+Lemma LP_step_indom : forall C S S' pc npc pc' npc' m,
+    LP__ (C, (S, pc, npc)) m (C, (S', pc', npc')) ->
+    indom pc C.
+Proof.
+  intros.
+  inv H.
+  inv H9; unfold indom; eauto.
+Qed.
+  
 Lemma LP__local1 :
   forall S S' pc npc pc' npc' C C' m,
     indom pc C ->
@@ -1422,8 +1450,9 @@ Proof.
 Admitted.
 
 (* WfCth and WfRdy Preservation *)
-Lemma wfCth_wfRdy_tau_step_preservation :
+Lemma wfCth_wfRdy_tau_step_preservation_clt :
   forall idx C Cas S pc npc S' pc' npc' PrimSet T t K M Spec,
+    indom pc C ->
     simImpsPrimSet Spec Cas PrimSet -> C ⊥ Cas -> 
     HProgSafe (C, PrimSet, (T, t, K, M)) ->
     wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
@@ -1443,104 +1472,83 @@ Lemma wfCth_wfRdy_tau_step_preservation :
                       wfRdy (C, Cas) (C, PrimSet) t1 K1 
       ).
 Proof. 
-  intros.
-  lets Ht : classic (indom pc C). 
-  destruct Ht.
+  introv Ht; intros.
+  inv H2.
+  Focus 2.
+  inv H15.
+  clear - H0 Ht H19.
+  unfold indom in *.
+  simpljoin1.
+  unfold disjoint in *.
+  specialize (H0 pc).
+  rewrite H in H0; simpls.
+  repeat (destruct H19 as [H19 | H19]; [rewrite H19 in H0; simpls; tryfalse | idtac]).
+  rewrite H19 in H0; simpls; tryfalse.
+ 
+  eapply LP__local1 in H4; eauto.
+  inv H4.
+  inv H12.
+  simpl in H9; symmetry in H9; inv H9. 
+  destruct K.
+  destruct p.
+  destruct h.
+  destruct p.
+  renames h0 to HR, z to b, h to HF.
+  simpl in H15; inv H15.
+  unfolds Tid.
+
+  assert ((Mc ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM =
+          Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
+  {
+    rewrite <- lemmas.merge_assoc; eauto.
+  }
+  
+  assert (((Mc ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M =
+          Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M).
+  {
+    rewrite H2; eauto.
+  }
+
+  assert (Mc ⊥ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
+  {
+    eapply lemmas.disj_sep_merge_still; eauto.
+    clear - H18.
+    eapply lemmas.disj_sym in H18.
+    eapply lemmas_ins.disj_merge_disj_sep in H18.
+    destruct H18.
+    eapply lemmas.disj_sym; eauto.
+  }
+
+  assert ((Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)) ⊥ M).
   { 
-    inv H2.
-    Focus 2.
-    inv H16.
-    clear - H0 H5 H20.
-    unfold indom in *.
-    simpljoin1.
-    unfold disjoint in *.
-    specialize (H0 pc).
-    rewrite H in H0; simpls.
-    repeat (destruct H20 as [H20 | H20]; [rewrite H20 in H0; simpls; tryfalse | idtac]).
-    rewrite H20 in H0; simpls; tryfalse.
-
-    eapply LP__local1 in H4; eauto.
-    inv H4.
-    inv H13.
-    simpl in H10; symmetry in H10; inv H10. 
-    destruct K.
-    destruct p.
-    destruct h.
-    destruct p.
-    renames h0 to HR, z to b, h to HF.
-    simpl in H16; inv H16.
-    unfolds Tid.
-
-    assert ((Mc ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM =
-              Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
-    {
-      rewrite <- lemmas.merge_assoc; eauto.
-    }
-    
-    assert (((Mc ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M =
-            Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M).
-    {
-      rewrite H2; eauto.
-    }
-
-    assert (Mc ⊥ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
-    {
-      eapply lemmas.disj_sep_merge_still; eauto.
-      clear - H19.
-      eapply lemmas.disj_sym in H19.
-      eapply lemmas_ins.disj_merge_disj_sep in H19.
-      destruct H19.
-      eapply lemmas.disj_sym; eauto.
-    }
-
-    assert ((Mc ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)) ⊥ M).
-    { 
-      rewrite <- H2; eauto.
-    }
-
-    rewrite H4 in H18.
-    eapply LH__progress_HH_progress in H18; eauto.
-    Focus 2.
     rewrite <- H2; eauto.
+  }
 
-    destruct H18 as (Mc' & M'' & K' & idx' & HLM' & Hdisj1 & Hdisj2 & Hstep
-                     & HwfCth); subst.
-    exists T t K' M'' idx'.
+  rewrite H4 in H17.
+  eapply LH__progress_HH_progress in H17; eauto.
+  Focus 2.
+  rewrite <- H2; eauto.
+
+  destruct H17 as (Mc' & M'' & K' & idx' & HLM' & Hdisj1 & Hdisj2 & Hstep
+                   & HwfCth); subst.
+  exists T t K' M'' idx'.
+  split.
+  destruct Hstep as [Hstep | Hstep].
+  {
+    right.
+    eexists.
     split.
-    destruct Hstep as [Hstep | Hstep].
-    {
-      right.
-      eexists.
-      split.
-      econstructor; eauto.
-      eauto.
-    }
-    {
-      left.
-      simpljoin1.
-      split; eauto.
-    }
-
-    split; eauto.
+    econstructor; eauto.
+    eauto.
   }
   {
-    inv H2; tryfalse.
-    inv H16.
-    assert ((Cas pc = Some (c (cntrans i)) \/
-             Cas pc = Some (c (cjumpl aexp rd)) \/
-             Cas pc = Some (c (cbe f))) \/ Cas pc = Some (c (ccall f)) \/ Cas pc = Some (c cretl)).
-    {
-      clear - H20.
-      repeat (destruct H20 as [H20 | H20]; eauto).
-    }
-
-    clear H20.
-    destruct H2.
-    {
-      
-    }
+    left.
+    simpljoin1.
+    split; eauto.
   }
-Admitted.
+
+  split; eauto.
+Qed.
 
 Lemma wfCth_wfRdy_event_step_preservation :
   forall idx C Cas S pc npc S' pc' npc' PrimSet T t K M Spec v,
@@ -1595,36 +1603,70 @@ Proof.
   cofix Hp; intros.
   econstructor; intros.
   {
-    (* tau *)
+    (* tau *) 
     lets Hpreserve : H2.
     lets HLP : H4.
-    inv H4.
-    eapply wfCth_wfRdy_tau_step_preservation in Hpreserve; eauto.
-    destruct Hpreserve as (T' & t0 & K0 & M' & idx1 & Hpreserve).
-    destruct Hpreserve as (Hstep & HwfCth & HwfRdy).
-    destruct Hstep as [ (Hlt & Hno_step) | (HP' & HHstar_step & HHstep) ].
+    lets Hcase : (classic (indom pc C)).
+    destruct Hcase as [Hcase | Hcase].
     {
-      left.
-      exists idx1.
-      split; eauto.
-      inv Hno_step.
-      eapply Hp; eauto.
+      inv H4.
+      eapply wfCth_wfRdy_tau_step_preservation_clt in Hpreserve; eauto.
+      destruct Hpreserve as (T' & t0 & K0 & M' & idx1 & Hpreserve).
+      destruct Hpreserve as (Hstep & HwfCth & HwfRdy).
+      destruct Hstep as [ (Hlt & Hno_step) | (HP' & HHstar_step & HHstep) ].
+      {
+        left.
+        exists idx1.
+        split; eauto.
+        inv Hno_step.
+        eapply Hp; eauto.
+      }
+      {
+        right.
+        exists idx1 HP' (C, PrimSet, (T', t0, K0, M')).
+        split; eauto.
+        split; eauto.
+        eapply Hp; eauto.
+        clear - H1 HHstar_step HHstep.
+        unfolds HProgSafe.
+        intros.
+        assert (star_tau_step HP__ (C, PrimSet, (T, t, K, M)) (C, PrimSet, (T', t0, K0, M'))).
+        econstructor; eauto.
+        eapply star_tau_step_impl_star_step in H0.
+        assert (Hstar : star_step HP__ (C, PrimSet, (T, t, K, M)) hp').
+        eapply multi_step_cons; eauto.
+        eapply H1 in Hstar; eauto.
+      }
     }
     {
-      right.
-      exists idx1 HP' (C, PrimSet, (T', t0, K0, M')).
-      split; eauto.
-      split; eauto.
-      eapply Hp; eauto.
-      clear - H1 HHstar_step HHstep.
-      unfolds HProgSafe.
-      intros.
-      assert (star_tau_step HP__ (C, PrimSet, (T, t, K, M)) (C, PrimSet, (T', t0, K0, M'))).
-      econstructor; eauto.
-      eapply star_tau_step_impl_star_step in H0.
-      assert (Hstar : star_step HP__ (C, PrimSet, (T, t, K, M)) hp').
-      eapply multi_step_cons; eauto.
-      eapply H1 in Hstar; eauto.
+      inv H2; tryfalse.
+      inv H15.
+      assert ((Cas pc = Some (c (cntrans i)) \/ Cas pc = Some (c (cjumpl aexp rd)) \/ Cas pc = Some (c (cbe f)))
+              \/ Cas pc = Some (c (ccall f)) \/ Cas pc = Some (c cretl)).
+      {
+        clear - H19.
+        repeat (destruct H19 as [H19 | H19]; eauto).
+      }
+      clear H19.
+ 
+      destruct H2 as [Hcom | Hcom].
+      {
+        lets Hcom' : Hcom.
+        eapply H20 in Hcom; clear H20 H21 H22.
+        destruct Hcom as [Hprogress' Hpreserve'].
+        left.
+        inv H4.
+        assert (HLP' : LP__ (Cas, (LM, (LR, F), D, pc, npc)) tau (Cas, (LM', (LR'', F'), D'', pc', npc'))).
+        {
+          clear - H0 HLP Hcom'.
+          rewrite disj_merge_reverse_eq with (m1 := C) in HLP; eauto.
+          eapply LP__local1; eauto.
+          unfold indom.
+          repeat (destruct Hcom' as [Hcom' | Hcom']; eauto).
+        }
+        
+        eapply Hpreserve' in H4.
+      }
     }
   }
   {
