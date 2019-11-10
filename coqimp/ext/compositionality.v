@@ -1,5 +1,5 @@
-(*+ Compositionality +*)      
-Require Import Coqlib.             
+(*+ Compositionality +*)        
+Require Import Coqlib.               
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -231,6 +231,17 @@ Proof.
   inv H13; CElim C; eauto.
   rewrite H18 in H16; inv H16; tryfalse.
 Qed.
+
+Lemma LP_CdhpInc :
+  forall C1 C2 S S' m pc npc pc' npc',
+    LP__ (C1, (S, pc, npc)) m (C1, (S', pc', npc')) ->
+    LP__ (C1 ⊎ C2, (S, pc, npc)) m (C1 ⊎ C2, (S', pc', npc')).
+Proof.
+  intros.
+  inv H.
+  econstructor; eauto.
+  inv H9; try solve [econstructor; eauto; try eapply get_vl_merge_still; eauto].
+Qed.  
   
 (** Auxiliary Lemmas about rel_safety *)
 Lemma LtIndex_Trans :
@@ -320,14 +331,19 @@ Proof.
     split; eauto.
     split; eauto.
     split; eauto.
+    split; eauto.
     eapply LtIndex_Trans; eauto.
-
+ 
     right; eauto.
     simpljoin1.
     split; eauto.
     destruct H4.
     simpljoin1.
     do 5 eexists.
+    split; eauto.
+    left.
+    split; eauto.
+    split; eauto.
     split; eauto.
     simpljoin1.
     do 5 eexists.
@@ -584,9 +600,8 @@ Qed.
 (** Auxiliary rel_safety *)
 CoInductive rel_safety_aux :
   nat -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
-| aux_cons_safety : forall k idx C S pc npc A HS Q aexp rd f i,
-    (C pc = Some (c (cntrans i)) \/ C pc = Some (c (cjumpl aexp rd)) \/ C pc = Some (c (cbe f))
-     \/ C pc = Some (c (ccall f)) \/ C pc = Some (c cretl)) ->
+| aux_cons_safety : forall k idx C S pc npc A HS Q,
+    (legal_com (C pc) /\ legal_com (C npc)) ->
     (* not call ret *)
     (
       forall f aexp rd i,
@@ -639,7 +654,8 @@ CoInductive rel_safety_aux :
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
             exists idx1 idx2 A' HS' w,
-              (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS', A', w) ||= Q /\ (0%nat, 0%nat) ⩹ idx1) \/
+              (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS', A', w) ||= Q /\ (0%nat, 0%nat) ⩹ idx
+              /\ (exists f', getregs S2 r15 = Some (W f') /\ pc2 = f' +ᵢ ($ 8) /\ npc2 = f' +ᵢ ($ 12))) \/
               (Nat.eqb k 0 = false /\ idx1 ⩹ idx2 /\ idx2 ⩹ idx /\ A' = A /\ HS = HS' /\
                rel_safety_aux (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q))
     ) ->
@@ -1155,6 +1171,26 @@ Proof.
     eapply LRetl; eauto.
     eapply get_R_merge_still; eauto.
   }
+  {
+    (* cbe f : true *)
+    exists (m ⊎ m0, (r ⊎ r0, f0), d0) (m0, (r0, f0), d0).
+    split.
+    Focus 2.
+    simpl.
+    repeat (split; eauto).
+    eapply LBe_true; eauto.
+    eapply get_R_merge_still; eauto.
+  }
+  {
+    (* cbe f : false *)
+    exists (m ⊎ m0, (r ⊎ r0, f0), d0) (m0, (r0, f0), d0).
+    split.
+    Focus 2.
+    simpl.
+    repeat (split; eauto).
+    eapply LBe_false; eauto.
+    eapply get_R_merge_still; eauto.
+  }
 Qed.
 
 Lemma legal_com_safety_property :
@@ -1387,10 +1423,10 @@ Proof.
        {
          eapply LP_deterministic; eauto.
          simpl; eauto.
-       }
-       inv H10.
+       } 
+       inv H12.
        assert (pc1 = npc).
-       {
+       { 
          clear - Hcom H2.
          inv H2.
          inv H9; CElim C.
@@ -1404,20 +1440,20 @@ Proof.
          clear - H13.
          eapply legel_pc_; eauto.
        }
-       assert ((C, (x1, x3, x5)) = (C, (S2, pc2, npc2))).
+       assert ((C, (x1, x11 +ᵢ ($ 8), x11 +ᵢ ($ 12))) = (C, (S2, pc2, npc2))).
        {
          simpljoin1.
          assert (exists cc', C npc = Some (c cc')).
          {
-           destruct H10; eauto.
-           repeat (destruct H10 as [H10 | H10]; eauto).
-           destruct H10; eauto.
+           destruct H12; eauto.
+           repeat (destruct H12 as [H12 | H12]; eauto).
+           destruct H12; eauto.
          }
          simpljoin1.
          eapply LP_deterministic; eauto.
          simpl; eauto.
        }
-       inv H12.
+       inv H14.
        do 5 eexists.
        split.
        left.  
@@ -1430,6 +1466,8 @@ Proof.
        split; eauto.
   
        left.
+       split; eauto.
+       split; eauto.
        split; eauto.
      }
      {
@@ -1478,10 +1516,6 @@ Proof.
   simpljoin1. 
   econstructor; eauto.
   {
-    destruct H; eauto.
-    repeat (destruct o as [o | o]; eauto).
-  }
-  {
     intros.
     eapply H13 in H2; clear H13 H14 H15 H.
     simpljoin1.
@@ -1528,6 +1562,9 @@ Proof.
     simpljoin1. 
     do 5 eexists.
     left; eauto.
+    repeat (split; eauto).
+    eapply LtIndex_Trans in H4; eauto.
+    eapply LtIndex_Trans; eauto.
     simpljoin1.
     exists x9 x10.
     do 3 eexists.
@@ -1537,6 +1574,7 @@ Proof.
     inv H4.
   }
   Unshelve.
+  exact (4%nat, 4%nat).
   exact (4%nat, 4%nat).
   exact 4%nat.
 Qed.
@@ -1569,15 +1607,8 @@ Proof.
     {
       lets Hcom' : Hcom.
       eapply H15 in Hcom; clear H15 H16 H17.
-      simpljoin1.
+      simpljoin1. 
       econstructor; eauto.
-      {
-        instantiate (1 := f).
-        instantiate (1 := rd).
-        instantiate (1 := aexp).
-        instantiate (1 := i).
-        repeat (destruct Hcom' as [Hcom' | Hcom']; eauto).
-      }
       { 
         intros.
         clear H4.
@@ -1752,13 +1783,6 @@ Proof.
     }
   }
   Unshelve.
-  exact (Ao (Ow ($ 1))).
-  exact r0.
-  exact nop.
-  exact (Ao (Ow ($ 1))).
-  exact r0.
-  exact ($ 5).
-  exact nop.
   exact 5%nat.
 Qed.
 
@@ -1775,7 +1799,6 @@ Proof.
   exists (idx_sum (0%nat, x5) x3).
   eapply Lsafety_imp_rel_safety_aux; eauto.
 Qed.
-    
 
 (** Define Well-formed Current Thread and Well-formed Ready *)
 Inductive wfIndex : XCodeHeap -> State -> Word -> Index -> Prop :=
@@ -2111,15 +2134,16 @@ Proof.
   introv Ht; intros.
   inv H2.
   Focus 2.
-  inv H15.
+  inv H15. 
   clear - H0 Ht H20.
   unfold indom in *.
   simpljoin1.
   unfold disjoint in *.
   specialize (H0 pc).
   rewrite H in H0; simpls.
-  repeat (destruct H20 as [H20 | H20]; [rewrite H20 in H0; simpls; tryfalse | idtac]).
-  rewrite H20 in H0; simpls; tryfalse.
+  clear - H1 H0.
+  unfolds legal_com.
+  destruct (Cas pc) eqn:Heqe; simpls; tryfalse.
  
   eapply LP__local1 in H4; eauto.
   inv H4.
@@ -2277,14 +2301,34 @@ Proof.
     {
       inv H2; tryfalse. 
       inv H15. 
-      assert ((Cas pc = Some (c (cntrans i)) \/ Cas pc = Some (c (cjumpl aexp rd)) \/ Cas pc = Some (c (cbe f)))
+      assert (exists i aexp rd f,
+          (Cas pc = Some (c (cntrans i)) \/ Cas pc = Some (c (cjumpl aexp rd)) \/ Cas pc = Some (c (cbe f)))
               \/ Cas pc = Some (c (ccall f)) \/ Cas pc = Some (c cretl)).
       { 
         clear - H20.
-        repeat (destruct H20 as [H20 | H20]; eauto).
+        simpljoin1.
+        clear - H.
+        unfolds legal_com.
+        destruct (Cas pc) eqn:Heqe; simpls; tryfalse.
+        destruct c; simpls; eauto; try solve [do 4 eexists; eauto]; tryfalse.
+        destruct c; simpls; eauto; try solve [do 4 eexists; eauto]; tryfalse.
       }
-      clear H20.
- 
+      assert (Hnpc : exists i aexp rd f,
+          (Cas npc = Some (c (cntrans i)) \/ Cas npc = Some (c (cjumpl aexp rd)) \/ Cas npc = Some (c (cbe f)))
+              \/ Cas npc = Some (c (ccall f)) \/ Cas npc = Some (c cretl)).
+      { 
+        clear - H20.
+        simpljoin1.
+        clear - H0.
+        unfolds legal_com.
+        destruct (Cas npc) eqn:Heqe; simpls; tryfalse.
+        destruct c; simpls; eauto; try solve [do 4 eexists; eauto]; tryfalse.
+        destruct c; simpls; eauto; try solve [do 4 eexists; eauto]; tryfalse.
+      } 
+      renames H20 to Hlegal_pc_npc.
+      destruct H2 as (i & aexp & rd & f & H2).
+      destruct Hnpc as (i0 & aexp0 & rd0 & f0 & Hnpc).
+  
       destruct H2 as [Hcom | Hcom].
       {
         lets Hcom' : Hcom. 
@@ -2319,9 +2363,224 @@ Proof.
           simpl; eauto.
           simpl; eauto.
         }
-        inv H8.
-        
-        >>>>>>>>>>>>>>>>>>>>>>>>>>>
+        inv H12.
+        eapply prim_wfCth; eauto.
+      }
+      destruct Hcom as [Hcom | Hcom].
+      { 
+        lets Hcom' : Hcom.
+        eapply H22 in Hcom'; clear H21 H22 H23.
+        simpljoin1.
+        left.
+        renames x to Sc1, x1 to pc1, x3 to npc1.
+        renames x0 to Sc2, x2 to pc2, x4 to npc2.
+        lets Hpreserve' : H2.
+        eapply H5 with (S1 := Sc1) in Hpreserve'; eauto.
+        simpljoin1.
+
+        inv H4.
+        lets H2' : H2.
+        eapply legal_com_safety_property in H2'; eauto.
+        simpljoin1.
+        assert ((Cas, (x1, pc1, npc1)) = (Cas, ((LM', (LR'', F'), D''), pc', npc'))).
+        {
+          rewrite disj_merge_reverse_eq with (m1 := C) in HLP; eauto.
+          eapply LP__local1 in HLP; eauto.
+          eapply LP_deterministic; eauto.
+          simpl; eauto.
+          clear - Hcom.
+          unfold indom; eauto.
+        }
+        inv H20.
+
+        exists x0.
+        split; eauto.
+        econstructor.
+        {
+          intros.
+          lets Hcom2 : H20.
+          inv H20.
+          left.
+          lets Hpreserve2 : H6.
+          eapply legal_com_safety_property in H6; eauto.
+          simpljoin1.
+          assert (pc' = npc).
+          {
+            clear - H4 Hcom.
+            inv H4.
+            inv H15; CElim Cas.
+            eauto.
+          }
+          subst npc.
+          assert ((Cas, (x1, pc2, npc2)) = (Cas, ((LM'0, (LR''0, F'0), D''0), pc'0, npc'0))).
+          {
+            rewrite disj_merge_reverse_eq with (m1 := C) in Hcom2; eauto.
+            eapply LP__local1 in Hcom2; eauto.
+            clear - H6 Hcom2 Hnpc.
+            destruct Hnpc as [Hnpc | Hnpc].
+            repeat (destruct Hnpc as [Hnpc | Hnpc]; [eapply LP_deterministic; simpls; eauto | idtac]).
+            simpls; eauto.
+            simpls; eauto.
+            eapply LP_deterministic; eauto.
+            simpl; eauto.
+            repeat (destruct Hnpc as [Hnpc | Hnpc]; [eapply LP_deterministic; simpls; eauto | idtac]).
+            simpls; eauto.
+            eapply LP_deterministic; eauto.
+            simpl; eauto.
+            clear - Hnpc.
+            unfold indom.
+            repeat (destruct Hnpc as [Hnpc | Hnpc]; [eauto | idtac]).
+            eauto.
+            eauto.
+          }
+          inv H22.
+          exists x.
+          split; eauto.
+          eapply Hp; eauto.
+          eapply prim_wfCth; eauto.
+
+          assert (pc' = npc).
+          {
+            clear - H4 Hcom.
+            inv H4.
+            inv H15; CElim Cas.
+            eauto.
+          }
+          subst; eauto.
+        }
+        {
+          intros.
+          lets Hcom2 : H20.
+          inv H20.
+          lets Hpreserve2 : H6.
+          eapply legal_com_safety_property in H6; eauto.
+          simpljoin1.
+          assert (pc' = npc).
+          {
+            clear - H4 Hcom.
+            inv H4.
+            inv H15; CElim Cas.
+            eauto.
+          }
+          subst npc. 
+          clear - Hcom2 H6 Hnpc H0.
+          rewrite disj_merge_reverse_eq in Hcom2; eauto.
+          eapply LP__local1 in Hcom2; eauto.
+          inv Hcom2.
+          inv H16.
+          inv H6.
+          inv H15; CElim Cas.
+          unfold indom.
+          repeat (destruct Hnpc as [Hnpc | Hnpc]; [eauto | idtac]).
+          eauto.
+          eauto.
+
+          assert (pc' = npc).
+          {
+            clear - H4 Hcom.
+            inv H4.
+            inv H15; CElim Cas.
+            eauto.
+          }
+          subst; eauto.
+        }
+        {
+          intros.
+          eapply legal_com_safety_property in H6; eauto.
+          simpljoin1.
+          clear - H6 H20 H0.
+          contradiction H20.
+          eapply LP_CdhpInc with (C2 := C) in H6; eauto.
+          rewrite disj_merge_reverse_eq in H6; eauto.
+          eapply disj_sym; eauto.
+
+          assert (pc' = npc).
+          {
+            clear - H4 Hcom.
+            inv H4.
+            inv H15; CElim Cas.
+            eauto.
+          }
+          subst; eauto.
+        }
+      }
+      {
+        lets Hcom' : Hcom.
+        eapply H23 in Hcom'; clear H21 H22 H23.
+        simpljoin1.
+        renames x to Sc1, x1 to pc1, x3 to npc1.
+        renames x0 to Sc2, x2 to pc2, x4 to npc2.
+ 
+        lets Hpreserve' : H2.
+        eapply H5 with (S1 := Sc1) in Hpreserve'; eauto.
+        simpljoin1.
+        inv H4.
+        clear H22 H23.
+        eapply legal_com_safety_property in H2; eauto.
+        simpljoin1.
+        assert ((Cas, (LM', (LR'', F'), D'', pc', npc')) = (Cas, (x4, pc1, npc1))).
+        {
+          clear - H0 HLP H2 Hcom. 
+          rewrite disj_merge_reverse_eq in HLP; eauto.
+          eapply LP__local1 in HLP; eauto.
+          eapply LP_deterministic; eauto.
+          simpl; eauto.
+          unfold indom; eauto.
+        }
+        inv H11.
+        assert (pc1 = npc).
+        {
+          clear - H2 Hcom.
+          inv H2.
+          inv H15; CElim Cas.
+          eauto.
+        }
+        subst pc1.
+        destruct H9.
+        {
+          simpljoin1.
+          clear H5.
+          left.
+          exists (0%nat, 0%nat).
+          split; eauto.
+          econstructor.
+          {
+            intros.
+            right.
+            lets HLP2 : H5.
+            inv H5.
+            clear H30 H31.
+            admit.
+          }
+          {
+            intros.
+            lets HLP2 : H5.
+            inv H5.
+            clear H30 H31.
+            rewrite disj_merge_reverse_eq in HLP2; eauto.
+            eapply LP__local1 in HLP2; eauto.
+            eapply legal_com_safety_property in H6; eauto.
+            simpljoin1.
+            clear - HLP2 H5.
+            inv HLP2.
+            inv H5.
+            inv H15.
+            inv H13; CElim Cas.
+            clear - Hnpc.
+            unfold indom.
+            repeat (destruct Hnpc as [Hnpc | Hnpc]; eauto).
+          }
+          {
+            intros.
+            eapply legal_com_safety_property in H6; eauto.
+            simpljoin1.
+            contradiction H5.
+            clear - H6 H0.
+            eapply LP_CdhpInc with (C2 := C) in H6; eauto.
+            rewrite disj_merge_reverse_eq in H6; eauto.
+            eapply disj_sym; eauto.
+          }
+        }
       }
     }
   }

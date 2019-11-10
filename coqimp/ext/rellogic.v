@@ -475,6 +475,7 @@ Definition legal_com (oc : option Command) :=
               | c cc' => match cc' with
                         | cntrans i => True 
                         | cjumpl aexp rr => True
+                        | cbe f => True
                         | ccall f => True
                         | cretl => True
                         | _ => False
@@ -550,7 +551,8 @@ CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (p
             exists idx1 idx2 A' HS' w ,
               ((idx1 ⩹ idx2 /\ idx2 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
               (
-                (Nat.eqb k 0 = true /\ (S2, HS', A', w) ||= Q /\ A' = Pdone /\ (0%nat, 0%nat) ⩹ idx1) \/
+                (Nat.eqb k 0 = true /\ (S2, HS', A', w) ||= Q /\ A' = Pdone /\ (0%nat, 0%nat) ⩹ idx1 /\
+                (exists f', getregs S2 r15 = Some (W f') /\ pc2 = f' +ᵢ ($ 8) /\ npc2 = f' +ᵢ ($ 12))) \/
                 (Nat.eqb k 0 = false /\ rel_safety (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q)
               )
       )
@@ -594,8 +596,8 @@ CoInductive wp_sim : Index -> LProg -> HProg -> Prop :=
     ) ->
     (* abort step *)
     (
-      forall m m', ~ (exists LP', LP__ LP m LP') ->
-           (exists HP', star_tau_step HP__ HP HP' /\ ~ (exists HP'', HP__ HP' m' HP''))
+      ~ (exists LP' m, LP__ LP m LP') ->
+           (exists HP', star_tau_step HP__ HP HP' /\ ~ (exists HP'' m', HP__ HP' m' HP''))
     ) ->
     wp_sim idx LP HP.
 
