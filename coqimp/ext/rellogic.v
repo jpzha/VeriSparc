@@ -151,7 +151,7 @@ Fixpoint relsat (rls : RelState) (P : relasrt) {struct P} : Prop :=
     | RAtrue => True
     | RAfalse => False
     | RAconj P1 P2 => relsat (s, hs, A, w) P1 /\ relsat (s, hs, A, w) P2
-    | RAdisj P1 P2 => relsat (s, hs, A, w) P1 /\ relsat (s, hs, A, w) P2
+    | RAdisj P1 P2 => relsat (s, hs, A, w) P1 \/ relsat (s, hs, A, w) P2
     | RAstar P1 P2 => exists hs1 hs2 s1 s2 w1 w2, hstate_union hs1 hs2 hs /\ state_union s1 s2 s /\ (w = w1 + w1)%nat /\
                                             relsat (s1, hs1, A, w1) P1 /\ relsat (s2, hs2, A, w2) P2
     | RAforall ty P' => forall (x : ty), relsat (s, hs, A, w) (P' x)
@@ -272,7 +272,26 @@ Definition INV (A : primcom) (w : nat) (lv : list Val) (rls : RelState) :=
   | (s, hs, A, w) =>
     wp_stateRel s hs /\ ((exists hs', exec_prim (A, hs) (Pdone, hs') /\ A <> Pdone) \/ A = Pdone)
                          /\ args (getHQ hs) (getHM hs) lv
-  end. 
+  end.
+
+(** Sta of frame asrt *)
+Inductive Sta : primcom -> relasrt -> Prop := 
+| consSta : forall A Pr,
+    (
+      forall hprim lv, A = Pm hprim lv ->
+                  (
+                    forall HSc HSc' HSr w S HS,
+                      exec_prim (Pm hprim lv, HSc) (Pdone, HSc') ->
+                      hstate_union HSc HSr HS -> 
+                      (S, HSr, Pm hprim lv, w) ||= Pr ->
+                      (
+                        exists HS' HSr' w', exec_prim (Pm hprim lv, HS) (Pdone, HS') /\
+                                       hstate_union HSc' HSr' HS' /\
+                                       (S, HSr', Pdone, w') ||= Pr
+                      )
+                  )
+    ) \/ A = Pdone ->
+    Sta A Pr.
 
 (** Well-formed Spec *)  
 Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
@@ -282,13 +301,9 @@ Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
                                 get_Hs_pcont hs' = (f +ᵢ ($ 8), f +ᵢ ($ 12))
     ) ->
     (
-      forall lv (hs1 hs1' hs_r hs hs': HState), hprim lv hs1 hs1' -> hstate_union hs1 hs_r hs ->
-                                             (hprim lv hs hs' /\ hstate_union hs1' hs_r hs')
-    ) ->
-    (
       forall lv, exists num Pr L,
         (forall rls, INV (Pm hprim lv) num lv rls <-> rls ||= (Fp L) ⋆ Pr) /\
-        (forall rls', rls' ||= (Fq L) ⋆ Pr -> exists num' lv', INV Pdone num' lv' rls')
+        (forall rls', rls' ||= (Fq L) ⋆ Pr -> exists num' lv', INV Pdone num' lv' rls') /\ Sta (Pm hprim lv) Pr
     ) ->
     wdSpec Fp Fq hprim.
 

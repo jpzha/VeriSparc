@@ -1,5 +1,5 @@
 (*+ Compositionality +*)      
-Require Import Coqlib.            
+Require Import Coqlib.             
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -340,6 +340,247 @@ Proof.
   exact 5%nat.
 Qed.
 
+Ltac destruct_hstate hs :=
+  destruct hs as [ [ [?T ?t] ?K] ?M].
+
+(** Lemmas about exe_delay *)
+Lemma exe_delay_empR_still :
+  forall D R' D', 
+    exe_delay empR D = (R', D') -> R' = empR.
+Proof.
+  induction D; intros; simpls.
+  inv H; eauto.
+  destruct a.
+  destruct p.
+  destruct d.
+  {
+    destruct (exe_delay empR D) eqn:Heqe.
+    inv H.
+    specialize (IHD r D').
+    assert ((r, D') = (r, D')); eauto.
+    eapply IHD in H; eauto.
+    subst.
+    unfold set_R.
+    unfold is_indom.
+    simpls; eauto.
+  }
+  {
+    destruct (exe_delay empR D) eqn:Heqe.
+    inv H.
+    assert ((R', d0) = (R', d0)); eauto.
+  }
+Qed.
+
+Lemma dly_frm_free_exe_delay_stable_relast :
+  forall P D M R R' D' F hs A w,
+    ((M, (R, F), D), hs, A, w) ||= P ->
+    exe_delay R D = (R', D') ->
+    ((M, (R', F), D'), hs, A, w) ||= P.
+Proof.
+  induction P; intros;
+    try solve [destruct_state hs;
+               simpls;
+               simpljoin1;
+               destruct m;
+               simpljoin1;
+               do 2 eexists;
+               repeat (split; eauto);
+               eapply exe_delay_empR_still; eauto].
+  {
+    (* RAlst a *)
+    simpls.
+    simpljoin1.
+    repeat (split; eauto).
+    eapply dly_frm_free_exe_delay_stable; eauto.
+  }
+  {
+    (* RAtoken n *)
+    simpls.
+    destruct_state hs.
+    destruct m.
+    simpljoin1.
+    repeat (split; eauto).
+    eapply exe_delay_empR_still; eauto.
+  }
+  {
+    (* RAfalse *)
+    simpls; tryfalse.
+  }
+  {
+    (* P1 /\ P2 *)
+    simpls.
+    simpljoin1.
+    eapply IHP1 in H; eauto.
+  }
+  {
+    (* P1 \/ P2 *)
+    simpls.
+    destruct H; eauto.
+  }
+  {
+    (* P1 * P2 *)
+    simpls.
+    simpljoin1.
+    destruct_state x1.
+    destruct_state x2.
+    simpls.
+    simpljoin1.
+    destruct_hstate x.
+    destruct_hstate x0.
+    simpls.
+    simpljoin1.
+    eapply exe_dly_sep_split in H0; eauto.
+    simpljoin1.
+    eapply IHP1 in H3; eauto.
+    eapply IHP2 in H4; eauto.
+    do 6 eexists.
+    repeat (split; eauto).
+    simpls.
+    repeat (split; eauto).
+  }
+  {
+    (* forall P *)
+    simpls.
+    intros.
+    specialize (H0 x).
+    eauto.
+  }
+  {
+    (* exists P *)
+    simpls.
+    simpljoin1.
+    eauto.
+  }
+Qed.
+
+Lemma exe_delay_safety_property_relast :
+  forall D (R R' R1 : RegFile) M D' F Pr hs A w,
+    (R', D') = exe_delay R D -> disjoint R R1 ->
+    ((M, (R1, F), D), hs, A, w) ||= Pr ->
+    exists R1', disjoint R' R1' /\ (merge R' R1', D') = exe_delay (merge R R1) D /\
+           (R1', D') = exe_delay R1 D /\ ((M, (R1', F), D'), hs, A, w) ||= Pr.
+Proof.
+  intros.
+  assert (exists R1', (R1', D') = exe_delay R1 D).
+  {
+    eapply exe_delay_dlyls_deterministic; eauto.
+  }
+  destruct H2 as [R1' H2].
+  lets Hdom_eq : H2.
+  eapply exe_delay_dom_eq in Hdom_eq; eauto.
+  exists R1'.
+  lets Hmerge : H.
+  eapply exe_delay_disj_merge with (R1 := R) (R2 := R1) in Hmerge; eauto.
+  simpljoin1.
+  repeat (split; eauto).
+  eapply dly_frm_free_exe_delay_stable_relast; eauto.
+Qed.
+
+Lemma dlyfrmfree_changeFrm_stable_relasrt :
+  forall P M (R : RegFile) F F' D hs A w,
+    ~ indom cwp R ->
+    ((M, (R, F), D), hs, A, w) ||= P ->
+    ((M, (R, F'), D), hs, A, w) ||= P.
+Proof.
+  induction P; intros; destruct_hstate hs; simpls; simpljoin1;
+    try solve [do 2 eexists; repeat (split; eauto)]; tryfalse.
+
+  repeat (split; eauto).
+  eapply dlyfrmfree_changeFrm_stable; eauto.
+
+  repeat (split; eauto).
+
+  do 2 eexists.
+  split; eauto.
+  eapply IHP; eauto.
+  eapply notindom_after_exedly_pre_still; eauto.
+
+  eapply IHP1 in H0; eauto.
+
+  destruct H0.
+  eapply IHP1 in H0; eauto.
+  eapply IHP2 in H0; eauto.
+
+  destruct_hstate x.
+  destruct_hstate x0.
+  destruct_state x1.
+  destruct_state x2.
+  simpls.
+  simpljoin1. 
+  eapply IHP1 in H3; eauto.
+  eapply IHP2 in H4; eauto.
+  do 6 eexists.
+  repeat (split; eauto).
+  simpl.
+  repeat (split; eauto).
+  intro.
+  contradiction H.
+  eapply indom_merge_still2; eauto.
+  intro.
+  contradiction H.
+  eapply indom_merge_still; eauto.
+
+  intros.
+  specialize (H1 x).
+  eauto.
+
+  exists x.
+  eauto.
+Qed.
+
+Lemma dlyfrmfree_notin_changeDly_still_relasrt :
+  forall P M R F D (rsp : SpReg) v n hs A w,
+    ((M, (R, F), D), hs, A, w) ||= P ->
+    ~ indom rsp R ->
+    ((M, (R, F), (n, rsp, v) :: D), hs, A, w) ||= P.
+Proof.
+  induction P; intros; tryfalse;
+    try solve [destruct_hstate hs;
+               simpls; simpljoin1; do 2 eexists; repeat (split; eauto)];
+    destruct_hstate hs; simpls; simpljoin1; repeat (split; eauto).
+
+  eapply dlyfrmfree_notin_changeDly_still; eauto.
+
+  exists x ((Nat.succ n, rsp, v) :: x0).
+  simpls.
+  rewrite H; simpl.
+  split; eauto.
+  eapply IHP; eauto.
+  eapply notindom_after_exedly_pre_still; eauto.
+
+  destruct H; eauto.
+
+  destruct_hstate x.
+  destruct_hstate x0.
+  destruct_state x1.
+  destruct_state x2.
+  simpls.
+  simpljoin1. 
+  do 6 eexists.
+  instantiate (3 := (m0, (r0, f0), (n, rsp, v) :: d0)).
+  instantiate (5 := (m, (r, f0), (n, rsp, v) :: d0)).
+  repeat (split; eauto).
+  Focus 2.
+  eapply IHP1; eauto.
+  intro.
+  contradiction H0.
+  eapply indom_merge_still; eauto.
+  Focus 2.
+  eapply IHP2; eauto.
+  intro.
+  contradiction H0.
+  eapply indom_merge_still2; eauto.
+  simpl.
+  repeat (split; eauto).
+
+  intros.
+  specialize (H0 x).
+  eapply H; eauto.
+
+  exists x.
+  eauto.
+Qed.
+
 (** Auxiliary rel_safety *)
 CoInductive rel_safety_aux :
   nat -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
@@ -548,6 +789,400 @@ Proof.
   exact r0.
 Qed.
 
+Lemma legal_com_ins_safety_property_relasrt :
+  forall s s1 s1' s2 hs A w Pr C pc npc pc' npc',
+    legal_com (C pc) ->
+    LH__ C (s1, pc, npc) tau (s1', pc', npc') ->
+    state_union s1 s2 s -> (s2, hs, A, w) ||= Pr ->
+    exists s' s2', LH__ C (s, pc, npc) tau (s', pc', npc') /\ state_union s1' s2' s' /\
+              (s2', hs, A, w) ||= Pr.
+Proof.
+  intros.
+  destruct_state s1.
+  destruct_state s2.
+  simpls.
+  simpljoin1.
+  unfolds legal_com.
+  inv H0; try solve
+              [
+                match goal with
+                | H0 : C ?pc = Some _ |- _ => rewrite H0 in H; simpl in H; tryfalse
+                end
+              ].
+  {
+    (* i *)
+    lets Hfrm : H12.
+    eapply ins_frm_property in Hfrm; eauto.
+    Focus 2.
+    instantiate (2 := (m0, (r0, f0), d0)).
+    simpl; repeat (split; eauto).
+    simpljoin1.
+    destruct_state s1'.
+    destruct_state x0.
+    simpls; simpljoin1.
+
+    inv H12.
+    {
+      inv H5.
+      {
+        (* ld aexp ri *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Ld_step; eauto.
+        eapply eval_addrexp_merge_still; eauto.
+        eapply get_vl_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* st ri aexp *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply ST_step; eauto.
+        eapply eval_addrexp_merge_still; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_memset_merge_eq; eauto.
+      }
+      {
+        (* nop *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Nop_step; eauto.
+      }
+      {
+        (* add rs oexp rd *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Add_step; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply eval_opexp_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* sub rs oexp rd *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Sub_step; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply eval_opexp_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* subcc rs oexp rd *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Subcc_step; try eapply indom_merge_still; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply eval_opexp_merge_still; eauto.
+        simpl. 
+        erewrite indom_setR_merge_eq1; eauto.
+        erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
+        erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
+        eauto.
+        eauto.
+        eauto.
+      }
+      {
+        (* and *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply And_step; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply eval_opexp_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* andcc *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Andcc_step; try eapply indom_merge_still; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply eval_opexp_merge_still; eauto.
+        simpl.
+        erewrite indom_setR_merge_eq1; eauto.
+        erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
+        erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
+        eauto.
+        eauto.
+        eauto.
+      }
+      {
+        (* or rs oexp rd *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Or_step; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply eval_opexp_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* sll rs oexp rd *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Sll_step; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply eval_opexp_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* srl rs oexp rd *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Srl_step; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply eval_opexp_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* sett v rd *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Set_step; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* rd rsp ri *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply Rd_step; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+      {
+        (* getcwp ri *)
+        eexists.
+        exists (m2, (r2, f1), d1).
+        split.
+        Focus 2.
+        repeat (split; eauto).
+        eapply LNTrans; eauto.
+        eapply NormalIns; eauto.
+        eapply GetCwp_step; eauto.
+        eapply get_R_merge_still; eauto.
+        eapply indom_merge_still; eauto.
+        rewrite indom_setR_merge_eq1; eauto.
+      }
+    }
+    {
+      (* save rs oexp rd *)
+      eexists. 
+      exists (m2, (r2, fml :: fmi :: F'), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply dlyfrmfree_changeFrm_stable_relasrt; eauto.
+      clear - H3 H17.
+      intro.  
+      eapply indom_m2_disj_notin_m1 with (l := cwp) in H3; eauto.
+      contradiction H3.
+      unfold indom.
+      unfolds get_R.
+      destruct (r cwp) eqn:Heqe; eauto.
+      eapply LNTrans; eauto.
+      eapply SSave; try eapply get_R_merge_still; eauto.
+      eapply fetch_disj_merge_still1; eauto.
+      eapply indom_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      simpl. 
+      rewrite <- indom_setR_merge_eq1; eauto.
+      rewrite <- indom_setR_merge_eq1; eauto.
+      erewrite fetch_some_set_win_merge_eq; eauto.
+      eapply indom_setwin_still; eauto.
+      unfold indom.
+      clear - H17.
+      unfolds get_R.
+      destruct (r cwp); eauto.
+      eapply indom_setR_still; eauto.
+      eapply indom_setwin_still; eauto.
+    }
+    {
+      (* restore rs oexp rd *)
+      eexists. 
+      exists (m2, (r2, F' ++ [fmo; fml]), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply dlyfrmfree_changeFrm_stable_relasrt; eauto.
+      clear - H3 H17.
+      intro.  
+      eapply indom_m2_disj_notin_m1 with (l := cwp) in H3; eauto.
+      contradiction H3.
+      unfold indom.
+      unfolds get_R.
+      destruct (r cwp) eqn:Heqe; eauto.
+      eapply LNTrans; eauto.
+      eapply RRestore; try eapply get_R_merge_still; eauto.
+      eapply fetch_disj_merge_still1; eauto.
+      eapply indom_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      simpl.
+      rewrite <- indom_setR_merge_eq1; eauto.
+      rewrite <- indom_setR_merge_eq1; eauto. 
+      erewrite fetch_some_set_win_merge_eq; eauto.
+      eapply indom_setwin_still; eauto.
+      unfold indom. 
+      clear - H17.
+      unfolds get_R.
+      destruct (r cwp); eauto.
+      eapply indom_setR_still; eauto.
+      eapply indom_setwin_still; eauto.
+    }
+    {
+      eexists.
+      exists (m2, (r2, f1), set_delay rsp (set_spec_reg rsp v1 xor v2) d0).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply dlyfrmfree_notin_changeDly_still_relasrt; eauto.
+      clear - H3 H19.
+      intro.
+      eapply indom_m1_disj_notin_m2 in H3; eauto; tryfalse.
+      eapply H3 in H; tryfalse.
+      eauto.
+      eapply LNTrans; eauto.
+      eapply Wr; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+    }
+  }
+  {
+    (* jumpl aexp rd *)
+    exists (m ⊎ m0, (set_R r rd (W pc) ⊎ r0, f0), d0) (m0, (r0, f0), d0).
+    split.
+    Focus 2.
+    simpls.
+    repeat (split; eauto).
+    eapply disjoint_setR_still1; eauto.
+    eapply LJumpl; eauto.
+    eapply eval_addrexp_merge_still; eauto.
+    eapply indom_merge_still; eauto.
+    eapply indom_setR_merge_eq1; eauto.
+  }
+  {
+    (* call f *)
+    exists (m ⊎ m0, (set_R r r15 (W pc) ⊎ r0, f0), d0) (m0, (r0, f0), d0).
+    split.
+    Focus 2.
+    simpls.
+    repeat (split; eauto).
+    eapply disjoint_setR_still1; eauto.
+    eapply LCall; eauto.
+    eapply indom_merge_still; eauto.
+    eapply indom_setR_merge_eq1; eauto.
+  }
+  {
+    (* retl *)
+    exists (m ⊎ m0, (r ⊎ r0, f0), d0) (m0, (r0, f0), d0).
+    split.
+    Focus 2.
+    simpl.
+    repeat (split; eauto).
+    eapply LRetl; eauto.
+    eapply get_R_merge_still; eauto.
+  }
+Qed.
+
+Lemma legal_com_safety_property :
+  forall s1 s1' s2 s Pr (C : XCodeHeap) pc npc pc' npc' hs A w,
+    legal_com (C pc) -> state_union s1 s2 s ->
+    LP__ (C, (s1, pc, npc)) tau (C, (s1', pc', npc')) -> (s2, hs, A, w) ||= Pr ->
+    exists s' s2', LP__ (C, (s, pc, npc)) tau (C, (s', pc', npc')) /\ state_union s1' s2' s' /\
+              (s2', hs, A, w) ||= Pr.
+Proof.
+  intros.
+  inv H1.
+  destruct_state s2.
+  simpl in H0.
+  simpljoin1.
+  lets Hexe_delay : H8.
+  eapply exe_delay_safety_property_relast in H8; eauto.
+  simpljoin1.
+  eapply legal_com_ins_safety_property_relasrt in H12; eauto.
+  Focus 2.
+  simpl.
+  repeat (split; eauto).
+  simpljoin1.
+  do 2 eexists.
+  repeat (split; eauto).
+  destruct_state x0.
+  eapply LCstep; eauto.
+Qed.  
+
 Lemma rel_safety_imp_rel_safety_aux' :
   forall k idx C S pc npc A HS Q,
     rel_safety k idx (C, S, pc, npc) (A, HS) Q ->
@@ -577,7 +1212,7 @@ Proof.
   {
    clear - Hwf_com.
    eapply legel_pc_; eauto.
- }
+  }
   
   destruct H2 as (i & aexp & rd & f & Hcom).
   destruct Hcom as [Hcom | Hcom].
@@ -1180,7 +1815,9 @@ Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
 
 | prim_wfCth : forall C Cas Sc HSc S HS Sr HSr w Q Pr A pc npc PrimSet idx k,
     state_union Sc Sr S -> hstate_union HSc HSr HS ->
-    rel_safety_aux k idx (Cas, Sc, pc, npc) (A, HSc) Q -> (Sr, HSr, A, w) ||= Pr -> wfHPrimExec C A HS ->
+    rel_safety_aux k idx (Cas, Sc, pc, npc) (A, HSc) Q ->
+    (Sr, HSr, A, w) ||= Pr -> 
+    wfHPrimExec C A HS -> Sta A Pr ->
     (
       forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
                      HProgSafe (C, PrimSet, HS') -> (exec_prim (A, HS) (Pdone, HS')) -> 
@@ -1346,11 +1983,10 @@ Proof.
       split; eauto.
     } 
     destruct HwdSpec as (Fp & Fq & HSpec_pc & HwdSpec).
-    inv HwdSpec. 
-    clear H5.
+    inv HwdSpec.
     rename H4 into Hret.
-    specialize (H6 lv). 
-    destruct H6 as (num & Pr & L & Hwf_pre & Hwf_post).
+    specialize (H5 lv). 
+    destruct H5 as (num & Pr & L & Hwf_pre & Hwf_post & HSta).
     assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
     unfold INV.
     split; eauto. 
@@ -1471,19 +2107,19 @@ Lemma wfCth_wfRdy_tau_step_preservation_clt :
         forall t1 K1, (ThrdMap.set t0 None T') t1 = Some K1 ->
                       wfRdy (C, Cas) (C, PrimSet) t1 K1 
       ).
-Proof. 
+Proof.  
   introv Ht; intros.
   inv H2.
   Focus 2.
   inv H15.
-  clear - H0 Ht H19.
+  clear - H0 Ht H20.
   unfold indom in *.
   simpljoin1.
   unfold disjoint in *.
   specialize (H0 pc).
   rewrite H in H0; simpls.
-  repeat (destruct H19 as [H19 | H19]; [rewrite H19 in H0; simpls; tryfalse | idtac]).
-  rewrite H19 in H0; simpls; tryfalse.
+  repeat (destruct H20 as [H20 | H20]; [rewrite H20 in H0; simpls; tryfalse | idtac]).
+  rewrite H20 in H0; simpls; tryfalse.
  
   eapply LP__local1 in H4; eauto.
   inv H4.
@@ -1639,20 +2275,20 @@ Proof.
       }
     }
     {
-      inv H2; tryfalse.
-      inv H15.
+      inv H2; tryfalse. 
+      inv H15. 
       assert ((Cas pc = Some (c (cntrans i)) \/ Cas pc = Some (c (cjumpl aexp rd)) \/ Cas pc = Some (c (cbe f)))
               \/ Cas pc = Some (c (ccall f)) \/ Cas pc = Some (c cretl)).
-      {
-        clear - H19.
-        repeat (destruct H19 as [H19 | H19]; eauto).
+      { 
+        clear - H20.
+        repeat (destruct H20 as [H20 | H20]; eauto).
       }
-      clear H19.
+      clear H20.
  
       destruct H2 as [Hcom | Hcom].
       {
-        lets Hcom' : Hcom.
-        eapply H20 in Hcom; clear H20 H21 H22.
+        lets Hcom' : Hcom. 
+        eapply H21 in Hcom; clear H21 H22 H23.
         destruct Hcom as [Hprogress' Hpreserve'].
         left.
         inv H4.
@@ -1664,8 +2300,28 @@ Proof.
           unfold indom.
           repeat (destruct Hcom' as [Hcom' | Hcom']; eauto).
         }
+ 
+        destruct Hprogress' as (Sc' & pc0 & npc0 & Hprogress').
+        lets Hpreserve'' : Hprogress'.
+        eapply Hpreserve' in Hpreserve''; eauto.
+        simpljoin1.
+        exists x.
+        split; eauto.
+        eapply Hp; eauto.
+
+        eapply legal_com_safety_property in Hprogress'; eauto.
+        simpljoin1.
+        assert ((Cas, (LM', (LR'', F'), D'', pc', npc')) = (Cas, (x0, pc0, npc0))).
+        {
+          destruct Hcom' as [Hcom' | Hcom'].
+          eapply LP_deterministic; eauto. simpl; eauto.
+          destruct Hcom' as [Hcom' | Hcom']; eapply LP_deterministic; eauto.
+          simpl; eauto.
+          simpl; eauto.
+        }
+        inv H8.
         
-        eapply Hpreserve' in H4.
+        >>>>>>>>>>>>>>>>>>>>>>>>>>>
       }
     }
   }
