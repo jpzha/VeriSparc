@@ -152,7 +152,7 @@ Fixpoint relsat (rls : RelState) (P : relasrt) {struct P} : Prop :=
     | RAfalse => False
     | RAconj P1 P2 => relsat (s, hs, A, w) P1 /\ relsat (s, hs, A, w) P2
     | RAdisj P1 P2 => relsat (s, hs, A, w) P1 \/ relsat (s, hs, A, w) P2
-    | RAstar P1 P2 => exists hs1 hs2 s1 s2 w1 w2, hstate_union hs1 hs2 hs /\ state_union s1 s2 s /\ (w = w1 + w1)%nat /\
+    | RAstar P1 P2 => exists hs1 hs2 s1 s2 w1 w2, hstate_union hs1 hs2 hs /\ state_union s1 s2 s /\ (w = w1 + w2)%nat /\
                                             relsat (s1, hs1, A, w1) P1 /\ relsat (s2, hs2, A, w2) P2
     | RAforall ty P' => forall (x : ty), relsat (s, hs, A, w) (P' x)
     | RAexists ty P' => exists (x : ty), relsat (s, hs, A, w) (P' x)

@@ -53,7 +53,7 @@ Definition ctxfm R (F F' : FrameList) : Prop :=
   exists w n F2,
     get_R R cwp = Some (W w) /\ get_R R Rwim = Some (W (($ 1) <<ᵢ n)) /\ w <> n /\
     F = F' ++ F2 /\ ($ 0) <=ᵤᵢ w <=ᵤᵢ ($ 7) /\ ($ 0) <=ᵤᵢ n <=ᵤᵢ ($ 7) /\
-    length F' = Nat.mul 2%nat (Z.to_nat (Int.unsigned ((N +ᵢ n -ᵢ w -ᵢ ($ 1)) modu N))).
+    length F' = Nat.mul 2%nat (Z.to_nat (Int.unsigned ((N +ᵢ n -ᵢ w -ᵢ ($ 1)) modu N))) /\ length F = 13.
 
 Definition Rinj (LR : RegFile) (HR : HRegFile) :=
   (forall rr : GenReg, exists v, LR rr = Some v /\ HR rr = Some v) /\

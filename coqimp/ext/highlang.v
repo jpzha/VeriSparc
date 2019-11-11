@@ -144,9 +144,12 @@ Definition Malloc (M : Memory) (b : Z) (l h : Word) (M' : Memory) :=
                           else M'(b', o') = M(b', o'))).
 
 (** Memory free *)
-Definition Mfree (M : Memory) (b : Z) (M' : Memory) :=
-  Mfresh b M' /\
-  (forall b' o', b <> b' -> M (b', o') = M' (b', o')).
+Definition Mfree (M : Memory) (b : Z) : Memory :=
+  fun l => match l with
+           | (b', o') => if Z.eq_dec b b' then None else M (b', o')
+           end.
+
+Axiom finite_memory : forall M : Memory, exists b, forall ofs, ~ indom (b, ofs) M.
 
 Definition Hfetch HR :=
   match fetch_frame HR r8 r9 r10 r11 r12 r13 r14 r15 with
@@ -221,7 +224,7 @@ Inductive HQ__ : Memory * HRstate -> Command -> Memory * HRstate -> Prop :=
 
 | HRestore_step : forall M M' (HR HR' : HRegFile) (b b' : Z) (HF : HFrameList) fmo fml fmi fm1 fm2,
     Hfetch HR = Some [fmo; fml; fmi] ->
-    Mfree M b M' -> HR r14 = Some (Ptr (b', $ 0)) ->
+    Mfree M b = M' -> HR r14 = Some (Ptr (b', $ 0)) ->
     HR' = set_Hwindow HR fmi fm1 fm2 ->
     HQ__ (M, (HR, b, (b', fm1, fm2) :: HF)) Prestore (M', (HR', b', HF)).
 

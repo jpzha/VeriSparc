@@ -143,7 +143,7 @@ Inductive LH__ : XCodeHeap -> State * Word * Word -> msg -> State * Word * Word 
 
 | LPrestore_no_trap : forall M M' R R' F F' D pc npc b C,
     C pc = Some Prestore ->
-    Mfree M b M' -> oprestore r0 (W ($ 0)) (R, F) (R', F') ->
+    Mfree M b = M' -> oprestore r0 (W ($ 0)) (R, F) (R', F') ->
     LH__ C ((M, (R, F), D), pc, npc) tau ((M', (R', F'), D), npc, npc +ᵢ ($ 4))
 
 | LPrestore_trap : forall M M' R R' F F' D pc npc C w k v,
