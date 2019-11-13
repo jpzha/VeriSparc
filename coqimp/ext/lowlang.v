@@ -10,6 +10,7 @@ Import ListNotations.
 Require Import state.
 Require Import language.
 Require Import highlang.
+Require Import reg_lemma.
 
 (*+ The low-level Language  +*)
 (* The low-level language is based on the SPARCv8 assembly defined in language.v  *)
@@ -56,39 +57,29 @@ Definition set_Mframe M (l0 l1 l2 l3 l4 l5 l6 l7 : Address) (fm : Frame) :=
     set_Ms M
            ((l0, v0) :: (l1, v1) :: (l2, v2) :: (l3, v3) :: (l4, v4) ::
                          (l5, v5) :: (l6, v6) :: (l7, v7) :: nil)
-  end. 
+  end.
 
 Inductive win_overflow : Memory * RegFile * FrameList -> Memory * RegFile * FrameList -> Prop :=
-| WinOverFlow : forall M M' M'' R R1 R2 R3 R4 R' F F1 F2 F3 F4 b fm1 fm2 fml fmi fmo w,
-    opsave1 (R, F) (R1, F1) -> opsave1 (R1, F1) (R2, F2) ->
-    get_R R r14 = Some (Ptr (b, $ 0)) -> 
-    get_R R Rwim = Some (W (($ 1) <<ᵢ w)) ->
-    fetch_frame M (b, $ 0) (b, $ 4) (b, $ 8) (b, $ 12)
-                (b, $ 16) (b, $ 20) (b, $ 24) (b, $ 28) = Some fm1 ->
-    fetch_frame M (b, $ 32) (b, $ 36) (b, $ 40) (b, $ 44)
-                (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) = Some fm2 ->
-    fetch R2 = Some [fmo; fml; fmi] ->
+| WinOverFlow :forall M M' M'' R R' F F0 w fm1 fm2 fm3 fm4 b,
+    F = F0 ++ (fm1 :: fm2 :: fm3 :: fm4 :: nil) -> get_frame_nth fm1 6 = Some (Ptr (b, $ 0)) ->
     M' = set_Mframe M (b, $ 0) (b, $ 4) (b, $ 8) (b, $ 12)
-                    (b, $ 16) (b, $ 20) (b, $ 24) (b, $ 28) fml ->
+                    (b, $ 16) (b, $ 20) (b, $ 24) (b, $ 28) fm2 ->
     M'' = set_Mframe M' (b, $ 32) (b, $ 36) (b, $ 40) (b, $ 44)
-                     (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) fmi ->
-    oprestore1 (R2, F2) (R3, F3) -> oprestore1 (R3, F3) (R4, F4) ->
-    set_R R4 Rwim (W (($ 1) <<ᵢ (pre_cwp w))) = R' ->
-    win_overflow (M, R, F) (M', R', F4).
+                     (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) fm3 ->
+    get_R R Rwim = Some (W (($ 1) <<ᵢ w)) ->
+    set_R R Rwim (W (($ 1) <<ᵢ (pre_cwp w))) = R' ->
+    win_overflow (M, R, F) (M'', R', F).
 
 Inductive win_underflow : Memory * RegFile * FrameList -> Memory * RegFile * FrameList -> Prop :=
-| WinUnderFlow : forall M R R1 R2 R3 R' F F1 F' b w fmo fml fmi fm1 fm2,
-    oprestore1 (R, F) (R1, F1) ->
-    get_R R r14 = Some (Ptr (b, $ 0)) ->
-    get_R R Rwim = Some (W (($ 1) <<ᵢ w)) ->
+| WinUnderFlow : forall M R R' F F' F0 fm1 fm2 fm1' fm2' b w,
+    F = fm1 :: fm2 :: F0 -> get_R R r30 = Some (Ptr (b, $ 0)) ->
     fetch_frame M (b, $ 0) (b, $ 4) (b, $ 8) (b, $ 12)
-                (b, $ 16) (b, $ 20) (b, $ 24) (b, $ 28) = Some fm1 ->
+                (b, $ 16) (b, $ 20) (b, $ 24) (b, $ 28) = Some fm1' ->
     fetch_frame M (b, $ 32) (b, $ 36) (b, $ 40) (b, $ 44)
-                (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) = Some fm2 ->
-    fetch R1 = Some [fmo; fml; fmi] ->
-    set_window R1 fmi fm1 fm2 = R2 ->
-    opsave1 (R2, F1) (R3, F') ->
-    set_R R3 Rwim (W (($ 1) <<ᵢ (post_cwp w))) = R' ->
+                (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) = Some fm2' ->
+    F' = fm1' :: fm2' :: F0 ->
+    get_R R Rwim = Some (W (($ 1) <<ᵢ w)) ->
+    set_R R Rwim (W (($ 1) <<ᵢ (post_cwp w))) = R' ->
     win_underflow (M, R, F) (M, R', F').
 
 Inductive LH__ : XCodeHeap -> State * Word * Word -> msg -> State * Word * Word -> Prop :=
@@ -146,12 +137,12 @@ Inductive LH__ : XCodeHeap -> State * Word * Word -> msg -> State * Word * Word 
     Mfree M b = M' -> oprestore r0 (W ($ 0)) (R, F) (R', F') ->
     LH__ C ((M, (R, F), D), pc, npc) tau ((M', (R', F'), D), npc, npc +ᵢ ($ 4))
 
-| LPrestore_trap : forall M M' R R' F F' D pc npc C w k v,
-    C pc = Some (Psave w) ->
+| LPrestore_trap : forall M M' R R' F F' D pc npc C k v,
+    C pc = Some Prestore ->
     get_R R cwp = Some (W k) ->
     get_R R Rwim = Some (W v) ->
     win_masked (post_cwp k) v = true ->
-    win_overflow (M, R, F) (M', R', F') ->
+    win_underflow (M, R, F) (M', R', F') ->
     LH__ C ((M, (R, F), D), pc, npc) tau ((M', (R', F'), D), pc, npc).
 
 Inductive LP__ : LProg -> msg -> LProg -> Prop :=

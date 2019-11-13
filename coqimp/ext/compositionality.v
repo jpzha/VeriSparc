@@ -1,5 +1,5 @@
-(*+ Compositionality +*)         
-Require Import Coqlib.                
+(*+ Compositionality +*)            
+Require Import Coqlib.                  
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -20,6 +20,7 @@ Require Import reg_lemma.
 Require Import soundness.
 Require Import refinement.
 Require Import rellogic.
+Require Import integer_lemma.
 
 Set Asymmetric Patterns.
 
@@ -28,6 +29,841 @@ Unset Strict Implicit.
 
 Open Scope code_scope.
 Open Scope mem_scope.
+
+(** Auxiliary Lemmas about Int *)
+Lemma Int_unsigned_0 :
+  Int.unsigned $ 0 = 0%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_1 :
+  Int.unsigned $ 1 = 1%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_2 :
+  Int.unsigned $ 2 = 2%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_3 :
+  Int.unsigned $ 3 = 3%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_4 :
+  Int.unsigned $ 4 = 4%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_5 :
+  Int.unsigned $ 5 = 5%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_6 :
+  Int.unsigned $ 6 = 6%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_7 :
+  Int.unsigned $ 7 = 7%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_8 :
+  Int.unsigned $ 8 = 8%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_9 :
+  Int.unsigned $ 9 = 9%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_10 :
+  Int.unsigned $ 10 = 10%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_11 :
+  Int.unsigned $ 11 = 11%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_12 :
+  Int.unsigned $ 12 = 12%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_13 :
+  Int.unsigned $ 13 = 13%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_14 :
+  Int.unsigned $ 14 = 14%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma Int_unsigned_15 :
+  Int.unsigned $ 15 = 15%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
+Lemma nth_bit_and :
+  forall n1 n2,
+    $ 0 <=ᵤᵢ n1 <=ᵤᵢ $ 7 -> $ 0 <=ᵤᵢ n2 <=ᵤᵢ $ 7 ->
+    (($ 1) <<ᵢ n1) &ᵢ (($ 1) <<ᵢ n2) !=ᵢ ($ 0) = true ->
+    n1 = n2.
+Proof.
+  intros.
+  eapply and_not_zero_eq; eauto.
+  intro.
+  unfolds Int.eq.
+  rewrite H2 in H1.
+  try rewrite Int_unsigned_0 in *.
+  simpls; tryfalse.
+Qed.
+
+Lemma int_inrange_0_7_add_one_still :
+  forall n,
+    $ 0 <=ᵤᵢ n <=ᵤᵢ $ 7 -> $ 0 <=ᵤᵢ (n +ᵢ ($ 1)) modu N <=ᵤᵢ $ 7.
+Proof.
+  intros.
+  destruct n; simpls.
+  unfolds int_leu.
+  unfolds Int.ltu.
+  try rewrite Int_unsigned_0 in *.
+  try rewrite Int_unsigned_7 in *.
+  simpls.
+  unfolds Int.eq; simpls.
+  unfolds Int.add; simpls.
+  try rewrite Int_unsigned_0 in *.
+  try rewrite Int_unsigned_7 in *.
+  try rewrite Int_unsigned_1 in *.
+  unfold Int.modu.
+  unfold N.
+  try rewrite Int_unsigned_8 in *.
+  
+  destruct (zlt 0 intval); destruct (zeq 0 intval);
+    destruct (zlt intval 7); destruct (zeq intval 7); simpls; tryfalse; try omega.
+  {
+    destruct intval; simpls; tryfalse.
+    destruct p; simpls; try omega.
+    destruct p; simpls; try omega.
+    destruct p; simpls; try omega.
+    destruct p; simpls; try omega.
+    tryfalse.
+    destruct p; simpls; tryfalse.
+    destruct p; simpls; tryfalse.
+    destruct p; simpls; tryfalse.
+    rewrite Int_unsigned_6; simpls; eauto.
+    rewrite Int_unsigned_4; simpls; eauto.
+    destruct p; simpls; tryfalse; try omega.
+    destruct p; simpls; tryfalse; try omega.
+    rewrite Int_unsigned_7; simpls; eauto.
+    destruct p; simpls; tryfalse; try omega.
+    rewrite Int_unsigned_5; simpls; eauto.
+    rewrite Int_unsigned_3; simpls; eauto.
+    rewrite Int_unsigned_2; simpls; eauto.
+  }
+  {
+    subst; simpls.
+    rewrite Int_unsigned_8; eauto.
+  }
+  {
+    subst; simpls.
+    rewrite Int_unsigned_1; eauto.
+  }
+Qed.
+
+Lemma int_inrange_0_7_sub_one_still :
+  forall n,
+    $ 0 <=ᵤᵢ n <=ᵤᵢ $ 7 -> $ 0 <=ᵤᵢ ((n +ᵢ N) -ᵢ ($ 1)) modu N <=ᵤᵢ $ 7.
+Proof.
+  intros.
+  destruct n; simpls.
+  unfolds int_leu.
+  unfolds Int.ltu.
+  try rewrite Int_unsigned_0 in *.
+  try rewrite Int_unsigned_7 in *.
+  simpls.
+  unfolds Int.eq; simpls.
+  unfolds Int.add; simpls.
+  unfolds Int.sub; simpls.
+  try rewrite Int_unsigned_0 in *.
+  try rewrite Int_unsigned_7 in *.
+  try rewrite Int_unsigned_1 in *.
+  try rewrite Int_unsigned_8 in *. 
+  unfold Int.modu.
+  unfold N.
+  try rewrite Int_unsigned_8 in *.
+  
+  destruct (zlt 0 intval); destruct (zeq 0 intval);
+    destruct (zlt intval 7); destruct (zeq intval 7); simpls; tryfalse; try omega.
+  {
+    destruct intval; simpls; tryfalse.
+    destruct p; simpls; try omega.
+    destruct p; simpls; try omega.
+    destruct p; simpls; try omega.
+    destruct p; simpls; try omega.
+    tryfalse.
+    destruct p; simpls; tryfalse.
+    destruct p; simpls; tryfalse.
+    destruct p; simpls; tryfalse.
+    rewrite Int_unsigned_13; simpls; eauto.
+    rewrite Int_unsigned_11; simpls; eauto.
+    destruct p; simpls; tryfalse; try omega.
+    destruct p; simpls; tryfalse; try omega.
+    rewrite Int_unsigned_14; simpls; eauto.
+    destruct p; simpls; tryfalse; try omega.
+    rewrite Int_unsigned_12; simpls; eauto.
+    rewrite Int_unsigned_10; simpls; eauto.
+    rewrite Int_unsigned_9; simpls; eauto.
+  }
+  {
+    subst; simpls.
+    rewrite Int_unsigned_15; eauto.
+  }
+  {
+    subst; simpls.
+    rewrite Int_unsigned_8; eauto.
+  }
+Qed.
+
+Lemma fmlst_underflow_len_0 :
+  forall x0,
+    $ 0 <=ᵤᵢ x0 <=ᵤᵢ $ 7 ->
+    ((N +ᵢ ((x0 +ᵢ ($ 1)) modu N)) -ᵢ x0) -ᵢ ($ 1) modu N = $ 0.
+Proof.
+  intros.
+  eapply in_range_0_7_num in H.
+  unfold N, Int.add, Int.sub, Int.modu; simpls.
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_0, Int_unsigned_1, Int_unsigned_8; simpls.
+    rewrite Int_unsigned_1; simpls.
+    assert (1 mod 8 = 1); simpl; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_8, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_2; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_8, Int_unsigned_2, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_3; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_8, Int_unsigned_3, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_4; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_8, Int_unsigned_4, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_5; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_8, Int_unsigned_5, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_6; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_8, Int_unsigned_6, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_7; eauto.
+  }
+  {
+    rewrite Int_unsigned_8, Int_unsigned_7, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_8; eauto.
+  }
+Qed.
+
+Lemma fmlst_underflow_len_6 :
+  forall x0,
+    $ 0 <=ᵤᵢ x0 <=ᵤᵢ $ 7 ->
+    (((N +ᵢ (((x0 +ᵢ N) -ᵢ ($ 1)) modu N)) -ᵢ x0) -ᵢ ($ 1)) modu N = $ 6.
+Proof.
+  intros.
+  eapply in_range_0_7_num in H.
+  unfold N, Int.add, Int.sub, Int.modu; simpls.
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_0, Int_unsigned_1, Int_unsigned_8; simpls.
+    rewrite Int_unsigned_8; simpls.
+    assert (7 mod 8 = 7); simpl; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_1, Int_unsigned_8; simpls.
+    rewrite Int_unsigned_9; simpls; rewrite Int_unsigned_8; simpls.
+    assert (8 mod 8 = 0); simpl; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_2, Int_unsigned_8, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_10; simpls; rewrite Int_unsigned_9; simpls.
+    assert (9 mod 8 = 1); simpl; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_3, Int_unsigned_8, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_11; simpls; rewrite Int_unsigned_10; simpls.
+    assert (10 mod 8 = 2); simpl; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_4, Int_unsigned_8, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_12; simpls; rewrite Int_unsigned_11; simpls.
+    assert (11 mod 8 = 3); simpl; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_5, Int_unsigned_8, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_13; simpls; rewrite Int_unsigned_12; simpls.
+    assert (12 mod 8 = 4); simpl; eauto.
+  }
+  destruct H; subst.
+  {
+    rewrite Int_unsigned_6, Int_unsigned_8, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_14; simpls; rewrite Int_unsigned_13; simpls.
+    assert (13 mod 8 = 5); simpl; eauto.
+  }
+  {
+    rewrite Int_unsigned_7, Int_unsigned_8, Int_unsigned_1; simpls.
+    rewrite Int_unsigned_15; simpls; rewrite Int_unsigned_14; simpls.
+    assert (14 mod 8 = 6); simpl; eauto.
+  }
+Qed.
+
+(** Auxiliary Lemmas about Register *)
+Lemma get_R_set_R_same_reg :
+  forall R rr w,
+    rr <> Rr r0 -> indom rr R ->
+    get_R (set_R R rr w) rr = Some w.
+Proof.
+  intros.
+  unfold set_R.
+  unfold is_indom.
+  unfold indom in *.
+  simpljoin1.
+  rewrite H0; simpl; eauto.
+  unfold get_R.
+  rewrite RegMap.gss; eauto.
+  destruct rr; simpls; tryfalse; eauto.
+  destruct g; simpls; tryfalse; eauto.
+Qed.
+
+Lemma getR_setR_neq_stable :
+  forall R rr v rr' w,
+    R rr = Some v -> rr <> rr' -> set_R R rr' w rr = Some v.
+Proof.
+  intros.
+  unfold set_R.
+  unfold is_indom.
+  destruct (R rr') eqn:Heqe.
+  rewrite RegMap.gso; eauto.
+  eauto.
+Qed.
+
+Lemma fetch_frame_set_R_psr_stable :
+  forall (R : RegFile) (psr : PsrReg) w fm (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : GenReg),
+    fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
+    fetch_frame (set_R R psr w) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
+Proof.
+  intros.
+  unfold fetch_frame in *.
+
+  destruct (R rr0) eqn:Heqe0; tryfalse.
+  erewrite getR_setR_neq_stable; eauto.
+  2 : intro; tryfalse.
+  clear Heqe0.
+
+  destruct (R rr1) eqn:Heqe0; tryfalse.
+  erewrite getR_setR_neq_stable; eauto.
+  2 : intro; tryfalse.
+  clear Heqe0.
+
+  destruct (R rr2) eqn:Heqe0; tryfalse.
+  erewrite getR_setR_neq_stable; eauto.
+  2 : intro; tryfalse.
+  clear Heqe0.
+
+  destruct (R rr3) eqn:Heqe0; tryfalse.
+  erewrite getR_setR_neq_stable; eauto.
+  2 : intro; tryfalse.
+  clear Heqe0.
+
+  destruct (R rr4) eqn:Heqe0; tryfalse.
+  erewrite getR_setR_neq_stable; eauto.
+  2 : intro; tryfalse.
+  clear Heqe0.
+
+  destruct (R rr5) eqn:Heqe0; tryfalse.
+  erewrite getR_setR_neq_stable; eauto.
+  2 : intro; tryfalse.
+  clear Heqe0.
+
+  destruct (R rr6) eqn:Heqe0; tryfalse.
+  erewrite getR_setR_neq_stable; eauto.
+  2 : intro; tryfalse.
+  clear Heqe0.
+
+  destruct (R rr7) eqn:Heqe0; tryfalse.
+  erewrite getR_setR_neq_stable; eauto.
+  intro; tryfalse.
+Qed. 
+
+Lemma fetch_set_R_psr_stable :
+  forall R (psr : PsrReg) w fmo fml fmi,
+    fetch R = Some [fmo; fml; fmi] ->
+    fetch (set_R R (Rpsr psr) w) = Some [fmo; fml; fmi].
+Proof.
+  intros.
+  unfolds fetch.
+  destruct (fetch_frame R r8 r9 r10 r11 r12 r13 r14 r15) eqn:Heqe0; tryfalse.
+  eapply fetch_frame_set_R_psr_stable in Heqe0.
+  rewrite Heqe0; clear Heqe0.
+  destruct (fetch_frame R r16 r17 r18 r19 r20 r21 r22 r23) eqn:Heqe0; tryfalse.
+  eapply fetch_frame_set_R_psr_stable in Heqe0.
+  rewrite Heqe0; clear Heqe0.
+  destruct (fetch_frame R r24 r25 r26 r27 r28 r29 r30 r31) eqn:Heqe0; tryfalse.
+  eapply fetch_frame_set_R_psr_stable in Heqe0; eauto.
+  rewrite Heqe0; eauto.
+Qed.
+
+Lemma fetch_frame_set_window_out :
+  forall (R : RegFile) fm1 fm2 fm3,
+    (forall (rr : GenReg), indom rr R) ->
+    fetch_frame (set_window R fm1 fm2 fm3) r8 r9 r10 r11 r12 r13 r14 r15 = Some fm1.
+Proof.
+  intros.
+  unfold fetch_frame.
+  destruct fm1.
+
+  assert (set_window R ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm2 fm3 r8 = Some v).
+  {
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm2.
+    simpls.
+    do 23 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r8).
+    eauto.
+  }
+  assert (set_window R ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm2 fm3 r9 = Some v0).
+  {
+    clear H0.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm2.
+    simpls. 
+    do 22 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r9).
+    eapply indom_setR_still; eauto.
+  }
+  assert (set_window R ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm2 fm3 r10 = Some v1).
+  {
+    clear H0 H1.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm2.
+    simpls. 
+    do 21 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r10).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm2 fm3 r11 = Some v2).
+  {
+    clear H0 H1 H2.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm2.
+    simpls. 
+    do 20 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r11).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm2 fm3 r12 = Some v3).
+  {
+    clear H0 H1 H2 H3.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm2.
+    simpls. 
+    do 19 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r12).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm2 fm3 r13 = Some v4).
+  {
+    clear H0 H1 H2 H3 H4.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm2.
+    simpls. 
+    do 18 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r13).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm2 fm3 r14 = Some v5).
+  {
+    clear H0 H1 H2 H3 H4 H5.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm2.
+    simpls. 
+    do 17 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r14).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm2 fm3 r15 = Some v6).
+  {
+    clear H0 H1 H2 H3 H4 H5 H6.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm2.
+    simpls. 
+    do 16 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r15).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  rewrite H0, H1, H2, H3, H4, H5, H6, H7.
+  eauto.
+Qed.
+
+Lemma fetch_frame_set_window_local :
+  forall (R : RegFile) fm1 fm2 fm3,
+    (forall (rr : GenReg), indom rr R) ->
+    fetch_frame (set_window R fm1 fm2 fm3) r16 r17 r18 r19 r20 r21 r22 r23 = Some fm2.
+Proof.
+  intros.
+  unfold fetch_frame.
+  destruct fm2.
+
+  assert (set_window R fm1 ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm3 r16 = Some v).
+  {
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm1.
+    simpls.
+    do 15 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r16).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm3 r17 = Some v0).
+  {
+    clear H0.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm1.
+    simpls.
+    do 14 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r17).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm3 r18 = Some v1).
+  {
+    clear H0 H1.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm1.
+    simpls.
+    do 13 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r18).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm3 r19 = Some v2).
+  {
+    clear H0 H1 H2.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm1.
+    simpls.
+    do 12 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r19).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm3 r20 = Some v3).
+  {
+    clear H0 H1 H2 H3.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm1.
+    simpls.
+    do 11 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r20).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm3 r21 = Some v4).
+  {
+    clear H0 H1 H2 H3 H4.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm1.
+    simpls.
+    do 10 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r21).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm3 r22 = Some v5).
+  {
+    clear H0 H1 H2 H3 H4 H5.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm1.
+    simpls.
+    do 9 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r22).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 ([[v, v0, v1, v2, v3, v4, v5, v6]]) fm3 r23 = Some v6).
+  {
+    clear H0 H1 H2 H3 H4 H5.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm3, fm1.
+    simpls.
+    do 8 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r23).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  rewrite H0, H1, H2, H3, H4, H5, H6, H7.
+  eauto.
+Qed.
+
+Lemma fetch_frame_set_window_in :
+  forall (R : RegFile) fm1 fm2 fm3,
+    (forall (rr : GenReg), indom rr R) ->
+    fetch_frame (set_window R fm1 fm2 fm3) r24 r25 r26 r27 r28 r29 r30 r31 = Some fm3.
+Proof.
+  intros.
+  unfold fetch_frame.
+  destruct fm3.
+  
+  assert (set_window R fm1 fm2 ([[v, v0, v1, v2, v3, v4, v5, v6]]) r24 = Some v).
+  {
+    unfold set_window.
+    unfold set_frame.
+    destruct fm2, fm1.
+    simpls.
+    do 7 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r24).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 fm2 ([[v, v0, v1, v2, v3, v4, v5, v6]]) r25 = Some v0).
+  {
+    clear H0.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm2, fm1.
+    simpls.
+    do 6 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r25).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 fm2 ([[v, v0, v1, v2, v3, v4, v5, v6]]) r26 = Some v1).
+  {
+    clear H0 H1.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm2, fm1.
+    simpls.
+    do 5 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r26).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 fm2 ([[v, v0, v1, v2, v3, v4, v5, v6]]) r27 = Some v2).
+  {
+    clear H0 H1 H2.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm2, fm1.
+    simpls.
+    do 4 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r27).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 fm2 ([[v, v0, v1, v2, v3, v4, v5, v6]]) r28 = Some v3).
+  {
+    clear H0 H1 H2 H3.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm2, fm1.
+    simpls.
+    do 3 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r28).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 fm2 ([[v, v0, v1, v2, v3, v4, v5, v6]]) r29 = Some v4).
+  {
+    clear H0 H1 H2 H3 H4.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm2, fm1.
+    simpls.
+    do 2 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r29).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 fm2 ([[v, v0, v1, v2, v3, v4, v5, v6]]) r30 = Some v5).
+  {
+    clear H0 H1 H2 H3 H4 H5.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm2, fm1.
+    simpls.
+    do 1 (try erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r30).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  assert (set_window R fm1 fm2 ([[v, v0, v1, v2, v3, v4, v5, v6]]) r31 = Some v6).
+  {
+    clear H0 H1.
+    unfold set_window.
+    unfold set_frame.
+    destruct fm2, fm1.
+    simpls.
+    rewrite indom_setR_eq_RegMap_set; eauto.
+    rewrite RegMap.gss; eauto.
+    specialize (H r31).
+    repeat (eapply indom_setR_still; eauto).
+  }
+  rewrite H0, H1, H2, H3.
+  rewrite H4, H5, H6, H7.
+  eauto.
+Qed.
+
+Lemma set_window_OK :
+  forall (R : RegFile) fm1 fm2 fm3,
+    (forall (rr : GenReg), indom rr R) ->
+    fetch (set_window R fm1 fm2 fm3) = Some [fm1; fm2; fm3].
+Proof.
+  intros.
+  unfold fetch.
+  rewrite fetch_frame_set_window_out; eauto.
+  rewrite fetch_frame_set_window_local; eauto.
+  rewrite fetch_frame_set_window_in; eauto.
+Qed.
+
+Lemma fetch_frame_set_Mframe_same1 :
+  forall b fm,
+    fetch_frame (set_Mframe b ($ 0) fm) (b, $ 0) (b, $ 4) (b, $ 8)
+                (b, $ 12) (b, $ 16) (b, $ 20) (b, $ 24) (b, $ 28) = Some fm.
+Proof.
+  intros.
+  destruct fm.
+  simpls.
+  unfold fetch_frame; simpls.
+
+  do 7 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 6 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 5 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 4 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 3 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 2 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 1 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  rewrite MemMap.gss; eauto.
+Qed.
+
+Lemma fetch_frame_set_Mframe_same2 :
+  forall b fm,
+    fetch_frame (set_Mframe b ($ 32) fm) (b, $ 32) (b, $ 36) (b, $ 40)
+                (b, $ 44) (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) = Some fm.
+Proof.
+  intros.
+  destruct fm.
+  simpls.
+  unfold fetch_frame; simpls.
+
+  do 7 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 6 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 5 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 4 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 3 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 2 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  do 1 (rewrite MemMap.gso; [ | intro; tryfalse]).
+  rewrite MemMap.gss; eauto.
+  rewrite MemMap.gss; eauto.
+Qed.
 
 (** Auxiliary Lemmas about Sep Star *)
 Lemma rel_sep_star_split :
@@ -360,6 +1196,18 @@ Ltac destruct_hstate hs :=
   destruct hs as [ [ [?T ?t] ?K] ?M].
 
 (** Lemmas about eval expression *)
+Lemma Rinj_getGenregHL_eq' :
+  forall (ri : GenReg) R (HR : HRegFile) v,
+    (forall rr : GenReg, exists v : Val, R rr = Some v /\ HR rr = Some v) -> HR ri = Some v ->
+    R ri = Some v.
+Proof.
+  intros.
+  specialize (H ri).
+  simpljoin1.
+  rewrite H0 in H1.
+  inv H1; eauto.
+Qed.
+
 Lemma Rinj_getGenregHL_eq :
   forall (ri : GenReg) R HR v,
     Rinj R HR -> get_HR HR ri = Some v ->
@@ -881,6 +1729,102 @@ Proof.
   exact r0.
 Qed.
 
+Lemma fetch_frame_HL :
+  forall HR (R : RegFile) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+    fetch_frame HR rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
+    (forall (rr : GenReg), exists v, R rr = Some v /\ HR rr = Some v) ->
+    fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
+Proof.
+  intros.
+  unfold fetch_frame in *.
+  
+  destruct (HR rr0) eqn:Heqe0; simpls; tryfalse.
+  lets Hrr0 : H0.
+  specialize (Hrr0 rr0).
+  simpljoin1.
+  rewrite Heqe0 in H2.
+  inv H2.
+  rewrite H1; clear H1 Heqe0.
+
+  destruct (HR rr1) eqn:Heqe1; simpls; tryfalse.
+  lets Hrr1 : H0.
+  specialize (Hrr1 rr1).
+  simpljoin1.
+  rewrite Heqe1 in H2.
+  inv H2.
+  rewrite H1; clear H1 Heqe1.
+
+  destruct (HR rr2) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr2 : H0.
+  specialize (Hrr2 rr2).
+  simpljoin1.
+  rewrite Heqe2 in H2.
+  inv H2.
+  rewrite H1; clear H1 Heqe2.
+
+  destruct (HR rr3) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr3 : H0.
+  specialize (Hrr3 rr3).
+  simpljoin1.
+  rewrite Heqe2 in H2.
+  inv H2.
+  rewrite H1; clear H1 Heqe2.
+
+  destruct (HR rr4) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr4 : H0.
+  specialize (Hrr4 rr4).
+  simpljoin1.
+  rewrite Heqe2 in H2.
+  inv H2.
+  rewrite H1; clear H1 Heqe2.
+
+  destruct (HR rr5) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr5 : H0.
+  specialize (Hrr5 rr5).
+  simpljoin1.
+  rewrite Heqe2 in H2.
+  inv H2.
+  rewrite H1; clear H1 Heqe2.
+
+  destruct (HR rr6) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr6 : H0.
+  specialize (Hrr6 rr6).
+  simpljoin1.
+  rewrite Heqe2 in H2.
+  inv H2.
+  rewrite H1; clear H1 Heqe2.
+
+  destruct (HR rr7) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr7 : H0.
+  specialize (Hrr7 rr7).
+  simpljoin1.
+  rewrite Heqe2 in H2.
+  inv H2.
+  rewrite H1; clear H1 Heqe2.
+
+  inv H; eauto.
+Qed.
+
+Lemma fetch_window_HL :
+  forall HR (R : RegFile) fmo fml fmi,
+    Hfetch HR = Some [fmo; fml; fmi] ->
+    (forall (rr : GenReg), exists v, R rr = Some v /\ HR rr = Some v) ->
+    fetch R = Some [fmo; fml; fmi].
+Proof.
+  intros.
+  unfolds Hfetch.
+  unfold fetch.
+  destruct (fetch_frame HR r8 r9 r10 r11 r12 r13 r14 r15) eqn:Heqe; tryfalse.
+  eapply fetch_frame_HL with (R := R) in Heqe; eauto.
+  rewrite Heqe; eauto.
+  destruct (fetch_frame HR r16 r17 r18 r19 r20 r21 r22 r23) eqn:Heqe1; tryfalse.
+  eapply fetch_frame_HL with (R := R) in Heqe1; eauto.
+  rewrite Heqe1; eauto.
+  destruct (fetch_frame HR r24 r25 r26 r27 r28 r29 r30 r31) eqn:Heqe2; tryfalse.
+  eapply fetch_frame_HL with (R := R) in Heqe2; eauto.
+  rewrite Heqe2; eauto.
+Qed.
+  
 Lemma legal_com_ins_safety_property_relasrt :
   forall s s1 s1' s2 hs A w Pr C pc npc pc' npc',
     legal_com (C pc) ->
@@ -2152,12 +3096,13 @@ Proof.
     inv H3.
     inv H15.
     specialize (H r15).
+    destruct H11 as [H11 Hdisj_ctx_k].
     simpljoin1.
     simpl in H5.
     simpl.
     lets Hexec_prim : H7.
     inv H7.
-    eapply Hret in H18; eauto.
+    eapply Hret in H19; eauto.
     simpl.
     rewrite H5 in H.
     inv H; eauto.
@@ -2319,20 +3264,22 @@ Proof.
     lets Hwp_stateRel : H12.
     inv H12.
     lets HcurTRel : H20.
-    inv H20.
+    inv H20. 
     simpl in H9. 
     inv H9.
     lets HRinj : H22.
     inv H22.
+    destruct H13 as [H13 Hfp].
+    destruct H10 as [H10 Hdisj_ctx_k]. 
     simpljoin1.
     lets Ho0 : H2.
     specialize (Ho0 r8).
     simpljoin1.
     assert (x2 = v).
-    {
-      clear - H24 H20.
+    { 
+      clear - H24 H10.
       unfolds get_R.
-      rewrite H20 in H24; simpls; tryfalse.
+      rewrite H10 in H24; simpls; tryfalse.
       inv H24; eauto.
     } 
     subst x2.
@@ -2541,53 +3488,208 @@ Proof.
           (* Psave sz *)
           inv H15.
           inv H26.
+          destruct H19 as [H19 Hdisj_ctx_k].
+          destruct H25 as [H25 Hfp].
           simpljoin1.
           lets Hwim : H4.
           specialize (Hwim Rwim).
           simpljoin1.
           renames x to k, x2 to v.
-          destruct (win_masked (pre_cwp k) v) eqn:Heqe.
-          {
-            admit.
-          }
-          {
-            admit.
-          }
-        }
-        {
-          (* Prestore *)
-          inv H15.
-          inv H25.
-          destruct H2 as (n0 & F2 & H2).
+          inv H24.
+          destruct H20 as (n & F2 & H20).
           simpljoin1.
           remember (F' ++ F2) as F.
           do 14 (destruct F as [ | ?fm F]; [simpls; tryfalse | idtac]); simpls; try omega.
-          clear H20.
-          inv H27.
-          simpljoin1.
-          lets Hwim : (H20 Rwim).
-          simpljoin1.
-          destruct (win_masked (post_cwp x0) x3) eqn:Heqe.
+          clear H29.
+          unfold get_R in H20; rewrite H5 in H20; simpl in H20; inv H20.
+          unfold get_R in H21; rewrite H19 in H21; simpl in H21; inv H21.
+          destruct (win_masked (pre_cwp x) ($ 1) <<ᵢ n) eqn:Heqe.
           {
-            assert (exists LM, Mfree ((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M) b LM).
+            assert (length F' = 12).
             {
-              >>>>>>>>>>>>>>>>>>>>>>>
+              clear - H22 H26 H27 H28 Heqe.
+              unfolds win_masked, pre_cwp. 
+              destruct ((($ 1) <<ᵢ (((x +ᵢ N) -ᵢ ($ 1)) modu N)) &ᵢ (($ 1) <<ᵢ n)) !=ᵢ ($ 0) eqn:Heqe1; simpls; tryfalse.
+              eapply nth_bit_and in Heqe1; eauto.
+              subst. 
+              rewrite fmlst_underflow_len_6 in H28; eauto.
+              eapply int_inrange_0_7_sub_one_still; eauto.
             }
+            do 13 (destruct F' as [ | ?fm F']; [simpls; tryfalse | idtac]); simpls; try omega.
+            clear H20.
+            inv HeqF. 
+            assert (exists b', get_frame_nth fm23 6 = Some (Ptr (b', $ 0))).
+            {
+              clear - H25.
+              do 6
+                 (
+                   match goal with
+                   | H : stkRel _ _ |- _ => inv H
+                   end
+                 ).
+              eauto.
+            }
+            destruct H20 as [b0' Hget_frame_b].
+            
+            do 2 eexists.
+            econstructor; eauto.
+            simpl; eauto.
+            eapply LPsave_trap.
+            eapply get_vl_merge_still; eauto.
+            unfold get_R; rewrite H5; eauto.
+            unfold get_R; rewrite H19; eauto.
+            eauto.
+            econstructor; eauto.
+            instantiate (4 := [fm14; fm15; fm16; fm17; fm18; fm19; fm20; fm21; fm22]).
+            simpls; eauto.
+            unfold get_R; rewrite H19; eauto.
+          }
+          {
+            assert (exists b M', Malloc ((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M)
+                                   b $ 0 sz M').
+            {
+              lets Ht : (finite_memory ((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M)).
+              destruct Ht as (b0 & Ht).
+              remember (fun l : Address => match l with
+                                         | (b', o') => if Z.eq_dec b b' then
+                                                        if int_le ($ 0) o' && Int.lt o' sz then
+                                                          Some (W ($ 2))
+                                                        else
+                                                          None
+                                                        else None
+                                         end) as m.
+              exists b0 (((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M) ⊎ m).
+            }
+            do 2 eexists.
+            econstructor; eauto.
+            simpl; eauto.
+            eapply LPsave_no_trap; eauto.
+            eapply get_vl_merge_still; eauto. Print Mfresh.
+          }
+        }
+        {
+          (* Prestore *)  
+          inv H15.
+          inv H23.
+          destruct H24 as [H24 Hfp].
+          destruct H18 as [H18 Hdisj_ctx_k].
+          destruct H2 as (n0 & F2 & H2). 
+          simpljoin1.
+          remember (F' ++ F2) as F.
+          do 14 (destruct F as [ | ?fm F]; [simpls; tryfalse | idtac]); simpls; try omega.
+          clear H19.
+          inv H25. 
+          simpljoin1.
+          lets Hwim : (H18 Rwim).
+          simpljoin1.
+
+          assert (x = x0).
+          {
+            clear - H2 H19.
+            unfolds get_R.
+            rewrite H19 in H2.
+            inv H2; eauto.
+          }
+          subst x.
+          assert (x3 = ($ 1) <<ᵢ n0).
+          {
+            clear - H4 H26.
+            unfolds get_R.
+            rewrite H26 in H4; simpls; eauto.
+            inv H4; eauto.
+          }
+          subst x3.
+          
+          destruct (win_masked (post_cwp x0) (($ 1) <<ᵢ n0)) eqn:Heqe.
+          {
+            assert (F' = nil).
+            {
+              clear - H15 Heqe H9 H5 H13.
+              unfolds win_masked.
+              destruct (((($ 1) <<ᵢ (post_cwp x0)) &ᵢ (($ 1) <<ᵢ n0)) !=ᵢ ($ 0)) eqn:Heqe'; tryfalse.
+              unfolds post_cwp.
+              assert ((x0 +ᵢ ($ 1)) modu N = n0).
+              {
+                eapply nth_bit_and; eauto.
+                eapply int_inrange_0_7_add_one_still; eauto.
+              }
+              subst.
+              rewrite fmlst_underflow_len_0 in H15; eauto.
+              rewrite Int_unsigned_0 in H15; simpls.
+              destruct F'; simpls; eauto; tryfalse.
+            }
+            subst F'.
+            simpl in HeqF; subst F2.
+            assert (b'0 = b').
+            {
+              inv H24; eauto.
+            }
+            subst b'0.
+            assert (exists fm1, fetch_frame ((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M)
+                                        (b', $ 0) 
+                                        (b', $ 4) (b', $ 8) (b', $ 12) (b', $ 16)
+                                        (b', $ 20) (b', $ 24) (b', $ 28) = Some fm1).
+            {
+              clear - H24 H11 H10 H8 Hdisj_ctx_k.
+              inv H24.
+              exists fm1. 
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              erewrite fetch_frame_disj_merge_stable2; eauto.
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              eapply fetch_frame_set_Mframe_same1; eauto.
+            }
+            destruct H27 as [fm1' Hfetch_Mframe1].
+            assert (exists fm2, fetch_frame ((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M)
+                                       (b', $ 32) (b', $ 36) (b', $ 40) (b', $ 44)
+                                       (b', $ 48) (b', $ 52) (b', $ 56) (b', $ 60) = Some fm2).
+            {
+              clear - H24 H11 H10 H8 Hdisj_ctx_k.
+              inv H24.
+              exists fm2. 
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              erewrite fetch_frame_disj_merge_stable2; eauto.
+              erewrite fetch_frame_disj_merge_stable1; eauto.
+              erewrite fetch_frame_disj_merge_stable2; eauto.
+              eapply fetch_frame_set_Mframe_same2; eauto.
+            }
+            destruct H27 as [fm2' Hfetch_Mframe2].
+            
+            do 2 eexists.
+            econstructor; eauto.
+            simpl; eauto.
+            eapply LPrestore_trap.
+            eapply get_vl_merge_still; eauto.
+            instantiate (1 := x0).
+            unfold get_R; rewrite H19; eauto.
+            instantiate (1 := ($ 1) <<ᵢ n0).
+            unfold get_R; rewrite H26; eauto.
+            eauto.
+            
+            econstructor; eauto.
+            unfold get_R; rewrite Hfp; eauto.
+          }
+          {
             do 2 eexists.
             econstructor; eauto.
             simpl; eauto.
             eapply LPrestore_no_trap.
             eapply get_vl_merge_still; eauto.
-            
             instantiate (2 := b).
-
-            
-            instantiate (1 := (((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ HM').
-            clear - H13 H11.
-            unfolds Mfree.
-            simpljoin1.
-            split.
-            >>>>>>>>>>>>>>>>>>
+            eauto.
+            econstructor.
+            unfold get_R; rewrite H19; eauto.
+            unfold get_R; rewrite H26; eauto.
+            eauto.
+            eauto.
+            eapply fetch_window_HL; eauto.
+            eauto.
+            eauto.
+            eauto.
           }
         }
       }

@@ -67,7 +67,7 @@ Definition set_Mframe (b : Z) (ofs : Word) (fm : Frame) :=
   | consfm v0 v1 v2 v3 v4 v5 v6 v7 =>
     set_Ms empM [((b, ofs), v0); ((b, ofs +ᵢ ($ 4)), v1); ((b, ofs +ᵢ ($ 8)), v2);
                    ((b, ofs +ᵢ ($ 12)), v3); ((b, ofs +ᵢ ($ 16)), v4); ((b, ofs +ᵢ ($ 20)), v5);
-                     ((b, ofs +ᵢ ($ 24)), v6); ((b, ofs +ᵢ ($ 28)), v1)]
+                     ((b, ofs +ᵢ ($ 24)), v6); ((b, ofs +ᵢ ($ 28)), v7)]
   end.
 
 Inductive stkRel : Z * FrameList * Memory -> HFrameList -> Prop :=
@@ -91,9 +91,9 @@ Inductive stkRel : Z * FrameList * Memory -> HFrameList -> Prop :=
 
 (** Current Thread State Relation *)
 Inductive curTRel : Memory * RState -> Tid * tlocst -> Prop :=
-| Cur_TRel : forall M Mctx Mk R F F' t HR b HF pc npc,
-    M = Mctx ⊎ Mk -> (forall l, indom l M <-> DomCtx l t b) ->
-    ctxfm R F F' -> stkRel (b, F', Mk) HF -> Rinj R HR ->
+| Cur_TRel : forall M Mctx Mk R F F' t HR b b' HF pc npc,
+    (M = Mctx ⊎ Mk /\ Mctx ⊥ Mk) -> (forall l, indom l M <-> DomCtx l t b) ->
+    ctxfm R F F' -> (stkRel (b', F', Mk) HF /\ R r30 = Some (Ptr (b', $ 0))) -> Rinj R HR ->
     curTRel (M, (R, F)) (t, ((HR, b, HF), pc, npc)).
 
 Parameter restoreQ : Memory -> RState -> Prop.
