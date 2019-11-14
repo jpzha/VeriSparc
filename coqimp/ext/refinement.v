@@ -37,8 +37,8 @@ CoInductive Etrace {tprog} (step : tprog -> msg -> tprog -> Prop): tprog -> Etr 
 | Etr_tau : forall P P' P'',
     star_tau_step step P P' -> step P' tau P'' ->
     Etrace step P'' empEtr -> Etrace step P empEtr
-| Etr_abort : forall P P' m,
-    star_tau_step step P P' -> (~ (exists P'', step P' m P'')) -> Etrace step P abortEtr
+| Etr_abort : forall P P',
+    star_tau_step step P P' -> (~ (exists P'' m, step P' m P'')) -> Etrace step P abortEtr
 | Etr_event : forall P P' P'' v etr,
     star_tau_step step P P' -> step P' (out v) P'' ->
     Etrace step P'' etr -> Etrace step P (outEtr v etr).

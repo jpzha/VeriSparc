@@ -1,5 +1,5 @@
 (*+ Final Theorem Proof +*)  
-Require Import Coqlib.            
+Require Import Coqlib.             
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -19,6 +19,7 @@ Require Import reg_lemma.
 Require Import soundness.
 Require Import refinement.
 Require Import rellogic.
+Require Import lemmas_comp.
 Require Import compositionality.
 
 Set Asymmetric Patterns.
@@ -37,8 +38,8 @@ CoInductive IdxEtrace {tprog} (step : tprog -> msg -> tprog -> Prop): Index -> t
 | IdxEtr_tau2 : forall P P' idx idx',
     star_tau_step step P P' -> idx' ⩹ idx ->
     IdxEtrace step idx' P' empEtr -> IdxEtrace step idx P empEtr
-| IdxEtr_abort : forall P P' m idx,
-    star_tau_step step P P' -> (~ (exists P'', step P' m P'')) -> IdxEtrace step idx P abortEtr
+| IdxEtr_abort : forall P P' idx,
+    star_tau_step step P P' -> (~ (exists P'' m, step P' m P'')) -> IdxEtrace step idx P abortEtr
 | Etr_event : forall P P' P'' v etr idx idx',
     star_tau_step step P P' -> step P' (out v) P'' ->
     IdxEtrace step idx' P'' etr -> IdxEtrace step idx P (outEtr v etr).
@@ -157,8 +158,6 @@ Proof.
   eapply multi_tau_step_cons with (P' := HP'); eauto.
   clear HHstar_step Hstar.
   econstructor; eauto.
-  Unshelve.
-  exact tau.
 Qed.
 
 Lemma wp_sim_ensures_idx_refinement :
