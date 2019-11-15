@@ -137,9 +137,9 @@ Definition Mfresh (b : Z) (M : Memory) := forall o, ~ indom (b, o) M.
 
 (** Memory alloc *) 
 Definition Malloc (M : Memory) (b : Z) (l h : Word) (M' : Memory) :=
-  Mfresh b M /\
+  Mfresh b M /\ l <ᵤᵢ h /\ 
   (forall b' o', (b <> b' /\ M (b', o') = M' (b', o'))
-            \/ (b = b' /\ if int_le l o' && Int.lt o' h then
+            \/ (b = b' /\ if int_leu l o' && Int.ltu o' h then
                             (exists v, M' (b', o') = Some v)
                           else M'(b', o') = M(b', o'))).
 

@@ -1,4 +1,4 @@
-(*+ Compositionality +*)            
+(*+ Compositionality +*)             
 Require Import Coqlib.                   
 Require Import Maps.
 
@@ -30,6 +30,31 @@ Unset Strict Implicit.
 
 Open Scope code_scope.
 Open Scope mem_scope.
+
+(** Auxiliary Lemmas about Integer *)
+Lemma int_ltu_trans :
+  forall n m p,
+    n <ᵤᵢ m -> m <ᵤᵢ p -> n <ᵤᵢ p.
+Proof.
+  intros.
+  destruct n, m, p.
+  unfolds Int.ltu; simpls.
+  destruct (zlt intval intval0); destruct (zlt intval0 intval1); simpls; tryfalse.
+  destruct (zlt intval intval1); eauto; try omega.
+Qed.
+
+Lemma not_lt_impl_ge :
+  forall a b,
+    Int.ltu a b = false -> int_leu b a = true.
+Proof.
+  intros.
+  destruct a, b.
+  unfolds int_leu; simpls.
+  unfolds Int.ltu; simpls.
+  unfolds Int.eq; simpls.
+  destruct (zlt intval intval0); simpls; tryfalse.
+  destruct (zlt intval0 intval); destruct (zeq intval0 intval); tryfalse; try omega; eauto.
+Qed.
 
 (** Auxiliary Lemmas about Rinj *)
 Lemma Rinj_GenReg_LH' :
@@ -171,6 +196,94 @@ Proof.
   rewrite H6, H7.
   rewrite RegMap.gso; eauto; try intro; tryfalse.
   rewrite HRegMap.gso; eauto; try intro; tryfalse.
+Qed.
+
+Lemma Rinj_set_n_fn_stable :
+  forall R HR (rd : GenReg) v,
+    Rinj R HR -> Rinj (set_R R n v) (set_HR HR fn v).
+Proof.
+  intros.
+  inv H.
+  econstructor; eauto.
+  intros.
+  specialize (H0 rr).
+  simpljoin1.
+  exists x.
+  unfold set_R, set_HR.
+  unfold is_indom.
+  rewrite H2, H5.
+  rewrite RegMap.gso; eauto; try (intro; tryfalse).
+  rewrite HRegMap.gso; eauto; try (intro; tryfalse).
+  split; eauto.
+
+  simpljoin1.
+  intros.
+  specialize (H sr).
+  unfold set_R, is_indom.
+  rewrite H2.
+  rewrite RegMap.gso; eauto.
+  intro; tryfalse.
+
+  simpljoin1.
+  split.
+  unfold set_R, is_indom.
+  rewrite H2; eauto.
+  rewrite RegMap.gso; eauto; intro; tryfalse.
+
+  split.
+  exists v.
+  unfold set_R, set_HR, is_indom.
+  rewrite H2, H5.
+  rewrite RegMap.gss; eauto.
+  rewrite HRegMap.gss; eauto.
+
+  unfold set_R, set_HR, is_indom.
+  rewrite H2, H5.
+  rewrite RegMap.gso, HRegMap.gso; eauto; try (intro; tryfalse).
+Qed.
+
+Lemma Rinj_set_z_fz_stable :
+  forall R HR (rd : GenReg) v,
+    Rinj R HR -> Rinj (set_R R z v) (set_HR HR fz v).
+Proof.
+  intros.
+  inv H.
+  econstructor; eauto.
+  intros.
+  specialize (H0 rr).
+  simpljoin1.
+  exists x.
+  unfold set_R, set_HR.
+  unfold is_indom.
+  rewrite H3, H4.
+  rewrite RegMap.gso; eauto; try (intro; tryfalse).
+  rewrite HRegMap.gso; eauto; try (intro; tryfalse).
+  split; eauto.
+
+  simpljoin1.
+  intros.
+  specialize (H sr).
+  unfold set_R, is_indom.
+  rewrite H3.
+  rewrite RegMap.gso; eauto.
+  intro; tryfalse.
+
+  simpljoin1.
+  split.
+  unfold set_R, is_indom.
+  rewrite H3; eauto.
+  rewrite RegMap.gso; eauto; intro; tryfalse.
+
+  split.
+  unfold set_R, set_HR, is_indom.
+  rewrite H3, H4.
+  rewrite RegMap.gso, HRegMap.gso; eauto; try (intro; tryfalse).
+  
+  exists v.
+  unfold set_R, set_HR, is_indom.
+  rewrite H3, H4.
+  rewrite RegMap.gss; eauto.
+  rewrite HRegMap.gss; eauto.
 Qed.
 
 (** Proof of Compositionality *)
@@ -1094,7 +1207,381 @@ Proof.
   inv H1.
   {
     (* i *)
-    admit.
+    inv H16.
+    {
+      inv H8.
+      {
+        (* ld aexp ri *)
+        assert (HindomM : indom addr M).
+        {
+          eapply HProgSafe_progress_and_preservation in H2.
+          simpljoin1.
+          clear H2.
+          inv H1.
+          inv H19; CElim C.
+          inv H20; CElim C.
+          inv H6.
+          eapply Rinj_eval_impl_Heval_addrexp in H12; eauto.
+          rewrite H18 in H12; inv H12.
+          unfold indom; eauto.
+          inv H19; CElim C.
+          inv H19.
+          contradiction H10; unfold indom; eauto.
+        }
+
+        exists Mc M.
+        eexists.
+        exists (5%nat, 6%nat).
+        split; eauto.
+        split; eauto.
+        split; eauto.
+        split.
+        {
+          left.
+          econstructor; eauto.
+          eapply HNTrans; eauto.
+          econstructor; eauto.
+          eapply Rinj_eval_impl_Heval_addrexp; eauto.
+          inv H6; eauto.
+          rewrite disj_merge_reverse_eq in H16; eauto.
+          eapply indom_get_left; eauto.
+          eapply Rinj_indom_GenReg_LH; eauto.
+          inv H6; eauto.
+        }
+        split; eauto.
+        {
+          inv H6.
+          econstructor; eauto.
+          clear - H23.
+          unfolds ctxfm.
+          simpljoin1.
+          do 3 eexists.
+          repeat (split; eauto).
+          eapply get_R_set_neq_stable; eauto; try intro; tryfalse.
+          eapply get_R_set_neq_stable; eauto; try intro; tryfalse.
+          eapply Rinj_set_sameLH_stable; eauto.
+        }
+        split; eauto.
+        {
+          econstructor; eauto; intros; econstructor; eauto; unfold Nat.lt; try omega.
+        }
+      }
+      {
+        (* st ri aexp *)
+        assert (Hindom : indom addr M).
+        {
+          eapply HProgSafe_progress_and_preservation in H2.
+          simpljoin1.
+          clear H2.
+          inv H1.
+          inv H19; CElim C.
+          inv H20; CElim C.
+          inv H6.
+          eapply Rinj_eval_impl_Heval_addrexp in H12; eauto.
+          rewrite H18 in H12; inv H12; eauto.
+          inv H19; CElim C.
+          inv H19.
+          contradiction H10; eauto.
+        }
+
+        exists Mc (MemMap.set addr (Some v) M).
+        eexists.
+        exists (5%nat, 6%nat).
+        split.
+        rewrite disj_merge_reverse_eq; eauto.
+        rewrite indom_memset_merge_eq; eauto.
+        rewrite disj_merge_reverse_eq; eauto.
+        eapply disj_sym in H5.
+        eapply disj_indom_memset_still; eauto.
+
+        split; eauto.
+        split; eauto.
+        eapply disj_sym in H5.
+        eapply disj_sym.
+        eapply disj_indom_memset_still; eauto.
+
+        split.
+        left.
+        econstructor; eauto.
+        eapply HNTrans; eauto.
+        econstructor; eauto.
+        eapply Rinj_eval_impl_Heval_addrexp; eauto.
+        inv H6; eauto.
+        eapply Rinj_GenReg_LH; eauto.
+        inv H6; eauto.
+
+        split; eauto.
+        inv H6; econstructor; eauto.
+
+        split; eauto.
+        econstructor; intros; econstructor; eauto; unfold Nat.lt; try omega.
+      }
+      {
+        (* nop *)
+        exists Mc M.
+        eexists.
+        exists (5%nat, 6%nat).
+        split; eauto.
+        split; eauto.
+        split; eauto.
+        split.
+
+        left.
+        econstructor; eauto.
+        eapply HNTrans; eauto.
+        econstructor; eauto.
+
+        split.
+        inv H6; econstructor; eauto.
+
+        split; eauto.
+        econstructor; intros; econstructor; eauto; unfold Nat.lt; try omega.
+      }
+      {
+        (* add rs oexp rd *)
+        exists Mc M.
+        eexists.
+        exists (5%nat, 6%nat).
+        split; eauto.
+        split; eauto.
+        split; eauto.
+
+        split.
+        left.
+        econstructor; eauto.
+        eapply HNTrans; eauto.
+        econstructor; eauto.
+        eapply Rinj_GenReg_LH; eauto.
+        inv H6; eauto.
+        eapply Rinj_eval_impl_Heval_opexp; eauto.
+        inv H6; eauto.
+        eapply Rinj_indom_GenReg_LH; eauto.
+        inv H6; eauto.
+        split; eauto.
+
+        inv H6.
+        econstructor; eauto.
+        clear - H23.
+        unfolds ctxfm.
+        simpljoin1.
+        do 3 eexists.
+        repeat (split; eauto).
+        eapply get_R_set_neq_stable; eauto; intro; tryfalse.
+        eapply get_R_set_neq_stable; eauto; intro; tryfalse.
+        eapply Rinj_set_sameLH_stable; eauto.
+
+        split; eauto.
+        econstructor; intros; econstructor; eauto; unfold Nat.lt; try omega.
+      }
+      {
+        (* sub rs oexp rd *)
+        exists Mc M.
+        eexists.
+        exists (5%nat, 6%nat).
+        split; eauto.
+        split; eauto.
+        split; eauto.
+
+        split.
+        left.
+        econstructor; eauto.
+        eapply HNTrans; eauto.
+        econstructor; eauto.
+        eapply Rinj_GenReg_LH; eauto.
+        inv H6; eauto.
+        eapply Rinj_eval_impl_Heval_opexp; eauto.
+        inv H6; eauto.
+        eapply Rinj_indom_GenReg_LH; eauto.
+        inv H6; eauto.
+
+        split; eauto.
+        inv H6; econstructor; eauto.
+
+        clear - H23.
+        unfolds ctxfm.
+        simpljoin1.
+        do 3 eexists.
+        repeat (split; eauto).
+        eapply get_R_set_neq_stable; eauto; intro; tryfalse.
+        eapply get_R_set_neq_stable; eauto; intro; tryfalse.
+        eapply Rinj_set_sameLH_stable; eauto.
+
+        split; eauto.
+        econstructor; intros; econstructor; eauto; unfold Nat.lt; try omega.
+      }
+      {
+        (* subcc rs oexp rd *)
+        exists Mc M.
+        eexists.
+        exists (5%nat, 6%nat).
+        split; eauto.
+        split; eauto.
+        split; eauto.
+
+        split.
+        left.
+        inv H6.
+        econstructor; eauto.
+        eapply HNTrans; eauto.
+        econstructor; eauto.
+        eapply Rinj_GenReg_LH; eauto.
+        eapply Rinj_eval_impl_Heval_opexp; eauto.
+        eapply Rinj_indom_GenReg_LH; eauto.
+        inv H26; simpljoin1; unfold indom; eauto.
+        inv H26; simpljoin1; unfold indom; eauto.
+
+        split; eauto.
+        inv H6.
+        econstructor; eauto.
+        clear - H24.
+        simpls.
+        unfolds ctxfm.
+        simpljoin1.
+        do 3 eexists.
+        repeat (split; eauto).        
+        repeat (erewrite get_R_set_neq_stable; eauto; try (intro; tryfalse)).
+        repeat (erewrite get_R_set_neq_stable; eauto; try (intro; tryfalse)).
+        simpl.
+        eapply Rinj_set_z_fz_stable; eauto.
+        eapply Rinj_set_n_fn_stable; eauto.
+        eapply Rinj_set_sameLH_stable; eauto.
+
+        split; eauto.
+        econstructor; intros; econstructor; unfold Nat.lt; omega.
+      }
+      {
+        (* and rs oexp rd : high-level doesn't have this instruction *)
+        eapply HProgSafe_progress_and_preservation in H2.
+        simpljoin1.
+        clear H2.
+        inv H1.
+        inv H18; CElim C.
+        inv H19; CElim C.
+        inv H18; CElim C.
+        inv H18.
+        contradiction H10; unfold indom; eauto.
+      }
+      {
+        (* andcc rs oexp rd : high-level doesn't have *)
+        eapply HProgSafe_progress_and_preservation in H2.
+        simpljoin1.
+        clear H2.
+        inv H1.
+        inv H20; CElim C.
+        inv H21; CElim C.
+        inv H20; CElim C.
+        inv H20.
+        contradiction H10; unfold indom; eauto.
+      }
+      {
+        (* or rs oexp rd *)
+        eapply HProgSafe_progress_and_preservation in H2.
+        simpljoin1.
+        clear H2.
+        inv H1.
+        inv H18; CElim C.
+        inv H19; CElim C.
+        inv H18; CElim C.
+        inv H18.
+        contradiction H10; unfold indom; eauto.
+      }
+      {
+        (* sll rs oexp rd *)
+        eapply HProgSafe_progress_and_preservation in H2.
+        simpljoin1.
+        clear H2.
+        inv H1.
+        inv H18; CElim C.
+        inv H19; CElim C.
+        inv H18; CElim C.
+        inv H18.
+        contradiction H10; unfold indom; eauto.
+      }
+      {
+        (* srl rs oexp rd *)
+        eapply HProgSafe_progress_and_preservation in H2.
+        simpljoin1.
+        clear H2.
+        inv H1.
+        inv H18; CElim C.
+        inv H19; CElim C.
+        inv H18; CElim C.
+        inv H18.
+        contradiction H10; unfold indom; eauto.
+      }
+      {
+        (* sett v rd *)
+        eapply HProgSafe_progress_and_preservation in H2.
+        simpljoin1.
+        clear H2.
+        inv H1.
+        inv H16; CElim C.
+        inv H17; CElim C.
+        inv H16; CElim C.
+        inv H16.
+        contradiction H10; unfold indom; eauto.
+      }
+      {
+        (* rd rsp ri *)
+        eapply HProgSafe_progress_and_preservation in H2.
+        simpljoin1.
+        clear H2.
+        inv H1.
+        inv H17; CElim C.
+        inv H18; CElim C.
+        inv H17; CElim C.
+        inv H17.
+        contradiction H10; unfold indom; eauto.
+      }
+      {
+        (* getcwp ri *)
+        eapply HProgSafe_progress_and_preservation in H2.
+        simpljoin1.
+        clear H2.
+        inv H1.
+        inv H17; CElim C.
+        inv H18; CElim C.
+        inv H17; CElim C.
+        inv H17.
+        contradiction H10; unfold indom; eauto.
+      }
+    }
+    {
+      (* save rs oexp rd *)
+      eapply HProgSafe_progress_and_preservation in H2.
+      simpljoin1.
+      clear H2.
+      inv H1.
+      inv H15; CElim C.
+      inv H16; CElim C.
+      inv H15; CElim C.
+      inv H15.
+      contradiction H10; unfold indom; eauto.
+    }
+    {
+      (* restore rs oexp rd *)
+      eapply HProgSafe_progress_and_preservation in H2.
+      simpljoin1.
+      clear H2.
+      inv H1.
+      inv H15; CElim C.
+      inv H16; CElim C.
+      inv H15; CElim C.
+      inv H15.
+      contradiction H10; unfold indom; eauto.
+    }
+    {
+      (* wr rs oexp rsp *)
+      eapply HProgSafe_progress_and_preservation in H2.
+      simpljoin1.
+      clear H2.
+      inv H1.
+      inv H16; CElim C.
+      inv H17; CElim C.
+      inv H16; CElim C.
+      inv H16.
+      contradiction H10; unfold indom; eauto.
+    }
   }
   {
     (* Jumpl aexp rd *)
@@ -1148,7 +1635,220 @@ Proof.
       eapply Rinj_indom_GenReg_LH; eauto.
       inv H6; eauto.
     }
+    {
+      inv H6.
+      econstructor; eauto.
+      clear - H19.
+      inv H19.
+      simpljoin1.
+      econstructor; eauto.
+      do 2 eexists.
+      repeat (split; eauto).
+      erewrite get_R_set_neq_stable; eauto; try intro; tryfalse.
+      erewrite get_R_set_neq_stable; eauto; try intro; tryfalse.
+      eapply Rinj_set_sameLH_stable; eauto.
+    }
+    {
+      intros.
+      econstructor; eauto; unfold Nat.lt; try omega.
+    }
+    {
+      intros.
+      econstructor; eauto; unfold Nat.lt; try omega.
+    }
+    simpl; eauto.
+  }
+  {
+    (* Retl *)
+    exists Mc M.
+    eexists.
+    exists (5%nat, 6%nat).
+    split; eauto.
+    split; eauto.
+    split; eauto.
+    split.
+    {
+      left.
+      econstructor; eauto.
+      eapply HRetl; eauto.
+      instantiate (1 := f).
+      inv H6.
+      eapply Rinj_GenReg_LH; eauto.
+    }
+    split.
+    {
+      inv H6.
+      econstructor; eauto.
+    }
+    split; eauto.
+    econstructor; eauto.
+    intros; econstructor; eauto; unfold Nat.lt; try omega.
+    intros; econstructor; eauto; unfold Nat.lt; try omega.
+  }
+  {
+    (* Be f : true *)
+    exists Mc M.
+    eexists.
+    exists (5%nat, 6%nat).
+    split; eauto.
+    split; eauto.
+    split; eauto.
+    split.
+    {
+      left.
+      econstructor; eauto.
+      eapply HBe_true; eauto.
+      inv H6.
+      clear - H22 H21.
+      unfolds get_R, get_HR.
+      inv H21.
+      simpljoin1.
+      rewrite H3 in H22; simpls; tryfalse.
+      inv H22.
+      rewrite H4; eauto.
+    }
+    split.
+    {
+      inv H6.
+      econstructor; eauto.
+    }
+    split; eauto.
+    {
+      econstructor; eauto.
+      intros; econstructor; eauto; unfold Nat.lt; try omega.
+      intros; econstructor; eauto; unfold Nat.lt; try omega.
+    }
+  }
+  {
+    (* Be f : false *)
+    exists Mc M.
+    eexists.
+    exists (5%nat, 6%nat).
+    split; eauto.
+    split; eauto.
+    split; eauto.
+    split.
+    {
+      left.
+      econstructor; eauto.
+      eapply HBe_false; eauto.
+      inv H6.
+      clear - H22 H21.
+      unfolds get_R, get_HR.
+      inv H21.
+      simpljoin1.
+      rewrite H3 in H22; simpls; tryfalse.
+      inv H22.
+      rewrite H4; eauto.
+    }
+    split.
+    {
+      inv H6; econstructor; eauto.
+    }
+    split; eauto.
+    {
+      econstructor; eauto.
+      intros; econstructor; eauto; unfold Nat.lt; try omega.
+      intros; econstructor; eauto; unfold Nat.lt; try omega.
+    }
+  }
+  { 
+    (* Psave w : no trap *)
+    exists (fun l : Address => match l with
+                        | (b', o') => if Z.eq_dec b' b0 then
+                                       if int_leu ($ 0) o' && Int.ltu o' ($ 64) then LM' (b', o') else None
+                                     else Mc (b', o')
+                        end)
+      (fun l : Address => match l with
+                        | (b', o') => if Z.eq_dec b' b0 then
+                                       if int_leu ($ 64) o' && Int.ltu o' w then LM' (b', o') else None
+                                     else M (b', o')
+                        end).
+    assert (Hw_range : $ 64 <ᵤᵢ w).
+    {
+      eapply HProgSafe_progress_and_preservation in H2; eauto.
+      simpljoin1.
+      inv H1.
+      inv H16; CElim C.
+      inv H17; CElim C.
+      unfolds Malloc.
+      simpljoin1; eauto.
+      inv H16; CElim C.
+      inv H16.
+      contradiction H11; eauto.
+    }
     
+    do 2 eexists.
+    split.
+    {
+      clear - H22 H4 H5 Hw_range.
+      unfolds Malloc.
+      simpljoin1.
+      eapply FunctionalExtensionality.functional_extensionality; intros.
+      destruct x.
+      destruct (Z.eq_dec b0 z); subst.
+      {
+        specialize (H1 z i).
+        destruct H1; simpljoin1; tryfalse.
+        unfold merge.
+        destruct (Z.eq_dec z z); tryfalse.  
+        destruct (int_leu $ 0 i) eqn:Heqe1; destruct (Int.ltu i w) eqn:Heqe2; simpls.
+        {
+          simpljoin1.
+          destruct (Int.ltu i $ 64) eqn:Heqe3; eauto.
+          rewrite H1; eauto.
+          destruct (Mr (z, i)) eqn:Heqe4.
+          clear - H Heqe4.
+          unfolds Mfresh.
+          specialize (H i).
+          contradiction H.
+          eapply indom_merge_still.
+          eapply indom_merge_still2; eauto.
+          unfold indom; eauto.
+          eapply not_lt_impl_ge in Heqe3.
+          rewrite Heqe3; eauto.
+        }
+        {
+          destruct (Int.ltu i $ 64) eqn:Heqe3; eauto.
+          destruct (LM' (z, i)) eqn:Heqe4; eauto.
+          destruct (Mr (z, i)) eqn:Heqe5; eauto.
+          unfolds Mfresh; specialize (H i).
+          contradiction H.
+          eapply indom_merge_still.
+          eapply indom_merge_still2; eauto.
+          unfold indom; eauto.
+          destruct (int_leu $ 64 i); simpl; eauto.
+          destruct (Mr (z, i)) eqn:Heqe4; eauto.
+          unfolds Mfresh.
+          specialize (H i).
+          contradiction H.
+          eapply indom_merge_still.
+          eapply indom_merge_still2; eauto.
+          unfold indom; eauto.
+          destruct (LM' (z, i)) eqn:Heqe5; symmetry in H2.
+          unfolds Mfresh.
+          specialize (H i).
+          contradiction H; eauto.
+          unfold indom; eauto.
+          destruct (int_leu $ 64 i); eauto.
+        }
+        {
+          >>>>>>>>>>>>>>>>>>>>
+        }
+      }
+    }
+  }
+  {
+    (* Psave w : trap *)
+    admit.
+  }
+  {
+    (* Prestore : no trap *)
+    admit.
+  }
+  {
+    (* Prestore : trap *)
+    admit.
   }
   Admitted.
 
@@ -1673,7 +2373,15 @@ Proof.
                                                     else None
                                        end) as m. 
             exists b0 (((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M) ⊎ m).
-            econstructor; eauto; intros. 
+            econstructor; eauto; intros.
+            split.
+            {
+              clear - H18.
+              inv H18; simpljoin1.
+              eapply int_ltu_trans; eauto.
+              unfold Int.ltu; eauto.
+            }
+            intros.
             destruct (Z.eq_dec b0 b'1) eqn:Heqeb; subst.
             {
               right.
