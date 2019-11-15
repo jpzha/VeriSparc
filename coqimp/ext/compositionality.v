@@ -1,5 +1,5 @@
 (*+ Compositionality +*)            
-Require Import Coqlib.                  
+Require Import Coqlib.                   
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -29,7 +29,176 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 
 Open Scope code_scope.
-Open Scope mem_scope. 
+Open Scope mem_scope.
+
+(** Auxiliary Lemmas about Rinj *)
+Lemma Rinj_GenReg_LH' :
+  forall (HR : HRegFile) (R : RegFile) (rr : GenReg) (v : Val),
+    Rinj R HR -> R rr = Some v -> HR rr = Some v.
+Proof.
+  intros.
+  inv H.
+  specialize (H1 rr).
+  simpljoin1.
+  rewrite H0 in H; inv H.
+  eauto.
+Qed.
+
+Lemma Rinj_GenReg_LH :
+  forall (HR : HRegFile) (R : RegFile) (rr : GenReg) (v : Val),
+    Rinj R HR -> get_R R rr = Some v -> get_HR HR rr = Some v.
+Proof.
+  intros.
+  unfolds get_R.
+  unfold get_HR.
+  destruct (R rr) eqn:Heqe; tryfalse.
+  eapply Rinj_GenReg_LH' in Heqe; eauto.
+  rewrite Heqe.
+  destruct rr; simpls; eauto.
+Qed.
+
+Lemma Rinj_eval_impl_Heval_opexp :
+  forall (HR : HRegFile) (R : RegFile) (oexp : OpExp) (v : Val),
+    Rinj R HR -> eval_opexp R oexp = Some v -> Heval_opexp HR oexp = Some v.
+Proof.
+  intros.
+  unfolds eval_opexp.
+  unfold Heval_opexp.
+  destruct oexp.
+  eapply Rinj_GenReg_LH; eauto.
+  destruct (($ (-4096)) <=ᵢ w && w <=ᵢ ($ 4095)); eauto.
+Qed.
+
+Lemma Rinj_eval_impl_Heval_addrexp :
+  forall (HR : HRegFile) (R : RegFile) (aexp : AddrExp) (v : Val),
+    Rinj R HR -> eval_addrexp R aexp = Some v -> Heval_addrexp HR aexp = Some v.
+Proof.
+  intros.
+  unfolds eval_addrexp.
+  unfold Heval_addrexp.
+  destruct aexp.
+  eapply Rinj_eval_impl_Heval_opexp; eauto.
+  destruct (get_R R g) eqn:Heqe; tryfalse.
+  eapply Rinj_GenReg_LH in Heqe; eauto.
+  rewrite Heqe; eauto.
+  destruct (eval_opexp R o) eqn:Heqe1; tryfalse.
+  eapply Rinj_eval_impl_Heval_opexp in Heqe1; eauto.
+  rewrite Heqe1; eauto.
+Qed.
+
+Lemma Rinj_indom_GenReg_LH:
+  forall (HR : HRegFile) (R : RegFile) (rd : GenReg),
+    Rinj R HR -> indom rd R -> indom rd HR.
+Proof.
+  intros.
+  unfold indom in *.
+  simpljoin1.
+  inv H.
+  simpljoin1; eauto.
+  specialize (H1 rd); simpljoin1; eauto.
+Qed.
+
+Lemma Rinj_set_sameLH_stable :
+  forall R HR (rd : GenReg) v,
+    Rinj R HR -> Rinj (set_R R rd v) (set_HR HR rd v).
+Proof.
+  intros.
+  inv H.
+  econstructor; eauto.
+  intros.
+  lets Ht1 : H0 rd.
+  lets Ht2 : H0 rr.
+  simpljoin1.
+  unfold set_R.
+  unfold set_HR.
+  unfold is_indom.
+  destruct (RegName_eq rr rd); destruct (HRegName_eq rr rd).
+  {
+    inv e.
+    exists v.
+    rewrite H, H3.
+    rewrite RegMap.gss.
+    rewrite HRegMap.gss.
+    eauto.
+  }
+  {
+    inv e; tryfalse.
+  }
+  {
+    inv e; tryfalse.
+  }
+  {
+    rewrite H2, H4.
+    rewrite RegMap.gso; eauto.
+    rewrite HRegMap.gso; eauto.
+  }
+  simpljoin1.
+  split.
+  intros.
+  specialize (H sr).
+  simpljoin1.
+  exists x2.
+  unfold set_R.
+  unfold is_indom.
+  specialize (H0 rd).
+  simpljoin1.
+  rewrite H0; eauto.
+  rewrite RegMap.gso; eauto.
+  intro; tryfalse.
+  split.
+  unfold set_R.
+  unfold is_indom.
+  specialize (H0 rd).
+  simpljoin1.
+  rewrite H0; eauto.
+  exists x.
+  rewrite RegMap.gso; eauto.
+  intro; tryfalse.
+  split.
+  exists x1.
+  unfold set_R, set_HR.
+  unfold is_indom.
+  lets Ht1 : H0 rd.
+  simpljoin1.
+  rewrite H6, H7.
+  rewrite RegMap.gso; eauto; try intro; tryfalse.
+  rewrite HRegMap.gso; eauto; try intro; tryfalse.
+  exists x0.
+  unfold set_R, set_HR.
+  unfold is_indom.
+  lets Ht1 : H0 rd.
+  simpljoin1.
+  rewrite H6, H7.
+  rewrite RegMap.gso; eauto; try intro; tryfalse.
+  rewrite HRegMap.gso; eauto; try intro; tryfalse.
+Qed.
+
+(** Proof of Compositionality *)
+Lemma HProgSafe_progress_and_preservation :
+  forall C PrimSet HS,
+    HProgSafe (C, PrimSet, HS) ->
+    (exists HS' m, HP__ (C, PrimSet, HS) m (C, PrimSet, HS')) /\
+    (forall HS' m, HP__ (C, PrimSet, HS) m (C, PrimSet, HS') -> HProgSafe (C, PrimSet, HS')).
+Proof.
+  intros.
+  unfold HProgSafe in H.
+  assert (star_step HP__ (C, PrimSet, HS) (C, PrimSet, HS)).
+  econstructor; eauto.
+  eapply H in H0; eauto.
+  split; eauto.
+  clear - H0.
+  simpljoin1.
+  lets HHP : H.
+  inv H; eauto.
+  clear - H; intros.
+  assert (star_step HP__ (C, PrimSet, HS) (C, PrimSet, HS')).
+  {
+    eapply multi_step; eauto.
+    econstructor; eauto.
+  }
+  unfold HProgSafe; intros. 
+  eapply multi_step_cons with (P' := (C, PrimSet, HS')) in H1; eauto.  
+Qed.
 
 Lemma rel_safety_imp_rel_safety_aux' :
   forall k idx C S pc npc A HS Q,
@@ -894,12 +1063,12 @@ Proof.
     simpl.
     lets Hexec_prim : H7.
     inv H7.
-    eapply Hret in H19; eauto.
+    eapply Hret in H18; eauto.
     simpl.
     rewrite H5 in H.
     inv H; eauto.
   }
-Qed. 
+Qed.
   
 Lemma LH__progress_HH_progress :
   forall C Cas Spec Mc Mr LR F pc npc LM' LR' F' D' pc' npc' T t HR b HF M PrimSet idx,
@@ -908,7 +1077,7 @@ Lemma LH__progress_HH_progress :
          ((LM', (LR', F'), D'), pc', npc') ->
     HProgSafe (C, PrimSet, (T, t, ((HR, b, HF), pc, npc), M)) ->
     indom pc C -> Mc ⊥ Mr -> (Mc ⊎ Mr) ⊥ M ->
-    wp_stateRel (Mc ⊎ Mr ⊎ M, (LR, F), []) (T, t, ((HR, b, HF), pc, npc), M) ->
+    curTRel (Mc, (LR, F)) (t, (HR, b, HF, pc, npc)) ->
     wfIndex C (Mc ⊎ Mr ⊎ M, (LR, F), []) pc idx ->
     exists Mc' M' K' idx',
       LM' = Mc' ⊎ Mr ⊎ M' /\ Mc' ⊥ Mr /\ (Mc' ⊎ Mr) ⊥ M'
@@ -918,10 +1087,70 @@ Lemma LH__progress_HH_progress :
         \/
         (K' = ((HR, b, HF), pc, npc) /\ M' = M /\ idx' ⩹ idx)
       )
-      /\ wfCth idx' (C, Cas) (C ⊎ Cas, ((LM', (LR', F'), D'), pc', npc')) (C, PrimSet, (T, t, K', M')).
+      /\ curTRel (Mc', (LR', F')) (t, K') /\ wfIndex C (Mc' ⊎ Mr ⊎ M', (LR', F'), D') pc' idx'
+      /\ get_Hs_pcont (T, t, K', M') = (pc', npc') /\ D' = [].
 Proof.
   intros.
-Admitted.
+  inv H1.
+  {
+    (* i *)
+    admit.
+  }
+  {
+    (* Jumpl aexp rd *)
+    exists Mc M.
+    eexists.
+    exists (5%nat, 6%nat).
+    split; eauto.
+    split; eauto.
+    split; eauto.
+    split.
+    {
+      left.
+      eapply Htau_step.
+      eapply HJumpl; eauto.
+      eapply Rinj_eval_impl_Heval_addrexp; eauto.
+      inv H6; eauto.
+      eapply Rinj_indom_GenReg_LH; eauto.
+      inv H6; eauto.
+    }
+    split.
+    {
+      inv H6. 
+      econstructor; eauto.
+      clear - H19.
+      unfolds ctxfm.
+      simpljoin1.
+      exists x x0 x1.
+      repeat (split; eauto).
+      eapply get_R_set_neq_stable; eauto; intro; tryfalse.
+      eapply get_R_set_neq_stable; eauto; intro; tryfalse.
+      eapply Rinj_set_sameLH_stable; eauto.
+    }
+    split.
+    {
+      econstructor; intros; econstructor; eauto.
+      unfold Nat.lt; omega.
+      unfold Nat.lt; omega.
+    }
+    simpl; split; eauto.
+  }
+  {
+    (* Call f *)
+    exists Mc M.
+    eexists.
+    exists (5%nat, 6%nat).
+    repeat (split; eauto).
+    {
+      left.
+      econstructor; eauto.
+      eapply HCall; eauto.
+      eapply Rinj_indom_GenReg_LH; eauto.
+      inv H6; eauto.
+    }
+    
+  }
+  Admitted.
 
 (* WfCth and WfRdy Preservation *)
 Lemma wfCth_wfRdy_tau_step_preservation_clt :
@@ -1006,31 +1235,76 @@ Proof.
   { 
     rewrite <- H2; eauto.
   }
-
+  
   rewrite H4 in H17.
   eapply LH__progress_HH_progress in H17; eauto.
   2 : rewrite <- H2; eauto.
-  2 : rewrite <- H2; eauto.  
 
   destruct H17 as (Mc' & M'' & K' & idx' & HLM' & Hdisj1 & Hdisj2 & Hstep
-                   & HwfCth); subst.
-  exists T t K' M'' idx'.
-  split.
+                   & HcurTRel' & HwfIndex' & Hpcont' & HD''); subst.
+
   destruct Hstep as [Hstep | Hstep].
   {
+    assert (exists idx1, wfCth idx1 (C, Cas)
+                          (C ⊎ Cas, (((Mc' ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)) ⊎ M'',
+                                      (LR'', F'), []), pc', npc')) (C, PrimSet, (T, t, K', M''))).
+    { 
+      eapply inital_wfCth_holds; eauto. 
+      eapply Wp_stateRel with (Mc := Mc') (MT := MT); eauto.
+      assert ((Mc' ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM =
+              Mc' ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
+      {
+        rewrite merge_assoc; eauto.
+      }
+      rewrite H7; eauto.
+      eapply disj_merge_disj_sep1; eauto.
+      eapply disj_sym.
+      eapply disj_sep_merge_still; eauto.
+      eapply disj_sym.
+      eapply disj_merge_disj_sep2; eauto.
+      eapply disj_sym in H11.
+      eapply disj_merge_disj_sep2 in H11; eauto.
+      rewrite <- merge_assoc; eauto.
+      clear - H1 Hstep.
+      eapply HProgSafe_progress_and_preservation in H1; eauto.
+      simpljoin1.
+      eauto.
+    }
+    destruct H7 as [idx1 H7].
+    exists T t K' M'' idx1.
+    split.
     right.
     eexists.
     split.
     econstructor; eauto.
     eauto.
-  }
-  {
-    left.
-    simpljoin1.
     split; eauto.
   }
-
-  split; eauto.
+  { 
+    simpljoin1.
+    do 5 eexists.
+    split.
+    left.
+    split; eauto.
+    simpl in Hpcont'; inv Hpcont'.
+    split; eauto.
+    eapply clt_wfCth; eauto.
+    eapply Wp_stateRel with (Mc := Mc') (MT := MT); eauto.
+    assert ((Mc' ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM =
+            Mc' ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)).
+    {
+      rewrite merge_assoc; eauto.
+    }
+    rewrite H7; eauto.
+    eapply disj_merge_disj_sep1; eauto.
+    eapply disj_sym.
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_sym.
+    eapply disj_merge_disj_sep2; eauto.
+    eapply disj_sym in H11.
+    eapply disj_merge_disj_sep2 in H11; eauto.
+    rewrite <- merge_assoc; eauto.
+  }
 Qed.
 
 Lemma wfCth_wfRdy_event_step_preservation :
@@ -1070,7 +1344,6 @@ Proof.
     inv H9.
     lets HRinj : H22.
     inv H22.
-    destruct H13 as [H13 Hfp].
     destruct H10 as [H10 Hdisj_ctx_k]. 
     simpljoin1.
     lets Ho0 : H2.
@@ -1290,7 +1563,7 @@ Proof.
       }
       {
         (* sub rs oexp rd *)
-        do 2 eexists.
+        do 2 eexists. 
         econstructor; eauto; simpl; eauto.
         eapply LNTrans; eauto.
         eapply get_vl_merge_still; eauto.
@@ -1331,7 +1604,6 @@ Proof.
         inv H15.
         inv H26.
         destruct H19 as [H19 Hdisj_ctx_k].
-        destruct H25 as [H25 Hfp].
         simpljoin1.
         lets Hwim : H4.
         specialize (Hwim Rwim).
@@ -1484,21 +1756,20 @@ Proof.
       {
         (* Prestore *)  
         inv H15.
-        inv H23.
-        destruct H24 as [H24 Hfp].
-        destruct H18 as [H18 Hdisj_ctx_k].
+        inv H24.
+        destruct H19 as [H19 Hdisj_ctx_k].
         destruct H2 as (n0 & F2 & H2). 
         simpljoin1.
         remember (F' ++ F2) as F.
         do 14 (destruct F as [ | ?fm F]; [simpls; tryfalse | idtac]); simpls; try omega.
-        clear H19.
-        inv H25. 
+        clear H20.
+        inv H26. 
         simpljoin1.
-        lets Hwim : (H18 Rwim).
+        lets Hwim : (H13 Rwim).
         simpljoin1.
 
         assert (x = x0).
-        {
+        { 
           clear - H2 H19.
           unfolds get_R.
           rewrite H19 in H2.
@@ -1506,10 +1777,10 @@ Proof.
         }
         subst x.
         assert (x3 = ($ 1) <<ᵢ n0).
-        {
-          clear - H4 H26.
+        { 
+          clear - H4 H27.
           unfolds get_R.
-          rewrite H26 in H4; simpls; eauto.
+          rewrite H27 in H4; simpls; eauto.
           inv H4; eauto.
         }
         subst x3.
@@ -1517,8 +1788,8 @@ Proof.
         destruct (win_masked (post_cwp x0) (($ 1) <<ᵢ n0)) eqn:Heqe.
         {
           assert (F' = nil).
-          {
-            clear - H15 Heqe H9 H5 H13.
+          {  
+            clear - H15 Heqe H9 H5 H18.
             unfolds win_masked.
             destruct (((($ 1) <<ᵢ (post_cwp x0)) &ᵢ (($ 1) <<ᵢ n0)) !=ᵢ ($ 0)) eqn:Heqe'; tryfalse.
             unfolds post_cwp.
@@ -1527,16 +1798,16 @@ Proof.
               eapply nth_bit_and; eauto.
               eapply int_inrange_0_7_add_one_still; eauto.
             }
-            subst.
-            rewrite fmlst_underflow_len_0 in H15; eauto.
-            rewrite Int_unsigned_0 in H15; simpls.
+            subst. 
+            rewrite fmlst_underflow_len_0 in H18; eauto.
+            rewrite Int_unsigned_0 in H18; simpls.
             destruct F'; simpls; eauto; tryfalse.
           }
           subst F'.
           simpl in HeqF; subst F2.
           assert (b'0 = b').
           {
-            inv H24; eauto.
+            inv H25; eauto.
           }
           subst b'0.
           assert (exists fm1, fetch_frame ((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M)
@@ -1544,8 +1815,8 @@ Proof.
                                      (b', $ 4) (b', $ 8) (b', $ 12) (b', $ 16)
                                      (b', $ 20) (b', $ 24) (b', $ 28) = Some fm1).
           {
-            clear - H24 H11 H10 H8 Hdisj_ctx_k.
-            inv H24.
+            clear - H25 H11 H10 H8 Hdisj_ctx_k.
+            inv H25.
             exists fm1. 
             erewrite fetch_frame_disj_merge_stable1; eauto.
             erewrite fetch_frame_disj_merge_stable1; eauto.
@@ -1555,13 +1826,13 @@ Proof.
             erewrite fetch_frame_disj_merge_stable1; eauto.
             eapply fetch_frame_set_Mframe_same1; eauto.
           }
-          destruct H27 as [fm1' Hfetch_Mframe1].
+          destruct H28 as [fm1' Hfetch_Mframe1].
           assert (exists fm2, fetch_frame ((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M)
                                      (b', $ 32) (b', $ 36) (b', $ 40) (b', $ 44)
                                      (b', $ 48) (b', $ 52) (b', $ 56) (b', $ 60) = Some fm2).
           {
-            clear - H24 H11 H10 H8 Hdisj_ctx_k.
-            inv H24.
+            clear - H25 H11 H10 H8 Hdisj_ctx_k.
+            inv H25.
             exists fm2. 
             erewrite fetch_frame_disj_merge_stable1; eauto.
             erewrite fetch_frame_disj_merge_stable1; eauto.
@@ -1571,7 +1842,7 @@ Proof.
             erewrite fetch_frame_disj_merge_stable2; eauto.
             eapply fetch_frame_set_Mframe_same2; eauto.
           }
-          destruct H27 as [fm2' Hfetch_Mframe2].
+          destruct H28 as [fm2' Hfetch_Mframe2].
           
           do 2 eexists.
           econstructor; eauto.
@@ -1581,11 +1852,15 @@ Proof.
           instantiate (1 := x0).
           unfold get_R; rewrite H19; eauto.
           instantiate (1 := ($ 1) <<ᵢ n0).
-          unfold get_R; rewrite H26; eauto.
+          unfold get_R; rewrite H27; eauto.
           eauto.
           
           econstructor; eauto.
-          unfold get_R; rewrite Hfp; eauto.
+          clear - H21 H7.
+          specialize (H7 r30).
+          simpljoin1.
+          rewrite H21 in H0; inv H0.
+          unfold get_R; rewrite H; eauto.
         }
         {
           do 2 eexists.
@@ -1597,7 +1872,7 @@ Proof.
           eauto.
           econstructor.
           unfold get_R; rewrite H19; eauto.
-          unfold get_R; rewrite H26; eauto.
+          unfold get_R; rewrite H27; eauto.
           eauto.
           eauto.
           eapply fetch_window_HL; eauto.

@@ -93,7 +93,7 @@ Inductive stkRel : Z * FrameList * Memory -> HFrameList -> Prop :=
 Inductive curTRel : Memory * RState -> Tid * tlocst -> Prop :=
 | Cur_TRel : forall M Mctx Mk R F F' t HR b b' HF pc npc,
     (M = Mctx ⊎ Mk /\ Mctx ⊥ Mk) -> (forall l, indom l M <-> DomCtx l t b) ->
-    ctxfm R F F' -> (stkRel (b', F', Mk) HF /\ R r30 = Some (Ptr (b', $ 0))) -> Rinj R HR ->
+    ctxfm R F F' -> stkRel (b', F', Mk) HF -> Rinj R HR ->
     curTRel (M, (R, F)) (t, ((HR, b, HF), pc, npc)).
 
 Parameter restoreQ : Memory -> RState -> Prop.
