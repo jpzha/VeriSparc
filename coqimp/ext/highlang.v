@@ -216,11 +216,12 @@ Inductive HQ__ : Memory * HRstate -> Command -> Memory * HRstate -> Prop :=
     HQ__ (M, (HR, b, HF)) (c (cntrans (subcc rs oexp rd))) (M, (HR', b, HF))
 
 (* We add two Pseudo instructions : Psave and Prestore *)
-| HPsave_step : forall M M' (HR HR' : HRegFile) sz b b' (HF : HFrameList) fmo fml fmi fm1 fm2,
+| HPsave_step : forall M M' (HR HR' HR'': HRegFile) sz b b' (HF : HFrameList) fmo fml fmi fm1 fm2,
     Hfetch HR = Some [fmo; fml; fmi] ->
-    HR' = set_Hwindow HR fm1 fm2 fmo ->
+    (HR' = set_Hwindow HR fm1 fm2 fmo /\ HR r14 = Some (Ptr (b, $ 0)) /\
+     HR'' = HRegMap.set r14 (Some (Ptr (b', $ 0))) HR') ->
     Malloc M b' ($ 64) sz M' ->
-    HQ__ (M, (HR, b, HF)) (Psave sz) (M', (HR', b', (b, fml, fmi) :: HF))
+    HQ__ (M, (HR, b, HF)) (Psave sz) (M', (HR'', b', (b, fml, fmi) :: HF))
 
 | HRestore_step : forall M M' (HR HR' : HRegFile) (b b' : Z) (HF : HFrameList) fmo fml fmi fm1 fm2,
     Hfetch HR = Some [fmo; fml; fmi] ->

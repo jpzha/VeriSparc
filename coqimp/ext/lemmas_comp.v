@@ -812,7 +812,7 @@ Qed.
 
 Lemma fetch_frame_set_Mframe_same1 :
   forall b fm,
-    fetch_frame (set_Mframe b ($ 0) fm) (b, $ 0) (b, $ 4) (b, $ 8)
+    fetch_frame (set_Mframe' b ($ 0) fm) (b, $ 0) (b, $ 4) (b, $ 8)
                 (b, $ 12) (b, $ 16) (b, $ 20) (b, $ 24) (b, $ 28) = Some fm.
 Proof.
   intros.
@@ -839,7 +839,7 @@ Qed.
 
 Lemma fetch_frame_set_Mframe_same2 :
   forall b fm,
-    fetch_frame (set_Mframe b ($ 32) fm) (b, $ 32) (b, $ 36) (b, $ 40)
+    fetch_frame (set_Mframe' b ($ 32) fm) (b, $ 32) (b, $ 36) (b, $ 40)
                 (b, $ 44) (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) = Some fm.
 Proof.
   intros.

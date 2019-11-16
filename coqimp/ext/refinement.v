@@ -60,9 +60,22 @@ Definition Rinj (LR : RegFile) (HR : HRegFile) :=
   (forall sr : SpReg, exists w, LR sr = Some (W w)) /\ (exists w, LR cwp = Some (W w)) /\
   (exists w, LR n = Some w /\ HR fn = Some w) /\ (exists w, LR z = Some w /\ HR fz = Some w).
 
-Parameter DomCtx : Address -> Tid -> Z -> Prop.
+Parameter ctx_s ctx_e : int.
 
-Definition set_Mframe (b : Z) (ofs : Word) (fm : Frame) :=
+Definition DomCtx (l : Address) (t : Tid) (b : Z) :=
+  t <> b /\ 
+  match l with
+  | (b', o') => if Z.eq_dec t b' then
+                 (* A location marks the name of thread and a set of locations saving context *)
+                 o' = $ 0 \/ (int_leu ctx_s o' = true /\ Int.ltu o' ctx_e = true)
+               else
+                 if Z.eq_dec b b' then
+                   int_leu ($ 0) o' = true /\ Int.ltu o' ($64) = true
+                 else
+                   False
+  end.
+
+Definition set_Mframe' (b : Z) (ofs : Word) (fm : Frame) :=
   match fm with
   | consfm v0 v1 v2 v3 v4 v5 v6 v7 =>
     set_Ms empM [((b, ofs), v0); ((b, ofs +ᵢ ($ 4)), v1); ((b, ofs +ᵢ ($ 8)), v2);
@@ -74,17 +87,17 @@ Inductive stkRel : Z * FrameList * Memory -> HFrameList -> Prop :=
 | LFnilHFnil : forall b, stkRel (b, nil, empM) nil
 
 | LFnilHFcons : forall fm1 fm2 HF M M' b b',
-    M = (set_Mframe b ($ 0) fm1) ⊎ (set_Mframe b ($ 32) fm2) ⊎ M' ->
-    (set_Mframe b ($ 0) fm1) ⊥ (set_Mframe b ($ 32) fm2) ->
-    ((set_Mframe b ($ 0) fm1) ⊎ (set_Mframe b ($ 32) fm2)) ⊥ M' ->
+    M = (set_Mframe' b ($ 0) fm1) ⊎ (set_Mframe' b ($ 32) fm2) ⊎ M' ->
+    (set_Mframe' b ($ 0) fm1) ⊥ (set_Mframe' b ($ 32) fm2) ->
+    ((set_Mframe' b ($ 0) fm1) ⊎ (set_Mframe' b ($ 32) fm2)) ⊥ M' ->
     get_frame_nth fm2 6 = Some (Ptr (b' 0)) ->
     stkRel (b, nil, M') HF ->
     stkRel (b, nil, M) ((b, fm1, fm2) :: HF)
            
 | LFconsHFcons : forall fm1 fm2 F HF M M' b b' fm1' fm2',
-    M = (set_Mframe b ($ 0) fm1') ⊎ (set_Mframe b ($ 32) fm2') ⊎ M' ->
-    (set_Mframe b ($ 0) fm1') ⊥ (set_Mframe b ($ 32) fm2') ->
-    ((set_Mframe b ($ 0) fm1') ⊎ (set_Mframe b ($ 32) fm2')) ⊥ M' ->
+    M = (set_Mframe' b ($ 0) fm1') ⊎ (set_Mframe' b ($ 32) fm2') ⊎ M' ->
+    (set_Mframe' b ($ 0) fm1') ⊥ (set_Mframe' b ($ 32) fm2') ->
+    ((set_Mframe' b ($ 0) fm1') ⊎ (set_Mframe' b ($ 32) fm2')) ⊥ M' ->
     get_frame_nth fm2 6 = Some (Ptr (b', $ 0)) ->
     stkRel (b', F, M') HF ->
     stkRel (b, fm1 :: fm2 :: F, M) ((b, fm1, fm2) :: HF).
@@ -92,7 +105,7 @@ Inductive stkRel : Z * FrameList * Memory -> HFrameList -> Prop :=
 (** Current Thread State Relation *)
 Inductive curTRel : Memory * RState -> Tid * tlocst -> Prop :=
 | Cur_TRel : forall M Mctx Mk R F F' t HR b b' HF pc npc,
-    (M = Mctx ⊎ Mk /\ Mctx ⊥ Mk) -> (forall l, indom l M <-> DomCtx l t b) ->
+    (M = Mctx ⊎ Mk /\ Mctx ⊥ Mk) -> (forall l, indom l Mctx <-> DomCtx l t b) ->
     ctxfm R F F' -> stkRel (b', F', Mk) HF -> Rinj R HR ->
     curTRel (M, (R, F)) (t, ((HR, b, HF), pc, npc)).
 

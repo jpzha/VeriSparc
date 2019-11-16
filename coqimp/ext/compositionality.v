@@ -1,5 +1,5 @@
 (*+ Compositionality +*)             
-Require Import Coqlib.                   
+Require Import Coqlib.                    
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -32,6 +32,12 @@ Open Scope code_scope.
 Open Scope mem_scope.
 
 (** Auxiliary Lemmas about Integer *)
+Lemma Int_unsigned_64 :
+  Int.unsigned $ 64 = 64%Z.
+Proof.
+  eapply Int.unsigned_repr_eq; eauto.
+Qed.
+
 Lemma int_ltu_trans :
   forall n m p,
     n <ᵤᵢ m -> m <ᵤᵢ p -> n <ᵤᵢ p.
@@ -56,6 +62,177 @@ Proof.
   destruct (zlt intval0 intval); destruct (zeq intval0 intval); tryfalse; try omega; eauto.
 Qed.
 
+Lemma lt_impl_not_ge :
+  forall a b,
+    Int.ltu a b = true -> int_leu b a = false.
+Proof.
+  intros.
+  destruct a, b.
+  unfolds int_leu; simpls.
+  unfolds Int.ltu; simpls.
+  unfolds Int.eq; simpls.
+  destruct (zlt intval intval0); simpls; tryfalse.
+  destruct (zlt intval0 intval); destruct (zeq intval0 intval); tryfalse; try omega; eauto.
+Qed.
+
+(** Auxiliary Lemmas about windows *)
+Lemma fetch_frame_LH :
+  forall HR (R : RegFile) (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : GenReg) fm,
+    fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
+    (forall (rr : GenReg), exists v, R rr = Some v /\ HR rr = Some v) ->
+    fetch_frame HR rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
+Proof.
+  intros.
+  unfold fetch_frame in *.
+  
+  destruct (R rr0) eqn:Heqe0; simpls; tryfalse.
+  lets Hrr0 : H0.
+  specialize (Hrr0 rr0).
+  simpljoin1.
+  rewrite Heqe0 in H1.
+  inv H1.
+  rewrite H2; clear H2 Heqe0.
+
+  destruct (R rr1) eqn:Heqe1; simpls; tryfalse.
+  lets Hrr1 : H0.
+  specialize (Hrr1 rr1).
+  simpljoin1.
+  rewrite Heqe1 in H1.
+  inv H1.
+  rewrite H2; clear H2 Heqe1.
+
+  destruct (R rr2) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr2 : H0.
+  specialize (Hrr2 rr2).
+  simpljoin1.
+  rewrite Heqe2 in H1.
+  inv H1.
+  rewrite H2; clear H2 Heqe2.
+
+  destruct (R rr3) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr3 : H0.
+  specialize (Hrr3 rr3).
+  simpljoin1.
+  rewrite Heqe2 in H1.
+  inv H1.
+  rewrite H2; clear H2 Heqe2.
+
+  destruct (R rr4) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr4 : H0.
+  specialize (Hrr4 rr4).
+  simpljoin1.
+  rewrite Heqe2 in H1.
+  inv H1.
+  rewrite H2; clear H2 Heqe2.
+
+  destruct (R rr5) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr5 : H0.
+  specialize (Hrr5 rr5).
+  simpljoin1.
+  rewrite Heqe2 in H1.
+  inv H1.
+  rewrite H2; clear H2 Heqe2.
+
+  destruct (R rr6) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr6 : H0.
+  specialize (Hrr6 rr6).
+  simpljoin1.
+  rewrite Heqe2 in H1.
+  inv H1.
+  rewrite H2; clear H2 Heqe2.
+
+  destruct (R rr7) eqn:Heqe2; simpls; tryfalse.
+  lets Hrr7 : H0.
+  specialize (Hrr7 rr7).
+  simpljoin1.
+  rewrite Heqe2 in H1.
+  inv H1.
+  rewrite H2; clear H2 Heqe2.
+
+  inv H; eauto.
+Qed.
+
+Lemma fetch_window_LH :
+  forall HR R fmo fml fmi,
+    fetch R = Some [fmo; fml; fmi] ->
+    (forall rr : GenReg, exists v : Val, R rr = Some v /\ HR rr = Some v) ->
+    Hfetch HR = Some [fmo; fml; fmi].
+Proof.
+  intros.
+  unfolds fetch, Hfetch.
+  destruct (fetch_frame R r8 r9 r10 r11 r12 r13 r14 r15) eqn:Heqe; tryfalse.
+  eapply fetch_frame_LH with (HR := HR) in Heqe; eauto.
+  rewrite Heqe; eauto.
+  destruct (fetch_frame R r16 r17 r18 r19 r20 r21 r22 r23) eqn:Heqe1; tryfalse.
+  eapply fetch_frame_LH with (HR := HR) in Heqe1; eauto.
+  rewrite Heqe1; eauto.
+  destruct (fetch_frame R r24 r25 r26 r27 r28 r29 r30 r31) eqn:Heqe2; tryfalse.
+  eapply fetch_frame_LH with (HR := HR) in Heqe2; eauto.
+  rewrite Heqe2; eauto.
+Qed.
+
+Fixpoint getMs (vl : list (Address * Val)) :=
+  match vl with
+  | nil => nil
+  | (l, w) :: vl' => l :: getMs vl'
+  end.
+
+Lemma indoms_setM_still :
+  forall vl (M : Memory) a v, 
+    indoms (getMs vl) M ->
+    indoms (getMs vl) (MemMap.set a (Some v) M).
+Proof.
+  intro vl.
+  induction vl; intros.
+  -
+    simpls.
+    eauto.
+  -
+    destruct a.
+    simpls.
+    simpljoin1.
+    split.
+    clear - H.
+    unfold indom in *.
+    simpljoin1.
+    destruct (Address_eq a0 a); subst; eauto.
+    rewrite MemMap.gss; eauto.
+    rewrite MemMap.gso; eauto.
+    eapply IHvl; eauto.
+Qed.
+
+Lemma indoms_setMs_merge_eq :
+  forall vl M m,
+    indoms (getMs vl) M ->
+    set_Ms (merge M m) vl = merge (set_Ms M vl) m.
+Proof.
+  intros vl.
+  induction vl; intros.
+  -
+    simpls.
+    eauto.
+  -
+    destruct a.
+    simpl in H.
+    simpl. 
+    simpljoin1.
+    rewrite indom_memset_merge_eq; eauto.
+    eapply IHvl.
+    eapply indoms_setM_still; eauto.
+Qed.
+
+Lemma fetch_some_set_Mframe_still :
+  forall (M m : Memory) fm l0 l1 l2 l3 l4 l5 l6 l7,
+    indoms [l0; l1; l2; l3; l4; l5; l6; l7] M ->
+    set_Mframe (M ⊎ m) l0 l1 l2 l3 l4 l5 l6 l7 fm =
+    set_Mframe M l0 l1 l2 l3 l4 l5 l6 l7 fm ⊎ m.
+Proof.
+  intros.
+  unfolds set_Mframe.
+  destruct fm.
+  eapply indoms_setMs_merge_eq; eauto.
+Qed.
+  
 (** Auxiliary Lemmas about Rinj *)
 Lemma Rinj_GenReg_LH' :
   forall (HR : HRegFile) (R : RegFile) (rr : GenReg) (v : Val),
@@ -284,6 +461,22 @@ Proof.
   rewrite H3, H4.
   rewrite RegMap.gss; eauto.
   rewrite HRegMap.gss; eauto.
+Qed.
+
+(** Auxiliary Lemmas about Malloc and Mfree *)
+Lemma block_fresh_merge_sep :
+  forall b M1 M2,
+    Mfresh b (M1 ⊎ M2) -> Mfresh b M1 /\ Mfresh b M2.
+Proof.
+  intros.
+  unfolds Mfresh.
+  split; intros.
+  specialize (H o).
+  intro; contradiction H.
+  eapply indom_merge_still; eauto.
+  specialize (H o).
+  intro; contradiction H.
+  eapply indom_merge_still2; eauto.
 Qed.
 
 (** Proof of Compositionality *)
@@ -1776,7 +1969,21 @@ Proof.
       inv H16; CElim C.
       inv H16.
       contradiction H11; eauto.
+    } 
+    assert (HHsp : HR r14 = Some (Ptr (b, $ 0))).
+    {
+      eapply HProgSafe_progress_and_preservation in H2; eauto.
+      simpljoin1.
+      inv H1.
+      inv H16; CElim C.
+      inv H17; CElim C.
+      simpljoin1; eauto.
+      inv H16; CElim C.
+      inv H16.
+      contradiction H11; unfold indom; eauto.
     }
+    inv H23.
+    renames H11 to HL_cwp, H13 to HL_wim, H15 to Hmask_false, H18 to HL_fetch.
     
     do 2 eexists.
     split.
@@ -1833,14 +2040,270 @@ Proof.
           destruct (int_leu $ 64 i); eauto.
         }
         {
-          >>>>>>>>>>>>>>>>>>>>
+          destruct (LM' (z, i)); eauto.
+          symmetry in H2.
+          unfolds Mfresh.
+          specialize (H i).
+          contradiction H.
+          unfold indom; eauto.
+          destruct (Mr (z, i)) eqn:Heqe3; eauto.
+          eapply get_vl_merge_still with (m := Mc) in Heqe3; eauto.
+          rewrite disj_merge_reverse_eq in Heqe3; eauto.
+          eapply get_vl_merge_still with (m := M) in Heqe3; tryfalse.
+          eapply disj_sym; eauto.
+          destruct (int_leu $ 64 i); eauto.
+        }
+        {
+          destruct (Mr (z, i)) eqn:Heqe3; eauto.
+          eapply get_vl_merge_still with (m := Mc) in Heqe3; eauto.
+          rewrite disj_merge_reverse_eq in Heqe3; eauto.
+          eapply get_vl_merge_still with (m := M) in Heqe3; eauto.
+          rewrite <- H2 in Heqe3; eauto.
+          eapply disj_sym; eauto.
+          unfolds Mfresh.
+          destruct (LM' (z, i)).
+          specialize (H i).
+          contradiction H.
+          unfold indom; eauto.
+          destruct (int_leu $ 64 i); eauto.
         }
       }
+      {
+        specialize (H1 z i).
+        destruct H1; simpljoin1; tryfalse.
+        unfold merge.
+        destruct (Z.eq_dec z b0); subst; tryfalse.
+        destruct (Mc (z, i)) eqn:Heqe4.
+        eapply get_vl_merge_still with (m := Mr) in Heqe4; eauto.
+        eapply get_vl_merge_still with (m := M) in Heqe4; eauto.
+        rewrite Heqe4 in H2; eauto.
+        destruct (Mr (z, i)) eqn:Heqe5; eauto.
+        eapply get_vl_merge_still with (m := Mc) in Heqe5; eauto.
+        rewrite disj_merge_reverse_eq in Heqe5; eauto.
+        eapply get_vl_merge_still with (m := M) in Heqe5; eauto.
+        rewrite Heqe5 in H2; eauto.
+        eapply disj_sym; eauto.
+        destruct (M (z, i)) eqn:Heqe6; eauto.
+        eapply get_vl_merge_still with (m := (Mc ⊎ Mr)) in Heqe6; eauto.
+        rewrite disj_merge_reverse_eq in Heqe6; eauto.
+        rewrite H2 in Heqe6; eauto.
+        eapply disj_sym; eauto.
+        clear - H2 Heqe4 Heqe5 Heqe6.
+        unfold merge in *.
+        rewrite Heqe4, Heqe5, Heqe6 in H2; eauto.
+      }
+    }
+    split.
+    {
+      inv H22.
+      simpljoin1.
+      unfold disjoint; intros.
+      destruct x.
+      specialize (H9 z i).
+      destruct (Z.eq_dec z b0); subst.
+      {
+        destruct H9; simpljoin1; tryfalse.
+        destruct (int_leu $ 0 i) eqn:Heqe1; destruct (Int.ltu i w) eqn:Heqe2; simpls; tryfalse; simpljoin1.
+        {
+          destruct (Int.ltu i $ 64) eqn:Heqe3; eauto.
+          destruct (LM' (b0, i)) eqn:Heqe4; eauto.
+          destruct (Mr (b0, i)) eqn:Heqe5; eauto.
+          eapply get_vl_merge_still with (m := Mc) in Heqe5; eauto.
+          rewrite disj_merge_reverse_eq in Heqe5; eauto.
+          eapply get_vl_merge_still with (m := M) in Heqe5; eauto.
+          unfolds Mfresh.
+          specialize (H1 i).
+          contradiction H1; unfold indom; eauto.
+          eapply disj_sym; eauto.
+          destruct (Mr (b0, i)); eauto.
+          destruct (Mr (b0, i)); eauto.
+        }
+        {
+          destruct (Int.ltu i $ 64) eqn:Heqe3; eauto.
+          destruct (LM' (b0, i)) eqn:Heqe4; eauto.
+          unfolds Mfresh.
+          specialize (H1 i).
+          contradiction H1; unfold indom; eauto.
+          destruct (Mr (b0, i)); eauto.
+          destruct (Mr (b0, i)); eauto.
+        }
+        {
+          destruct (Mr (b0, i)); eauto.
+        }
+        {
+          destruct (Mr (b0, i)); eauto.
+        }
+      }
+      {
+        destruct H9; simpljoin1; tryfalse.
+        destruct (Mc (z, i)) eqn:Heqe; eauto.
+        destruct (Mr (z, i)) eqn:Heqe1; eauto.
+        clear - H4 Heqe Heqe1.
+        unfold disjoint in *.
+        specialize (H4 (z, i)).
+        rewrite Heqe, Heqe1 in H4; tryfalse.
+        destruct (Mr (z, i)); eauto.
+      }
+    }
+    split.
+    {
+      unfold disjoint; intros.
+      destruct x; simpl.
+      unfold merge.
+      destruct (Z.eq_dec z b0); subst.
+      {
+        destruct (int_leu $ 0 i) eqn:Heqe1; destruct (Int.ltu i $ 64) eqn:Heqe2; simpl; eauto.
+        {
+          destruct (LM' (b0, i)) eqn:Heqe.
+          destruct (int_leu $ 64 i) eqn:Heqe3; destruct (Int.ltu i w) eqn:Heqe4; simpl; eauto.
+          eapply lt_impl_not_ge in Heqe2; tryfalse.
+          destruct (Mr (b0, i)) eqn:Heqe3; eauto.
+          destruct (int_leu $ 64 i); destruct (Int.ltu i w); simpl; eauto.
+          destruct (int_leu $ 64 i); destruct (Int.ltu i w); simpl; eauto.
+        }
+        {
+          destruct (Mr (b0, i)) eqn:Heqe3; eauto.
+          destruct (int_leu $ 64 i) eqn:Heqe4; destruct (Int.ltu i w) eqn:Heqe5; simpl; eauto.
+          destruct (LM' (b0, i)) eqn:Heqe6; eauto.
+          unfolds Malloc.
+          simpljoin1.
+          specialize (H9 b0 i).
+          destruct H9; simpljoin1; tryfalse.
+          unfolds Mfresh.
+          specialize (H1 i).
+          contradiction H1; unfold indom.
+          exists v0.
+          eapply get_vl_merge_still; eauto.
+          rewrite disj_merge_reverse_eq; eauto.
+          eapply get_vl_merge_still; eauto.
+          eapply not_lt_impl_ge in Heqe2.
+          rewrite Heqe2.
+          destruct (Int.ltu i w); simpl; eauto.
+          destruct (LM' (b0, i)); eauto.
+        }
+        {
+          destruct (Mr (b0, i)) eqn:Heqe3; eauto.
+          destruct (int_leu $ 64 i) eqn:Heqe4; destruct (Int.ltu i w) eqn:Heqe5; simpl; eauto.
+          eapply lt_impl_not_ge in Heqe2; tryfalse.
+          destruct (int_leu $ 64 i); destruct (Int.ltu i w); destruct (LM' (b0, i)); simpl; eauto.
+        }
+        {
+          destruct (Mr (b0, i)) eqn:Heqe3; eauto.
+          destruct (int_leu $ 64 i) eqn:Heqe4; destruct (Int.ltu i w) eqn:Heqe5; simpl; eauto.
+          clear - Heqe1 Heqe4.
+          destruct i; unfolds int_leu, Int.ltu, Int.eq; simpls.
+          try rewrite Int_unsigned_0, Int_unsigned_64 in *.
+          destruct (zlt 0 intval); destruct (zeq 0 intval);
+            destruct (zlt 64 intval); destruct (zeq 64 intval); simpls; tryfalse; try omega.
+          destruct (int_leu $ 64 i); destruct (Int.ltu i w); simpl; eauto.
+          destruct (LM' (b0, i)); eauto.
+        }
+      }
+      {
+        unfolds Malloc.
+        simpljoin1.
+        specialize (H9 z i).
+        destruct H9; simpljoin1; tryfalse.
+        destruct (Mc (z, i)) eqn:Heqe; eauto.
+        destruct (M (z, i)) eqn:Heqe1; eauto.
+        eapply disj_sym in H5.
+        eapply disj_merge_disj_sep in H5; eauto.
+        simpljoin1.
+        clear - H5 Heqe Heqe1.
+        unfold disjoint in *.
+        specialize (H5 (z, i)).
+        rewrite Heqe1, Heqe in H5; eauto.
+        destruct (Mr (z, i)) eqn:Heqe1; eauto.
+        destruct (M (z, i)) eqn:Heqe2; eauto.
+        eapply disj_sym in H5.
+        eapply disj_merge_disj_sep in H5; eauto.
+        simpljoin1.
+        clear - H11 Heqe1 Heqe2.
+        unfold disjoint in *.
+        specialize (H11 (z, i)).
+        rewrite Heqe1, Heqe2 in H11; tryfalse.
+        destruct (M (z, i)); eauto.
+      }
+    }
+    split.
+    {
+      left.
+      econstructor; eauto.
+      eapply HNTrans; eauto.
+      econstructor; eauto.
+      eapply fetch_window_LH; eauto.
+      inv H6; eauto.
+      inv H21; eauto.
+      instantiate (1 := b0).
+      unfold Malloc.
+      inv H22.
+      split.
+      eapply block_fresh_merge_sep in H1.
+      simpljoin1; eauto.
+      split; eauto.
+      simpljoin1.
+      intros.
+      specialize (H9 b' o').
+      destruct H9; simpljoin1.
+      {
+        left.
+        split; eauto.
+        destruct (Z.eq_dec b' b0); tryfalse; eauto.
+      }
+      { 
+        right. 
+        split; eauto.
+        destruct (Z.eq_dec b' b'); tryfalse; subst.
+        assert (Hnone : M (b', o') = None).
+        {
+          clear - H1 H4 H5.
+          destruct (M (b', o')) eqn:Heqe; eauto.
+          unfolds Mfresh.
+          specialize (H1 o').
+          contradiction H1; unfold indom; eauto.
+          rewrite disj_merge_reverse_eq; eauto.
+          exists v.
+          eapply get_vl_merge_still; eauto.
+        }
+        destruct (int_leu $ 0 o') eqn:Heqe1; destruct (Int.ltu o' w) eqn:Heqe2; simpls; simpljoin1;
+          try solve [destruct (int_leu $ 64 o') eqn:Heqe3; simpls; eauto].
+        destruct (int_leu $ 64 o') eqn:Heqe3; simpls; eauto.
+        clear - Heqe1 Heqe3.
+        destruct o'; unfolds int_leu, Int.ltu, Int.eq; simpls.
+        try rewrite Int_unsigned_0, Int_unsigned_64 in *.
+        destruct (zlt 0 intval); destruct (zeq 0 intval); destruct (zlt 64 intval); destruct (zeq 64 intval);
+          simpls; tryfalse; try omega.
+      }
+    }
+    split.
+    {
+      instantiate (2 := fm1).
+      instantiate (1 := fm2).
+      inv H6.
+      admit.
+    }
+    split; eauto.
+    {
+      instantiate (1 := (5%nat, 6%nat)).
+      econstructor; eauto; intros; econstructor; eauto; unfold Nat.lt; omega.
     }
   }
   {
     (* Psave w : trap *)
-    admit.
+    inv H25.
+    assert (HlenF1 : length F1 = 9%nat).
+    {
+      inv H6.
+      inv H21.
+      simpljoin1.
+      repeat (destruct F1 as [_ | ?fm F1]; simpls; tryfalse).
+      eauto.
+    } SearchAbout set_frame.
+    >>>>>>>>>>>>>>>>>>>>>>
+    
+    repeat (destruct F1 as [_ | ?fm F1]; simpl in HlenF1; tryfalse); clear HlenF1.
+    Locate set_Mframe.
+    >>>>>>>>>>>>>>>>>>>>
   }
   {
     (* Prestore : no trap *)
