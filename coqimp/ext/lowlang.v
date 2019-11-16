@@ -66,7 +66,7 @@ Inductive win_overflow : Memory * RegFile * FrameList -> Memory * RegFile * Fram
                     (b, $ 16) (b, $ 20) (b, $ 24) (b, $ 28) fm2 ->
     M'' = set_Mframe M' (b, $ 32) (b, $ 36) (b, $ 40) (b, $ 44)
                      (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) fm3 ->
-    get_R R Rwim = Some (W (($ 1) <<ᵢ w)) ->
+    (get_R R Rwim = Some (W (($ 1) <<ᵢ w)) /\ $ 0 <=ᵤᵢ w <=ᵤᵢ $ 7) ->
     set_R R Rwim (W (($ 1) <<ᵢ (pre_cwp w))) = R' ->
     win_overflow (M, R, F) (M'', R', F).
 
@@ -78,7 +78,7 @@ Inductive win_underflow : Memory * RegFile * FrameList -> Memory * RegFile * Fra
     fetch_frame M (b, $ 32) (b, $ 36) (b, $ 40) (b, $ 44)
                 (b, $ 48) (b, $ 52) (b, $ 56) (b, $ 60) = Some fm2' ->
     F' = fm1' :: fm2' :: F0 ->
-    get_R R Rwim = Some (W (($ 1) <<ᵢ w)) ->
+    (get_R R Rwim = Some (W (($ 1) <<ᵢ w)) /\ $ 0 <=ᵤᵢ w <=ᵤᵢ $ 7) ->
     set_R R Rwim (W (($ 1) <<ᵢ (post_cwp w))) = R' ->
     win_underflow (M, R, F) (M, R', F').
 
