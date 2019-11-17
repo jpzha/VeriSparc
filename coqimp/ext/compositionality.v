@@ -1,4 +1,4 @@
-(*+ Compositionality +*)             
+(*+ Compositionality +*)                
 Require Import Coqlib.                      
 Require Import Maps.
 
@@ -173,6 +173,17 @@ Proof.
   unfold indom in *.
   simpljoin1.
   rewrite H; eauto.
+Qed.
+
+Lemma indom_merge_indom_oneof :
+  forall A B (M m : A -> option B) l,
+    indom l (M ⊎ m) -> indom l M \/ indom l m.
+Proof.
+  intros.
+  unfold indom in *.
+  simpljoin1.
+  unfold merge in *.
+  destruct (M l); eauto.
 Qed.
 
 Lemma get_R_set_same_stable :
@@ -774,6 +785,83 @@ Proof.
   rewrite HRegMap.gso; eauto; try intro; tryfalse.
 Qed.
 
+Lemma Rinj_set_sameLH_stable' :
+  forall R HR (rd : GenReg) v,
+    Rinj R HR -> Rinj (set_R R rd v) (HRegMap.set rd (Some v) HR).
+Proof.
+  intros.
+  lets Ht : H.
+  eapply Rinj_set_sameLH_stable with (rd := rd) (v := v) in H.
+  unfold set_HR in H.
+  unfold is_indom in *.
+  inv Ht.
+  specialize (H0 rd); simpljoin1.
+  rewrite H7 in H; eauto.
+Qed.
+
+Lemma Rinj_set_Lsp_stable :
+  forall R HR (sr : SpReg) w,
+    Rinj R HR -> Rinj (set_R R sr (W w)) HR.
+Proof.
+  intros.
+  inv H; simpljoin1.
+  econstructor; eauto.
+  intros.
+  specialize (H sr).
+  simpljoin1.
+  specialize (H0 rr); simpljoin1.
+  erewrite getR_setR_neq_stable; eauto.
+  intro; tryfalse.
+  split.
+  unfold set_R.
+  unfold is_indom.
+  intros.
+  lets Ht : H sr.
+  simpljoin1.
+  rewrite H6; eauto.
+  destruct (RegName_eq sr sr0); subst; eauto.
+  inv e. 
+  rewrite RegMap.gss; eauto.
+  eauto.
+  rewrite RegMap.gso; eauto.
+
+  specialize (H sr).
+  simpljoin1.
+  unfold set_R, is_indom; rewrite H.
+  do 3 (rewrite RegMap.gso; eauto; try intro; tryfalse).
+  split; eauto.
+  split; eauto.
+Qed.
+
+Lemma Rinj_set_cwp_stable :
+  forall R HR w,
+    Rinj R HR -> Rinj (set_R R cwp (W w)) HR.
+Proof.
+  intros.
+  inv H; simpljoin1.
+  econstructor; eauto.
+  intros.
+  specialize (H0 rr); simpljoin1.
+  erewrite getR_setR_neq_stable; eauto.
+  intro; tryfalse.
+  split.
+  unfold set_R.
+  unfold is_indom.
+  rewrite H1; eauto.
+  intros.
+  specialize (H sr).
+  simpljoin1.
+  rewrite RegMap.gso; eauto.
+  intro; tryfalse.
+  split.
+  unfold set_R, is_indom.
+  rewrite H1; eauto.
+  rewrite RegMap.gss; eauto.
+  unfold set_R, is_indom; rewrite H1.
+  do 2 (rewrite RegMap.gso; eauto; try intro; tryfalse).
+  split; eauto.
+Qed.
+
 Lemma Rinj_set_n_fn_stable :
   forall R HR (rd : GenReg) v,
     Rinj R HR -> Rinj (set_R R n v) (set_HR HR fn v).
@@ -860,6 +948,18 @@ Proof.
   rewrite H3, H4.
   rewrite RegMap.gss; eauto.
   rewrite HRegMap.gss; eauto.
+Qed.
+
+Lemma Rinj_set_window_HL :
+  forall R HR fm1 fm2 fm3,
+    Rinj R HR ->
+    Rinj (set_window R fm1 fm2 fm3) (set_Hwindow HR fm1 fm2 fm3).
+Proof.
+  intros.
+  unfold set_window, set_Hwindow.
+  unfold set_frame, set_Hframe.
+  destruct fm1, fm2, fm3; simpl.
+  repeat (eapply Rinj_set_sameLH_stable); eauto.
 Qed.
 
 Lemma set_Mframe_set_Mframe'_same_0:
@@ -1177,6 +1277,323 @@ Proof.
     specialize (H4 f f0 nil); simpls.
     rewrite H4 in H15; eauto.
     inv H15; eauto.
+  }
+Qed.
+
+Lemma indom_stk_ofs_in_restrict_range :
+  forall Mk b F HF b' ofs',
+    stkRel (b, F, Mk) HF -> indom (b', ofs') Mk ->
+    int_leu $ 0 ofs' = true /\ Int.ltu ofs' $ 64 = true.
+Proof.
+  intros.
+  generalize dependent b'.
+  generalize dependent ofs'.
+  remember (b, F, Mk) as LF.
+  generalize dependent b.
+  generalize dependent F.
+  generalize dependent Mk.
+  induction H; intros.
+  {
+    inv HeqLF.
+    unfold indom, empM in *.
+    simpljoin1; tryfalse.
+  }
+  {
+    inv HeqLF.
+    eapply indom_merge_indom_oneof in H4.
+    destruct H4.
+    {
+      clear - H.
+      unfold indom in *.
+      simpljoin1.
+      unfold set_Mframe', set_Mframe, merge in *.
+      destruct fm1, fm2; simpls.
+
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 4))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 8))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 12))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 16))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 20))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 24))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 28))); eauto.
+      inv e; eauto.
+ 
+      do 8 (rewrite MemMap.gso in H; eauto).
+      simpl in H.
+
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 4))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 8))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 12))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 16))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 20))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 24))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 28))); eauto.
+      inv e; eauto.
+
+      do 8 (rewrite MemMap.gso in H; eauto); simpls.
+      unfolds empM; tryfalse.
+    }
+    {
+      eapply IHstkRel; eauto.
+    }
+  }
+  {
+    inv HeqLF.
+    eapply indom_merge_indom_oneof in H4.
+    destruct H4.
+    { 
+      clear - H.
+      unfold indom in *.
+      simpljoin1.
+      unfold set_Mframe', set_Mframe, merge in *.
+      destruct fm1', fm2'; simpls.
+
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 4))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 8))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 12))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 16))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 20))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 24))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 28))); eauto.
+      inv e; eauto.
+ 
+      do 8 (rewrite MemMap.gso in H; eauto).
+      simpl in H.
+
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 4))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 8))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 12))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 16))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 20))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 24))); eauto.
+      inv e; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 28))); eauto.
+      inv e; eauto.
+
+      do 8 (rewrite MemMap.gso in H; eauto); simpls.
+      unfolds empM; tryfalse.
+    }
+    {
+      eapply IHstkRel; eauto.
+    }
+  }
+Qed.
+
+Lemma indom_stk_ofs_in_0_inrange :
+  forall Mk b F HF b' ofs',
+    stkRel (b, F, Mk) HF -> indom (b', ofs') Mk ->
+    indom (b', $ 0) Mk.
+Proof.
+  intros.
+  generalize dependent b'.
+  generalize dependent ofs'.
+  remember (b, F, Mk) as LF.
+  generalize dependent b.
+  generalize dependent F.
+  generalize dependent Mk.
+  induction H; intros.
+  {
+    inv HeqLF; unfold indom, empM in *.
+    simpljoin1; tryfalse.
+  }
+  {
+    inv HeqLF.
+    eapply indom_merge_indom_oneof in H4.
+    destruct H4.
+    {
+      clear - H.
+      unfold indom in *.
+      simpljoin1.
+      unfold set_Mframe', set_Mframe, merge in *.
+      destruct fm1, fm2; simpls.
+ 
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 4))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 8))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 12))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 16))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 20))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 24))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 28))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 4))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 8))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 12))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 16))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 20))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 24))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 28))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+
+      do 16 (rewrite MemMap.gso in H; eauto); simpls.
+      unfolds empM; tryfalse.
+    }
+    {
+      eapply indom_merge_still2; eauto.
+    }
+  }
+  {
+    inv HeqLF.
+    eapply indom_merge_indom_oneof in H4.
+    destruct H4.
+    {
+      clear - H.
+      unfold indom in *.
+      simpljoin1.
+      unfold set_Mframe', set_Mframe, merge in *.
+      destruct fm1', fm2'; simpls.
+ 
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 4))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 8))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 12))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 16))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 20))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 24))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 0) +ᵢ ($ 28))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 4))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 8))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 12))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 16))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 20))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 24))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+      destruct (Address_eq (b'0, ofs') (b0, ($ 32) +ᵢ ($ 28))); eauto.
+      inv e; eauto.
+      do 7 (rewrite MemMap.gso; [idtac | intro; tryfalse]).
+      rewrite MemMap.gss; eauto.
+
+      do 16 (rewrite MemMap.gso in H; eauto); simpls.
+      unfolds empM; tryfalse.
+    }
+    {
+      eapply indom_merge_still2; eauto.
+    }
   }
 Qed.
 
@@ -2647,7 +3064,7 @@ Proof.
     }
   }
   { 
-    (* Psave w : no trap *)
+    (* Psave w : no trap *) 
     exists (fun l : Address => match l with
                         | (b', o') => if Z.eq_dec b' b0 then
                                        if int_leu ($ 0) o' && Int.ltu o' ($ 64) then LM' (b', o') else None
@@ -2684,10 +3101,10 @@ Proof.
       contradiction H11; unfold indom; eauto.
     }
     inv H23.
-    renames H11 to HL_cwp, H13 to HL_wim, H15 to Hmask_false, H18 to HL_fetch.
-    
+    renames H11 to HL_cwp, H13 to HL_wim, H15 to Hmask_false, H18 to HL_fetch. 
+      
     do 2 eexists.
-    split.
+    split. 
     {
       clear - H22 H4 H5 Hw_range.
       unfolds Malloc.
@@ -2930,11 +3347,18 @@ Proof.
     {
       left.
       econstructor; eauto.
-      eapply HNTrans; eauto.
-      econstructor; eauto.
+      eapply HNTrans; eauto.  
+      econstructor.
       eapply fetch_window_LH; eauto.
       inv H6; eauto.
       inv H21; eauto.
+
+      split.
+      instantiate (1 := fm2).
+      instantiate (1 := fm1).
+      eauto.
+      split; eauto.
+
       instantiate (1 := b0).
       unfold Malloc.
       inv H22.
@@ -2977,11 +3401,274 @@ Proof.
       }
     }
     split.
-    {
-      instantiate (2 := fm1).
-      instantiate (1 := fm2).
+    { 
       inv H6.
-      admit.
+      simpljoin1.
+      assert (b <> b0).
+      {
+        clear - H22 H18.
+        unfolds Malloc; simpljoin1.
+        intro; subst.
+        unfolds Mfresh.
+        specialize (H ($ 0)).
+        contradiction H.
+        specialize (H18 (b0, $ 0)). 
+        do 3 try eapply indom_merge_still.
+        simpljoin1.
+        eapply H2.
+        unfold DomCtx.
+        destruct (Z.eq_dec t b0); tryfalse.
+        destruct (Z.eq_dec b0 b0); tryfalse; eauto.
+      }
+      assert (forall ofs, Mk (b0, ofs) = None).
+      {
+        intros; clear - H22.
+        unfolds Malloc; simpljoin1.
+        do 3 (eapply block_fresh_merge_sep in H; simpljoin1).
+        clear - H4.
+        unfolds Mfresh.
+        specialize (H4 ofs).
+        unfold indom in *.
+        destruct (Mk (b0, ofs)) eqn:Heqe; eauto.
+        contradiction H4; eauto.
+      }
+      assert (forall ofs, Mk (b, ofs) = None).
+      { 
+        clear - H18 H20 H6; intros.
+        specialize (H18 (b, ofs)); simpljoin1.
+        destruct (classic (indom (b, ofs) Mk)); unfold indom in *; simpljoin1; eauto.
+        eapply indom_stk_ofs_in_restrict_range with (ofs' := ofs) in H20; eauto.
+        2 : unfold indom; eauto.
+        Focus 2.
+        destruct (Mk (b, ofs)) eqn:Heqe; eauto.
+        contradiction H1; eauto.
+        assert (DomCtx (b, ofs) t b).
+        {
+          unfold DomCtx.
+          destruct (Z.eq_dec t b); eauto; tryfalse.
+          destruct (Z.eq_dec b b); subst; tryfalse; eauto.
+        }
+        eapply H in H2; simpljoin1.
+        unfold disjoint in *.
+        specialize (H6 (b, ofs)).
+        rewrite H2, H1 in H6; tryfalse.
+      }
+      assert (Ht_neq_b0 : t <> b0).
+      {
+        clear - H22 H18.
+        intro; subst.
+        unfolds Malloc; simpljoin1.
+        specialize (H18 (b0, $ 0)); simpljoin1.
+        do 3 (eapply block_fresh_merge_sep in H; simpljoin1).
+        clear - H H2 H3.
+        assert (DomCtx (b0, $ 0) b0 b).
+        unfold DomCtx.
+        destruct (Z.eq_dec b0 b0); subst; tryfalse; eauto.
+        eapply H2 in H0.
+        unfolds Mfresh.
+        specialize (H $ 0); contradiction H; eauto.
+      }
+      assert (HMk_t_none : forall ofs, Mk (t, ofs) = None).
+      { 
+        clear - H18 H20 H6; intros.
+        destruct (Mk (t, ofs)) eqn:Heqe; eauto.
+        eapply indom_stk_ofs_in_0_inrange with (b' := t) in H20; eauto.
+        2 : unfold indom; eauto.
+        specialize (H18 (t, $ 0)).
+        simpljoin1.
+        assert (DomCtx (t, $ 0) t b).
+        {
+          unfold DomCtx.
+          destruct (Z.eq_dec t t); subst; tryfalse.
+          eauto.
+        }
+        eapply H in H1; eauto.
+        clear - H6 H20 H1.
+        unfold indom in *; simpljoin1.
+        unfold disjoint in *.
+        specialize (H6 (t, $ 0)).
+        unfolds Tid.
+        rewrite H0, H in H6; tryfalse.
+      } 
+      econstructor.
+      instantiate (2 :=
+                     fun l : Address => match l with
+                                      | (b'0, o'0) => if Z.eq_dec b'0 b0 then
+                                                       if int_leu $ 0 o'0 && Int.ltu o'0 $ 64 then
+                                                         LM' (b'0, o'0)
+                                                       else
+                                                         None
+                                                     else
+                                                       if Z.eq_dec b'0 t then
+                                                         Mctx (b'0, o'0)
+                                                       else
+                                                         None
+                                      end
+                  ).
+      instantiate (1 :=
+                     fun l : Address => match l with
+                                      | (b'0, o'0) => if Z.eq_dec b'0 b then
+                                                       if int_leu $ 0 o'0 && Int.ltu o'0 $ 64 then
+                                                         Mctx (b'0, o'0)
+                                                       else
+                                                         None
+                                                     else Mk (b'0, o'0)
+                                      end
+                  ).
+      split; simpljoin1.
+      {
+        eapply FunctionalExtensionality.functional_extensionality; eauto; intros.
+        destruct x.
+        unfold merge.
+        destruct (Z.eq_dec z b0); subst.
+        { 
+          destruct (int_leu $ 0 i); destruct (Int.ltu i $ 64); destruct (Z.eq_dec b0 b); simpl; eauto; tryfalse.
+          destruct (LM' (b0, i)) eqn:Heqe; eauto.
+        }
+        {
+          destruct (Mctx (z, i)) eqn:Heqe1.
+          destruct (Z.eq_dec z t); subst; eauto.
+          destruct (Z.eq_dec z b); subst; eauto.
+
+          specialize (H18 (b, i)). 
+          assert (indom (b, i) Mctx); unfold indom; eauto.
+          simpljoin1.
+          eapply H11 in H10; eauto.
+          unfold DomCtx in H10.
+          destruct (Z.eq_dec t b); tryfalse.
+          destruct (Z.eq_dec b b); tryfalse.
+          simpljoin1. 
+          rewrite H10, H14.
+          simpl; eauto.
+          
+          assert (indom (z, i) Mctx); unfold indom; eauto.
+          specialize (H18 (z, i)); simpljoin1.
+          eapply H11 in H10.
+          unfold DomCtx in H10.
+          destruct (Z.eq_dec t z); tryfalse.
+          destruct (Z.eq_dec b z); tryfalse.
+
+          destruct (Z.eq_dec z t); subst; tryfalse.
+          destruct (Z.eq_dec t b); subst; tryfalse; eauto.
+          destruct (int_leu $ 0 i); destruct (Int.ltu i $ 64); eauto.
+          destruct (Z.eq_dec z b); subst; tryfalse; eauto.
+          rewrite H9.
+          destruct (int_leu $ 0 i); destruct (Int.ltu i $ 64); eauto.
+        }
+      }
+      {
+        unfold disjoint; intros.
+        destruct x.
+        destruct (Z.eq_dec z b0); subst.
+        destruct (int_leu $ 0 i) eqn:Heqe1; destruct (Int.ltu i $ 64) eqn:Heqe2; simpl; eauto.
+        {
+          destruct (LM' (b0, i)) eqn:Heqe3; eauto.
+          destruct (Z.eq_dec b0 b); subst; tryfalse.
+          rewrite H8; eauto.
+          destruct (Z.eq_dec b0 b); subst; eauto; tryfalse.
+          rewrite H8; eauto.
+        }
+        {
+          destruct (Z.eq_dec b0 b); subst; eauto; tryfalse.
+          rewrite H8; eauto.
+        }
+        {
+          destruct (Z.eq_dec b0 b); subst; eauto; tryfalse.
+          rewrite H8; eauto.
+        }
+        {
+          destruct (Z.eq_dec b0 b); subst; eauto; tryfalse.
+          rewrite H8; eauto.
+        }
+
+        destruct (Z.eq_dec z t); subst; tryfalse; eauto.
+        destruct (Mctx (t, i)) eqn:Heqe; subst; eauto; unfolds Tid.
+        rewrite Heqe.
+        destruct (Z.eq_dec t b); subst; simpl; tryfalse.
+        specialize (H18 (b, i)).
+        simpljoin1.
+        assert (indom (b, i) Mctx); unfold indom; eauto.
+        eapply H10 in H13.
+        unfold DomCtx in H13.
+        destruct (Z.eq_dec b b); subst; tryfalse.
+        rewrite HMk_t_none; eauto.
+        rewrite Heqe.
+        rewrite HMk_t_none.
+        destruct (Z.eq_dec t b); destruct (int_leu $ 0 i); destruct (Int.ltu i $ 64); simpl; eauto.
+        destruct (Mctx (z, i)); destruct (Mk (z, i));
+          destruct (Z.eq_dec z b); destruct (int_leu $ 0 i); destruct (Int.ltu i $ 64); simpl; eauto.
+      } 
+      {
+        intros.
+        split; eauto.
+        destruct l.
+        split; intros.
+        {
+          unfold indom in H10.
+          simpljoin1.
+          destruct (Z.eq_dec z b0); subst; eauto.
+          destruct (int_leu $ 0 i) eqn:Heqe1; destruct (Int.ltu i $ 64) eqn:Heqe2; simpl in H10; tryfalse.
+          unfold DomCtx.
+          destruct (Z.eq_dec t b0); eauto; tryfalse.
+          destruct (Z.eq_dec b0 b0); eauto; tryfalse.
+          destruct (Z.eq_dec z t); subst; tryfalse.
+          specialize (H18 (t, i)).
+          simpljoin1.
+          assert (indom (t, i) Mctx); unfold indom; eauto.
+          eapply H11 in H14.
+          unfold DomCtx in H14.
+          destruct (Z.eq_dec t t); subst; tryfalse.
+          unfold DomCtx.
+          destruct (Z.eq_dec t t); subst; tryfalse; eauto.
+        }
+        {
+          unfold DomCtx in H10.
+          destruct (Z.eq_dec t z); subst; eauto.
+          unfold indom.
+          destruct (Z.eq_dec z b0); subst; tryfalse.
+          destruct (Z.eq_dec z z); subst; eauto; tryfalse.
+          assert (DomCtx (z, i) z b).
+          {
+            unfold DomCtx.
+            destruct (Z.eq_dec z z); tryfalse; eauto.
+          }
+          specialize (H18 (z, i)); simpljoin1.
+          eapply H13 in H11; eauto.
+ 
+          destruct (Z.eq_dec b0 z); subst; tryfalse; eauto.
+          unfold indom.
+          destruct (Z.eq_dec z z); tryfalse; eauto.
+          simpljoin1.
+          rewrite H10, H11; simpl; eauto. 
+          clear - H22 H10 H11 Hw_range. 
+          unfolds Malloc; simpljoin1.
+          specialize (H1 z i).
+          destruct H1; simpljoin1; tryfalse.
+          assert (i <ᵤᵢ w).
+          eapply int_ltu_trans; eauto.
+          rewrite H10, H1 in H2; simpls; eauto.
+        }
+      }
+      {
+        instantiate (1 := fml :: fmi :: F').
+        inv H19.
+        simpljoin1.
+        rewrite HL_cwp in H10; inv H10.
+        rewrite HL_wim in H11; inv H11.
+        repeat (destruct F'0 as [_ | ?fm F'0]; simpl in H19; tryfalse); clear H19.
+        simpl in H14.
+        admit.
+      }
+      {
+        instantiate (1 := b0).
+        admit.
+      }
+      {
+        simpl. 
+        eapply Rinj_set_sameLH_stable'; eauto.
+        eapply Rinj_set_cwp_stable.
+        eapply Rinj_set_window_HL; eauto.
+      }
     }
     split; eauto.
     {
@@ -3965,29 +4652,30 @@ Proof.
         simpljoin1.
         unfold indom; eauto.
       }
-      {
+      { 
         (* Psave sz *)
         inv H15.
-        inv H26.
-        destruct H19 as [H19 Hdisj_ctx_k].
+        inv H27.
+        destruct H20 as [H20 Hdisj_ctx_k].
+        destruct H13 as [H13 [Hwd_sp HHR''] ].
         simpljoin1.
         lets Hwim : H4.
         specialize (Hwim Rwim).
         simpljoin1.
         renames x to k, x2 to v.
-        inv H24.
+        inv H25.
         destruct H20 as (n & F2 & H20).
         simpljoin1.
         remember (F' ++ F2) as F.
         do 14 (destruct F as [ | ?fm F]; [simpls; tryfalse | idtac]); simpls; try omega.
         clear H29.
         unfold get_R in H20; rewrite H5 in H20; simpl in H20; inv H20.
-        unfold get_R in H21; rewrite H19 in H21; simpl in H21; inv H21.
+        unfold get_R in H21; rewrite H13 in H21; simpl in H21; inv H21.
         destruct (win_masked (pre_cwp x) ($ 1) <<ᵢ n) eqn:Heqe.
         {
           assert (length F' = 12%nat).
-          {
-            clear - H22 H26 H27 H28 Heqe.
+          {  
+            clear - H22 H25 H27 H28 Heqe.
             unfolds win_masked, pre_cwp. 
             destruct ((($ 1) <<ᵢ (((x +ᵢ N) -ᵢ ($ 1)) modu N)) &ᵢ (($ 1) <<ᵢ n)) !=ᵢ ($ 0) eqn:Heqe1; simpls; tryfalse.
             eapply nth_bit_and in Heqe1; eauto.
@@ -4000,7 +4688,7 @@ Proof.
           inv HeqF. 
           assert (exists b', get_frame_nth fm23 6 = Some (Ptr (b', $ 0))).
           {
-            clear - H25.
+            clear - H26.
             do 6
                (
                  match goal with
@@ -4017,12 +4705,12 @@ Proof.
           eapply LPsave_trap.
           eapply get_vl_merge_still; eauto.
           unfold get_R; rewrite H5; eauto.
-          unfold get_R; rewrite H19; eauto.
+          unfold get_R; rewrite H13; eauto.
           eauto.
           econstructor; eauto.
           instantiate (4 := [fm14; fm15; fm16; fm17; fm18; fm19; fm20; fm21; fm22]).
           simpls; eauto.
-          unfold get_R; rewrite H19; eauto.
+          unfold get_R; rewrite H13; eauto.
         }
         {
           assert (exists b M', Malloc ((((Mctx ⊎ Mk) ⊎ MT) ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM) ⊎ M)
@@ -4032,7 +4720,7 @@ Proof.
             destruct Ht as (b0 & Ht).
             remember (fun l : Address => match l with
                                        | (b', o') => if Z.eq_dec b0 b' then
-                                                      if int_le ($ 0) o' && Int.lt o' sz then
+                                                      if int_leu ($ 0) o' && Int.ltu o' sz then
                                                         Some (W ($ 2))
                                                       else
                                                         None
@@ -4049,10 +4737,10 @@ Proof.
             }
             intros.
             destruct (Z.eq_dec b0 b'1) eqn:Heqeb; subst.
-            {
+            { 
               right.
               split; eauto.
-              destruct (int_le $ 0 o') eqn:Heqe_intle; destruct (sz >ᵢ o') eqn:Heqe_sz; simpl.
+              destruct (int_leu $ 0 o') eqn:Heqe_intle; destruct (Int.ltu o' sz) eqn:Heqe_sz; simpl.
               exists (W $ 2).
               rewrite disj_merge_reverse_eq; eauto.
               eapply get_vl_merge_still; eauto.
@@ -4075,7 +4763,7 @@ Proof.
                 unfold indom; eauto.
               }
               {
-                destruct (Z.eq_dec b'1 z); destruct (int_le $ 0 i); destruct (sz >ᵢ i); simpl; eauto.
+                destruct (Z.eq_dec b'1 z); destruct (int_leu $ 0 i); destruct (Int.ltu i sz); simpl; eauto.
               }
 
               unfold merge at 1.
@@ -4118,7 +4806,7 @@ Proof.
           eapply get_vl_merge_still; eauto.
           econstructor.
           unfold get_R; rewrite H5; eauto.
-          unfold get_R; rewrite H19; eauto.
+          unfold get_R; rewrite H13; eauto.
           eauto.
           eauto.
           eapply fetch_window_HL; eauto.

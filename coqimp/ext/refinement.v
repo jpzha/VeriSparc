@@ -63,7 +63,6 @@ Definition Rinj (LR : RegFile) (HR : HRegFile) :=
 Parameter ctx_s ctx_e : int.
 
 Definition DomCtx (l : Address) (t : Tid) (b : Z) :=
-  t <> b /\ 
   match l with
   | (b', o') => if Z.eq_dec t b' then
                  (* A location marks the name of thread and a set of locations saving context *)
@@ -101,7 +100,7 @@ Inductive stkRel : Z * FrameList * Memory -> HFrameList -> Prop :=
 (** Current Thread State Relation *)
 Inductive curTRel : Memory * RState -> Tid * tlocst -> Prop :=
 | Cur_TRel : forall M Mctx Mk R F F' t HR b b' HF pc npc,
-    (M = Mctx ⊎ Mk /\ Mctx ⊥ Mk) -> (forall l, indom l Mctx <-> DomCtx l t b) ->
+    (M = Mctx ⊎ Mk /\ Mctx ⊥ Mk) -> (forall l, (indom l Mctx <-> DomCtx l t b) /\ t <> b) ->
     ctxfm R F F' -> stkRel (b', F', Mk) HF -> Rinj R HR ->
     curTRel (M, (R, F)) (t, ((HR, b, HF), pc, npc)).
 
