@@ -76,12 +76,8 @@ Definition DomCtx (l : Address) (t : Tid) (b : Z) :=
   end.
 
 Definition set_Mframe' (b : Z) (ofs : Word) (fm : Frame) :=
-  match fm with
-  | consfm v0 v1 v2 v3 v4 v5 v6 v7 =>
-    set_Ms empM [((b, ofs), v0); ((b, ofs +ᵢ ($ 4)), v1); ((b, ofs +ᵢ ($ 8)), v2);
-                   ((b, ofs +ᵢ ($ 12)), v3); ((b, ofs +ᵢ ($ 16)), v4); ((b, ofs +ᵢ ($ 20)), v5);
-                     ((b, ofs +ᵢ ($ 24)), v6); ((b, ofs +ᵢ ($ 28)), v7)]
-  end.
+  set_Mframe empM (b, ofs) (b, ofs +ᵢ ($ 4)) (b, ofs +ᵢ ($ 8)) (b, ofs +ᵢ ($ 12))
+             (b, ofs +ᵢ ($ 16)) (b, ofs +ᵢ ($ 20)) (b, ofs +ᵢ ($ 24)) (b, ofs +ᵢ ($ 28)) fm.
 
 Inductive stkRel : Z * FrameList * Memory -> HFrameList -> Prop :=
 | LFnilHFnil : forall b, stkRel (b, nil, empM) nil
@@ -90,8 +86,8 @@ Inductive stkRel : Z * FrameList * Memory -> HFrameList -> Prop :=
     M = (set_Mframe' b ($ 0) fm1) ⊎ (set_Mframe' b ($ 32) fm2) ⊎ M' ->
     (set_Mframe' b ($ 0) fm1) ⊥ (set_Mframe' b ($ 32) fm2) ->
     ((set_Mframe' b ($ 0) fm1) ⊎ (set_Mframe' b ($ 32) fm2)) ⊥ M' ->
-    get_frame_nth fm2 6 = Some (Ptr (b' 0)) ->
-    stkRel (b, nil, M') HF ->
+    get_frame_nth fm2 6 = Some (Ptr (b', $ 0)) ->
+    stkRel (b', nil, M') HF ->
     stkRel (b, nil, M) ((b, fm1, fm2) :: HF)
            
 | LFconsHFcons : forall fm1 fm2 F HF M M' b b' fm1' fm2',

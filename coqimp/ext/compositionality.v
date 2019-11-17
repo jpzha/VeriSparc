@@ -1,5 +1,5 @@
 (*+ Compositionality +*)             
-Require Import Coqlib.                     
+Require Import Coqlib.                      
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -139,6 +139,18 @@ Proof.
   eapply nth_bit_and; eauto.
 Qed.
 
+Lemma caculate_5 :
+  forall x,
+    $ 0 <=ᵤᵢ x <=ᵤᵢ $ 7 ->
+    (((N +ᵢ ((((((x +ᵢ N) -ᵢ ($ 1)) modu N) +ᵢ N) -ᵢ ($ 1)) modu N)) -ᵢ x) -ᵢ ($ 1)) modu N = $ 5.
+Proof.
+  intros.
+  unfold Int.add, N, Int.sub, Int.modu.
+  rewrite Int_unsigned_8, Int_unsigned_1.
+  eapply in_range_0_7_num in H.
+  repeat (destruct H; subst; eauto).
+Qed.
+
 (** Auxiliary Lemmas about windows *)
 Lemma indom_memset_still :
   forall l l0 v0 (M : Memory),
@@ -150,6 +162,21 @@ Proof.
   destruct (Address_eq l0 l); subst; eauto.
   rewrite MemMap.gss; eauto.
   rewrite MemMap.gso; eauto.
+Qed.
+
+Lemma get_R_set_same_stable :
+  forall rn R v v1,
+    get_R R rn = Some v -> rn <> r0 -> get_R (set_R R rn v1) rn = Some v1.
+Proof.
+  intros.
+  unfolds get_R.
+  destruct (R rn) eqn:Heqe; tryfalse.
+  unfold set_R.
+  unfold is_indom.
+  rewrite Heqe.
+  rewrite RegMap.gss; eauto.
+  destruct rn; simpls; tryfalse; eauto.
+  destruct g; simpls; tryfalse; eauto.
 Qed.
 
 Lemma fetch_frame_LH :
@@ -561,6 +588,28 @@ Proof.
 Qed.
   
 (** Auxiliary Lemmas about Rinj *)
+Lemma MemMap_set_neq_reorder :
+  forall l1 l2 (v1 v2 : Val) M,
+    l1 <> l2 ->
+    MemMap.set l1 (Some v1) (MemMap.set l2 (Some v2) M) =
+    MemMap.set l2 (Some v2) (MemMap.set l1 (Some v1) M).
+Proof.
+  intros.
+  eapply FunctionalExtensionality.functional_extensionality; eauto.
+  intros.
+  destruct (Address_eq l1 x); subst.
+  rewrite MemMap.gss; eauto.
+  rewrite MemMap.gso; eauto.
+  rewrite MemMap.gss; eauto.
+  rewrite MemMap.gso; eauto.
+  destruct (Address_eq l2 x); subst.
+  rewrite MemMap.gss; eauto.
+  rewrite MemMap.gss; eauto.
+  rewrite MemMap.gso; eauto.
+  rewrite MemMap.gso; eauto.
+  rewrite MemMap.gso; eauto.
+Qed.
+
 Lemma Rinj_GenReg_LH' :
   forall (HR : HRegFile) (R : RegFile) (rr : GenReg) (v : Val),
     Rinj R HR -> R rr = Some v -> HR rr = Some v.
@@ -790,6 +839,181 @@ Proof.
   rewrite HRegMap.gss; eauto.
 Qed.
 
+Lemma set_Mframe_set_Mframe'_same_0:
+  forall b fm fm',
+    set_Mframe (set_Mframe' b $ 0 fm) (b, $ 0) (b, $ 4) (b, $ 8) (b, $ 12) (b, $ 16) 
+               (b, $ 20) (b, $ 24) (b, $ 28) fm' =
+    set_Mframe empM (b, $ 0) (b, $ 4) (b, $ 8) (b, $ 12) (b, $ 16) 
+               (b, $ 20) (b, $ 24) (b, $ 28) fm'.
+Proof.
+  intros.
+  unfold set_Mframe.
+  destruct fm'; simpls.
+  unfold set_Mframe'.
+  destruct fm; simpls.
+  assert (($ 0) +ᵢ ($ 28) = $ 28); eauto.
+  assert (($ 0) +ᵢ ($ 24) = $ 24); eauto.
+  assert (($ 0) +ᵢ ($ 20) = $ 20); eauto.
+  assert (($ 0) +ᵢ ($ 16) = $ 16); eauto.
+  assert (($ 0) +ᵢ ($ 12) = $ 12); eauto.
+  assert (($ 0) +ᵢ ($ 8) = $ 8); eauto.
+  assert (($ 0) +ᵢ ($ 4) = $ 4); eauto.
+  rewrite H, H0, H1, H2, H3, H4, H5; clear H H0 H1 H2 H3 H4 H5.
+
+  do 7 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 0)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 6 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 4)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 5 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 8)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 4 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 12)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 3 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 16)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 2 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 20)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 1 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 24)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  rewrite memset_twice; eauto.
+Qed.
+
+Lemma set_Mframe_set_Mframe'_same_32:
+  forall b fm fm',
+    set_Mframe (set_Mframe' b $ 32 fm) (b, $ 32) (b, $ 36) (b, $ 40) (b, $ 44) (b, $ 48) 
+               (b, $ 52) (b, $ 56) (b, $ 60) fm' =
+    set_Mframe empM (b, $ 32) (b, $ 36) (b, $ 40) (b, $ 44) (b, $ 48) 
+               (b, $ 52) (b, $ 56) (b, $ 60) fm'.
+Proof.
+  intros.
+  unfold set_Mframe.
+  destruct fm'; simpls.
+  unfold set_Mframe'.
+  destruct fm; simpls.
+  assert (($ 32) +ᵢ ($ 28) = $ 60); eauto.
+  assert (($ 32) +ᵢ ($ 24) = $ 56); eauto.
+  assert (($ 32) +ᵢ ($ 20) = $ 52); eauto.
+  assert (($ 32) +ᵢ ($ 16) = $ 48); eauto.
+  assert (($ 32) +ᵢ ($ 12) = $ 44); eauto.
+  assert (($ 32) +ᵢ ($ 8) = $ 40); eauto.
+  assert (($ 32) +ᵢ ($ 4) = $ 36); eauto.
+  rewrite H, H0, H1, H2, H3, H4, H5; clear H H0 H1 H2 H3 H4 H5.
+
+  do 7 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 32)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 6 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 36)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 5 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 40)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 4 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 44)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 3 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 48)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 2 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 52)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  do 1 (try rewrite MemMap_set_neq_reorder with (l1 := (b, $ 56)); try intro; tryfalse).
+  rewrite memset_twice; eauto.
+
+  rewrite memset_twice; eauto.
+Qed.
+
+Lemma dom_eq_set_same_Mframe :
+  forall M l0 l1 l2 l3 l4 l5 l6 l7 fm fm',
+    dom_eq (set_Mframe M l0 l1 l2 l3 l4 l5 l6 l7 fm) (set_Mframe M l0 l1 l2 l3 l4 l5 l6 l7 fm').
+Proof.
+  intros.
+  unfold dom_eq.
+  split; intros; unfold indom in *.
+  {
+    simpljoin1.
+    unfolds set_Mframe.
+    destruct fm, fm'; simpls.
+    destruct (Address_eq l l7); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l6); subst.
+    rewrite MemMap.gss; eauto.
+ 
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l5); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l4); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l3); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l2); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l1); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l0); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    eauto.
+  }
+  {
+    simpljoin1.
+    unfolds set_Mframe.
+    destruct fm, fm'; simpls.
+    destruct (Address_eq l l7); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l6); subst.
+    rewrite MemMap.gss; eauto.
+ 
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l5); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l4); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l3); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l2); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l1); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    destruct (Address_eq l l0); subst.
+    rewrite MemMap.gss; eauto.
+
+    try rewrite MemMap.gso in *; try (intro; tryfalse).
+    eauto.
+  }
+Qed.
+
 (** Auxiliary Lemmas about Malloc and Mfree *)
 Lemma block_fresh_merge_sep :
   forall b M1 M2,
@@ -811,7 +1035,9 @@ Lemma stkRel_sep :
   forall n b F1 F2 M HF,
     stkRel (b, F1 ++ F2, M) HF -> length F1 = (2*n)%nat ->
     exists M1 M2 HF1 HF2 b', M1 ⊎ M2 = M /\ M1 ⊥ M2 /\ HF1 ++ HF2 = HF /\
-                        stkRel (b, F1, M1) HF1 /\ stkRel (b', F2, M2) HF2 /\ length HF1 = n.
+                        stkRel (b, F1, M1) HF1 /\ stkRel (b', F2, M2) HF2 /\ length HF1 = n /\
+                        (forall fm1 fm2 F', F1 = F' ++ [fm1; fm2] -> get_frame_nth fm2 6 = Some (Ptr (b', $ 0))) /\
+                        (F1 = nil -> b = b').
 Proof.
   induction n; intros.
   {
@@ -828,7 +1054,12 @@ Proof.
     split; eauto.
     split.
     econstructor; eauto.
-    eauto.
+    split; eauto.
+    split; eauto.
+    split.
+    intros; tryfalse.
+    destruct F'; simpls; tryfalse.
+    intros; eauto.
   }
   {  
     destruct F1; simpls; tryfalse.
@@ -851,10 +1082,28 @@ Proof.
     eapply disj_sym; eauto.
     split; simpl; eauto.
     split; eauto.
-
+  
     econstructor; eauto.
     eapply disj_merge_disj_sep in H9.
     simpljoin1; eauto.
+    split; eauto.
+    split; eauto.
+    split.
+    intros.
+    destruct F'; simpls.
+    inv H.
+    rewrite <- H7; eauto.
+    destruct F'; simpls; inv H.
+    clear - H2.
+    rewrite <- plus_Snm_nSm, Nat.add_succ_l in H2; simpls.
+    inv H2.
+    destruct x1; simpls; tryfalse.
+    inv H0.
+    rewrite <- plus_Snm_nSm, Nat.add_succ_l in H1.
+    inv H1.
+    eapply H6; eauto.
+    intros; tryfalse.
+    
     rewrite <- plus_Snm_nSm, Nat.add_succ_l in H2.
     inv H2; eauto.
   }
@@ -868,7 +1117,45 @@ Lemma stkRel_merge :
     (F1 = nil -> b1 = b2) ->
     stkRel (b1, F1 ++ F2, M1 ⊎ M2) (HF1 ++ HF2).
 Proof.
-Admitted.
+  induction n; intros; simpls.
+  {
+    destruct F1; simpls; tryfalse.
+    destruct HF1; simpls; tryfalse.
+    inv H.
+    rewrite H5; eauto.
+  }
+  {
+    destruct F1; simpls; tryfalse.
+    inv H1.
+    rewrite <- plus_Snm_nSm, Nat.add_succ_l in H7.
+    destruct F1; simpls; tryfalse.
+    inv H.
+    rewrite <- merge_assoc.
+    rewrite <- app_comm_cons.
+    econstructor; eauto.
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_sym in H3.
+    eapply disj_merge_disj_sep1 in H3.
+    eapply disj_sym; eauto.
+
+    inv H7.
+    eapply IHn; eauto.
+    eapply disj_sym in H3.
+    eapply disj_merge_disj_sep2 in H3.
+    eapply disj_sym; eauto.
+
+    intros.
+    assert (f :: f0 :: F1 = (f :: f0 :: F') ++ [fm1; fm2]).
+    {
+      subst; simpl; eauto.
+    }
+    eapply H4 in H6; eauto.
+    intros; subst.
+    specialize (H4 f f0 nil); simpls.
+    rewrite H4 in H15; eauto.
+    inv H15; eauto.
+  }
+Qed.
 
 (** Proof of Compositionality *)
 Lemma HProgSafe_progress_and_preservation :
@@ -2711,59 +2998,82 @@ Proof.
     repeat (destruct F' as [_ | ?fm F']; simpl in H12; tryfalse); clear H12.
     repeat (destruct x1; simpl in H9; tryfalse).
     inv H9.
-    >>>>>>>>>>>>>>>>>>>>>>>>>>
 
-    inv H25.
-    inv H29.
-    inv H32.
-    inv H35.
-    inv H38.
-    inv H41.
-    
+    lets HstkRel : H25.
+    eapply stkRel_sep with (F1 := [fm12; fm13; fm14; fm15; fm16; fm17; fm18; fm19; fm20; fm21])
+                           (F2 := [fm22; fm23]) (n := 5%nat) in HstkRel; eauto.
+    destruct HstkRel as (M1 & M2 & HF1 & HF2 & b'0 & HstkRel).
+    simpljoin1.
+    specialize (H18 fm20 fm21 [fm12; fm13; fm14; fm15; fm16; fm17; fm18; fm19]).
+    simpl in H18.
+    lets Hget_frame_b : H14.
+    rewrite H18 in Hget_frame_b; eauto.
+    inv Hget_frame_b; clear H18.
+
     rewrite fetch_some_set_Mframe_still.
     rewrite fetch_some_set_Mframe_still.
     rewrite fetch_some_set_Mframe_still.
     rewrite fetch_some_set_Mframe_still.
-    rewrite H14 in H40; inv H40.
+    rewrite fetch_some_set_Mframe_still2.
+    rewrite fetch_some_set_Mframe_still2.
+    rewrite fetch_some_set_Mframe_still2.
+    rewrite fetch_some_set_Mframe_still2.
 
     do 3 eexists.
     exists (0%nat, 0%nat).
     split; eauto.
 
     split.
-    {  
-      eapply disjoint_setMfrm_still; eauto.      
-      eapply indoms_setMframe_still.
-      do 6 eapply indoms_merge_right.
+    {
+      eapply disj_sym in H4.
+      eapply disj_merge_disj_sep in H4.
+      simpljoin1.
+      eapply disj_sym.
+      eapply disj_sep_merge_still; eauto.
+      eapply disj_merge_disj_sep in H4.
+      simpljoin1.
+      eapply disj_sep_merge_still; eauto.
+      eapply disj_sym in H9.
+      eapply disj_sym.
+      eapply disjoint_setMfrm_still; eauto.
+      eapply indoms_setMframe_still; eauto. 
+      inv H13.
       eapply indoms_merge_left.
       eapply indoms_merge_right.
       eapply indoms_set_Mframe'_32; eauto.
-
       eapply disjoint_setMfrm_still; eauto.
-      do 6 eapply indoms_merge_right.
+      inv H13; eauto. 
       eapply indoms_merge_left.
       eapply indoms_merge_left.
-      eapply indoms_set_Mframe'_0; eauto.
+      eapply indoms_set_Mframe'_0.
     }
     split.
     {
       eapply disj_sym in H5.
       eapply disj_merge_disj_sep in H5.
-      destruct H5.
+      simpljoin1.
+      eapply disj_merge_disj_sep in H1.
+      simpljoin1.
+      eapply disj_merge_disj_sep in H9.
+      simpljoin1.
+
       eapply disj_sym.
       eapply disj_sep_merge_still; eauto.
-
-      eapply disj_sym in H1.
-      eapply disj_sym.
+      eapply disj_sep_merge_still; eauto.
+      eapply disj_sep_merge_still; eauto.
+      eapply disj_sym. 
       eapply disjoint_setMfrm_still; eauto.
-      eapply indoms_setMframe_still.
-      do 6 eapply indoms_merge_right. 
+      eapply indoms_setMframe_still; eauto.
+      clear - H13.
+      inv H13.
       eapply indoms_merge_left.
       eapply indoms_merge_right.
       eapply indoms_set_Mframe'_32; eauto.
 
       eapply disjoint_setMfrm_still; eauto.
-      do 6 eapply indoms_merge_right. 
+      2 : eapply disj_sym; eauto.
+      clear - H13.
+      inv H13.
       eapply indoms_merge_left.
       eapply indoms_merge_left.
       eapply indoms_set_Mframe'_0; eauto.
@@ -2774,23 +3084,250 @@ Proof.
       split; eauto.
       split; eauto.
       inv H7.
-      eapply H40; eauto.
-      clear - Hwin_mask.
-      unfold win_masked.
+      eapply H30; eauto.
+      unfold win_masked; eauto.
       rewrite Hwin_mask; eauto.
     } 
+    split.
+    {
+      econstructor.
+      split; eauto.
+      eapply disj_merge_disj_sep in H17; simpljoin1.
+      eapply disj_sep_merge_still; eauto.
+      eapply disj_sym.
+      eapply disjoint_setMfrm_still; eauto.
+      eapply indoms_setMframe_still; eauto.
+      clear - H13.
+      inv H13.
+      eapply indoms_merge_left.
+      eapply indoms_merge_right. 
+      eapply indoms_set_Mframe'_32.
+      eapply disjoint_setMfrm_still; eauto.
+      clear - H13.
+      inv H13.
+      eapply indoms_merge_left.
+      eapply indoms_merge_left.
+      eapply indoms_set_Mframe'_0; eauto.
+      eapply disj_sym; eauto.
+
+      eauto.
+
+      simpl.
+      instantiate (1 := [fm12; fm13; fm14; fm15; fm16; fm17; fm18; fm19; fm20; fm21]).
+      econstructor.
+      do 2 eexists.
+      split.
+      {
+        erewrite get_R_set_neq_stable; eauto.
+        intro; tryfalse.
+      }
+      split.
+      {
+        rewrite get_R_set_R_same_reg; eauto.
+        intro; tryfalse.
+        clear - H23.
+        unfold get_R, indom in *.
+        destruct (LR Rwim) eqn:Heqe; eauto.
+      }
+      split.
+      {
+        eapply pre_2_neq; eauto.
+      }
+      split.
+      {
+        instantiate (1 := [fm22; fm23; f]); simpl; eauto.
+      }
+      split; eauto.
+      split.
+      {
+        eapply in_range_0_7_pre_cwp_still; eauto.
+      }
+      split; simpl; eauto.
+      {
+        unfold pre_cwp.
+        rewrite caculate_5; eauto.
+      }
+      { 
+        inv H13.
+        
+        instantiate (1 := b').
+        assert ([fm12; fm13; fm14; fm15; fm16; fm17; fm18; fm19; fm20; fm21] =
+                [fm12; fm13; fm14; fm15; fm16; fm17; fm18; fm19; fm20; fm21] ++ nil); eauto.
+        rewrite H1; clear H1. 
+        eapply stkRel_merge with (b2 := b0); simpl; eauto. 
+        rewrite fetch_some_set_Mframe_still.
+        rewrite fetch_some_set_Mframe_still.
+        rewrite fetch_some_set_Mframe_still. 
+        rewrite fetch_some_set_Mframe_still2.
+        eapply LFnilHFcons.
+        rewrite set_Mframe_set_Mframe'_same_0.
+        rewrite  set_Mframe_set_Mframe'_same_32.
+        unfold set_Mframe'; eauto.
+
+        eapply disj_dom_eq_still with (m1 := set_Mframe' b0 $ 0 fm1')
+                                      (m2 := set_Mframe' b0 $ 32 fm2'); eauto.
+        unfold set_Mframe'.
+        eapply dom_eq_set_same_Mframe; eauto.
+        unfold set_Mframe'.
+        eapply dom_eq_set_same_Mframe; eauto.
+
+        eapply disj_dom_eq_still; eauto.
+        eapply dom_eq_merge_still.
+        unfold set_Mframe'.
+        eapply dom_eq_set_same_Mframe; eauto.
+        unfold set_Mframe'.
+        eapply dom_eq_set_same_Mframe; eauto.
+        eapply same_m_dom_eq.
+
+        eauto.
+
+        eauto.
+
+        rewrite set_Mframe_set_Mframe'_same_0.
+        clear - H30.
+        unfolds set_Mframe'.
+        eapply disj_dom_eq_still; eauto.
+        eapply dom_eq_set_same_Mframe; eauto.
+        eapply same_m_dom_eq; eauto.
+
+        eapply indoms_set_Mframe'_32; eauto.
+        eapply indoms_set_Mframe'_0; eauto.
+ 
+        eapply indoms_setMframe_still.
+        eapply indoms_merge_right.
+        eapply indoms_set_Mframe'_32; eauto.
+        eapply indoms_merge_left.
+        eapply indoms_set_Mframe'_0; eauto.
+
+        simpl; eauto.
+
+        eapply disj_sym.
+        eapply disjoint_setMfrm_still.
+        eapply indoms_setMframe_still.
+        eapply indoms_merge_left.
+        eapply indoms_merge_right.
+        eapply indoms_set_Mframe'_32; eauto.
+
+        eapply disjoint_setMfrm_still.
+        eapply indoms_merge_left.
+        eapply indoms_merge_left.
+        eapply indoms_set_Mframe'_0; eauto.
+        eapply disj_sym; eauto.
+
+        intros.
+        repeat (destruct F' as [_ | ?fm F']; simpls; tryfalse).
+        inv H1; eauto.
+      }
+      {
+        clear - H26.
+        inv H26; simpljoin1.
+        econstructor; eauto.
+        intros.
+        specialize (H rr).
+        simpljoin1.
+        erewrite getR_setR_neq_stable; eauto.
+        intro; tryfalse.
+
+        split; intros.
+        lets Hwim : H0 Rwim.
+        specialize (H0 sr).
+        simpljoin1.
+        unfold set_R.
+        unfold is_indom.
+        rewrite H6.
+        destruct (RegName_eq Rwim sr); subst; eauto.
+        inv e.
+        rewrite RegMap.gss; eauto.
+        rewrite RegMap.gso; eauto.
+
+        split; do 3 (try split; try (erewrite getR_setR_neq_stable; eauto; try intro; tryfalse)).
+      }
+    }
     split; eauto.
     {
-      do 12 (try rewrite fetch_some_set_Mframe_still2; eauto).
-      rewrite fetch_some_set_Mframe_still2; eauto.
-      rewrite fetch_some_set_Mframe_still2; eauto.
-      rewrite fetch_some_set_Mframe_still2; eauto.
-      rewrite fetch_some_set_Mframe_still2; eauto.
-      rewrite fetch_some_set_Mframe_still2; eauto.
-      rewrite fetch_some_set_Mframe_still2; eauto.
-      rewrite fetch_some_set_Mframe_still2; eauto.
-      rewrite fetch_some_set_Mframe_still2; eauto.
+      econstructor; eauto.
+      2 : intros; CElim C.
+      intros.
+      erewrite get_R_set_same_stable in H18; eauto; try intro; tryfalse.
+      inv H18.
+      erewrite get_R_set_neq_stable in H9; eauto; try intro; tryfalse.
+      inv H9.
+      clear - H19 H24.
+      unfolds win_masked.
+      destruct (((($ 1) <<ᵢ (pre_cwp k)) &ᵢ (($ 1) <<ᵢ (pre_cwp (pre_cwp k)))) !=ᵢ ($ 0)) eqn:Heqe; tryfalse.
+      eapply nth_bit_and in Heqe; eauto.
+      eapply pre_1_neq in H19.
+      contradiction H19; eauto.
+      eapply in_range_0_7_pre_cwp_still; eauto.
     }
+
+    eapply disj_sym.
+    eapply disjoint_setMfrm_still; eauto.
+    2 : eapply disj_sym; eauto.
+    clear - H13; inv H13.
+    eapply indoms_merge_left.
+    eapply indoms_merge_left.
+    eapply indoms_set_Mframe'_0; eauto.
+ 
+    eapply indoms_setMframe_still; eauto.
+    2 : eapply disj_sym; eauto.
+    2 : eapply disj_sym; eauto.
+    clear - H13; inv H13.
+    eapply indoms_merge_left.
+    eapply indoms_merge_right.
+    eapply indoms_set_Mframe'_32; eauto.
+
+    clear - H13; inv H13.
+    eapply indoms_merge_left.
+    eapply indoms_merge_left.
+    eapply indoms_set_Mframe'_0; eauto.
+    
+    eapply disj_sym.
+    eapply disjoint_setMfrm_still; eauto.
+    2 : eapply disj_sym; eauto.
+    eapply indoms_merge_right.
+    clear - H13; inv H13.
+    do 2 eapply indoms_merge_left.
+    eapply indoms_set_Mframe'_0; eauto.
+    2 : eapply disj_sym; eauto.
+    2 : eapply disj_sym; eauto.
+
+    eapply indoms_setMframe_still.
+    eapply indoms_merge_right.
+    clear - H13; inv H13.
+    eapply indoms_merge_left.
+    eapply indoms_merge_right.
+    eapply indoms_set_Mframe'_32.
+    eapply indoms_merge_right.
+    clear - H13; inv H13.
+    do 2 eapply indoms_merge_left.
+    eapply indoms_set_Mframe'_0.
+
+    eapply indoms_setMframe_still; eauto.
+    do 2 eapply indoms_merge_right.
+    clear - H13; inv H13.
+    eapply indoms_merge_left.
+    eapply indoms_merge_right.
+    eapply indoms_set_Mframe'_32.
+
+    do 2 eapply indoms_merge_right.
+    clear - H13; inv H13.
+    do 2 eapply indoms_merge_left.
+    eapply indoms_set_Mframe'_0.
+
+    eapply indoms_setMframe_still; eauto.
+    eapply indoms_merge_left.
+    do 2 eapply indoms_merge_right.
+    clear - H13; inv H13.
+    eapply indoms_merge_left.
+    eapply indoms_merge_right.
+    eapply indoms_set_Mframe'_32.
+
+    eapply indoms_merge_left.
+    do 2 eapply indoms_merge_right.
+    clear - H13; inv H13.
+    do 2 eapply indoms_merge_left.
+    eapply indoms_set_Mframe'_0.
   }
   {
     (* Prestore : no trap *)
