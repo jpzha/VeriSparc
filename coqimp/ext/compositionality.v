@@ -164,6 +164,17 @@ Proof.
   rewrite MemMap.gso; eauto.
 Qed.
 
+Lemma indom_merge_elim :
+  forall A B (M m : A -> option B) l,
+    indom l M -> (M ⊎ m) l = M l.
+Proof.
+  intros.
+  unfold merge.
+  unfold indom in *.
+  simpljoin1.
+  rewrite H; eauto.
+Qed.
+
 Lemma get_R_set_same_stable :
   forall rn R v v1,
     get_R R rn = Some v -> rn <> r0 -> get_R (set_R R rn v1) rn = Some v1.
@@ -177,6 +188,18 @@ Proof.
   rewrite RegMap.gss; eauto.
   destruct rn; simpls; tryfalse; eauto.
   destruct g; simpls; tryfalse; eauto.
+Qed.
+
+Lemma fetch_frame_merge_elim :
+  forall A (M m : A -> option Val) l0 l1 l2 l3 l4 l5 l6 l7,
+    indoms [l0; l1; l2; l3; l4; l5; l6; l7] M ->
+    fetch_frame (M ⊎ m) l0 l1 l2 l3 l4 l5 l6 l7 = fetch_frame M l0 l1 l2 l3 l4 l5 l6 l7.
+Proof.
+  intros.
+  unfold fetch_frame.
+  simpls.
+  simpljoin1.
+  repeat (rewrite indom_merge_elim; eauto).
 Qed.
 
 Lemma fetch_frame_LH :
@@ -1779,7 +1802,7 @@ Inductive wfIndex : XCodeHeap -> State -> Word -> Index -> Prop :=
       forall k v, 
         C pc = Some Prestore ->
         get_R R cwp = Some (W k) -> get_R R Rwim = Some (W v) ->
-        win_masked (pre_cwp k) v = true ->
+        win_masked (post_cwp k) v = true ->
         (0%nat, 0%nat) ⩹ idx
     ) ->
     wfIndex C (M, (R, F), D) pc idx.
@@ -3335,7 +3358,163 @@ Proof.
   }
   {
     (* Prestore : trap *)
-    admit.
+    assert (exists HF' fm1' fm2' b0, HF = (b0, fm1', fm2') :: HF' /\ get_HR HR r30 = Some (Ptr (b0, $ 0))).
+    {
+      eapply HProgSafe_progress_and_preservation in H2; eauto; simpljoin1.
+      inv H1.
+      inv H15; CElim C.
+      inv H17; CElim C.
+      simpljoin1.
+      do 4 eexists.
+      split; eauto.
+      unfold get_HR; rewrite H8; eauto.
+      inv H15; CElim C.
+      inv H15.
+      contradiction H11; unfold indom; eauto.
+    }
+    destruct H1 as (HF' & fm1' & fm2' & b0 & H_HF & H_Hr30); subst.
+     
+    inv H25.
+    simpljoin1.
+    rewrite H23 in H1.
+    inv H1. 
+    do 3 eexists.
+    exists (0%nat, 0%nat).
+
+    split; eauto.
+    split; eauto.
+    split; eauto.
+    split.
+    {
+      right.
+      split; eauto.
+      split; eauto.
+      inv H7.
+      eapply H20; eauto.
+    }
+    split.
+    { 
+      inv H6.
+      inv H26.
+      simpljoin1.
+      rewrite H22 in H1; inv H1.
+      rewrite H23 in H6. 
+      eapply shr_same_bit_eq in H6; eauto; subst w.
+      lets Hwin_mask : H24.
+      unfold win_masked in H24.
+      destruct (((($ 1) <<ᵢ (post_cwp x)) &ᵢ (($ 1) <<ᵢ x0)) !=ᵢ ($ 0)) eqn:Heqe; tryfalse.
+      eapply nth_bit_and in Heqe; eauto; subst.
+      unfold post_cwp in H13.
+      rewrite fmlst_underflow_len_0 in H13; eauto.
+      2 : eapply in_range_0_7_post_cwp_still; eauto.
+ 
+      rewrite Int_unsigned_0 in H13; simpl in H13.
+      destruct F'; simpls; tryfalse.
+      econstructor.
+      eauto.
+      eauto.
+
+      instantiate (1 := fm1'0 :: fm2'0 :: nil).
+      econstructor; eauto.
+      do 2 eexists.
+      split.
+      erewrite get_R_set_neq_stable; eauto; intro; tryfalse.
+      split.
+      erewrite get_R_set_same_stable; eauto; intro; tryfalse.
+      split.
+      intro.
+      eapply post_2_neq in H11.
+      contradiction H11; eauto.
+      split.
+      instantiate (1 := F1); simpl; eauto.
+      split; eauto.
+      split.
+      eapply in_range_0_7_post_cwp_still; eauto.
+      split; eauto.
+      simpl.
+      clear - H11.
+      unfold post_cwp.
+      eapply in_range_0_7_num in H11.
+      repeat (destruct H11 as [H11 | H11]; subst; eauto).
+ 
+      instantiate (1 := b0).
+      inv H27.
+      assert (b1 = b0).
+      {
+        clear - H14 H_Hr30 H28.
+        inv H28.
+        specialize (H r30).
+        simpljoin1.
+        unfolds get_R, get_HR.
+        rewrite H in H14.
+        rewrite H6 in H_Hr30.
+        inv H_Hr30.
+        inv H14.
+        eauto.
+      }
+      subst b1.
+      rewrite <- merge_assoc in H17, H15.
+      rewrite disj_merge_reverse_eq with (m1 := Mctx) in H17, H15; eauto.
+      do 2 rewrite <- merge_assoc in H17, H15; eauto.
+      rewrite fetch_frame_merge_elim in H17, H15; eauto.
+      rewrite disj_merge_reverse_eq in H17; eauto.
+      rewrite fetch_frame_merge_elim in H17, H15; eauto.
+      rewrite fetch_frame_set_Mframe_same1 in H15.
+      rewrite fetch_frame_set_Mframe_same2 in H17.
+      inv H15.
+      inv H17.
+      econstructor; eauto.
+
+      eapply indoms_set_Mframe'_0; eauto.
+      eapply indoms_set_Mframe'_32; eauto.
+      eapply indoms_merge_left.
+      eapply indoms_set_Mframe'_0; eauto.
+      eapply indoms_merge_right.
+      eapply indoms_set_Mframe'_32; eauto.
+
+      clear - H28.
+      inv H28.
+      simpljoin1.
+      econstructor; eauto; intros.
+      specialize (H rr); simpljoin1.
+      erewrite getR_setR_neq_stable; eauto.
+      intro; tryfalse.
+      split; intros.
+      unfold set_R, is_indom.
+      lets Hwim : H0 Rwim.
+      simpljoin1.
+      rewrite H6; eauto.
+      destruct (RegName_eq Rwim sr).
+      inv e.
+      rewrite RegMap.gss; eauto.
+      rewrite RegMap.gso; eauto.
+      do 3 (erewrite getR_setR_neq_stable; eauto; try intro; tryfalse).
+      split; eauto.
+      split; eauto.
+    }
+    split; eauto.
+    {
+      econstructor; intros; CElim C.
+      erewrite get_R_set_neq_stable in H9; eauto; try intro; tryfalse.
+      inv H9.
+      erewrite get_R_set_R_same_reg in H10; eauto; try intro; tryfalse.
+      inv H10. 
+      unfolds win_masked.
+      destruct (((($ 1) <<ᵢ (post_cwp k0)) &ᵢ (($ 1) <<ᵢ w)) !=ᵢ ($ 0)) eqn:Heqe; simpls; tryfalse.
+      eapply nth_bit_and in Heqe; eauto; subst.
+      destruct (((($ 1) <<ᵢ (post_cwp k0)) &ᵢ (($ 1) <<ᵢ (post_cwp (post_cwp k0)))) !=ᵢ ($ 0)) eqn:Heqe1; tryfalse.
+      eapply nth_bit_and in Heqe1; eauto.
+      eapply post_1_neq in H8; tryfalse.
+      eapply in_range_0_7_post_cwp_still; eauto.
+      eapply in_range_0_7_post_cwp_still; eauto.
+      inv H6.
+      inv H27.
+      simpljoin1.
+      rewrite H22 in H1; inv H1; eauto.
+      clear - H23.
+      unfold get_R, indom in *.
+      destruct (LR Rwim); eauto.
+    }
   }
   Admitted.
 
