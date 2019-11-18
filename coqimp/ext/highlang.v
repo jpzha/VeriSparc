@@ -135,11 +135,11 @@ Fixpoint set_HRs HR (vl : list (HRegName * Val)) : HRegFile :=
 (** Memory fresh *)
 Definition Mfresh (b : Z) (M : Memory) := forall o, ~ indom (b, o) M.
 
-(** Memory alloc *) 
+(** Memory alloc *)
 Definition Malloc (M : Memory) (b : Z) (l h : Word) (M' : Memory) :=
   Mfresh b M /\ l <ᵤᵢ h /\ 
   (forall b' o', (b <> b' /\ M (b', o') = M' (b', o'))
-            \/ (b = b' /\ if int_leu l o' && Int.ltu o' h then
+            \/ (b = b' /\ if int_leu l o' && Int.ltu o' h && Int.eq (o' modu ($ 4)) ($ 0) then
                             (exists v, M' (b', o') = Some v)
                           else M'(b', o') = M(b', o'))).
 
@@ -177,6 +177,9 @@ Definition set_Hwindow (HR : HRegFile) (fm1 fm2 fm3 : Frame) :=
   let HR1 := set_Hframe HR r8 r9 r10 r11 r12 r13 r14 r15 fm1 in
   let HR2 := set_Hframe HR1 r16 r17 r18 r19 r20 r21 r22 r23 fm2 in
   set_Hframe HR2 r24 r25 r26 r27 r28 r29 r30 r31 fm3.
+
+Definition wdFp (HR : HRegFile) (HF : list HFrame) :=
+  exists b fm1 fm2 HF', HR r30 = Some (Ptr (b, $ 0)) /\ HF = (b, fm1, fm2) :: HF'.
 
 Inductive HQ__ : Memory * HRstate -> Command -> Memory * HRstate -> Prop :=
 | HLd_step : forall aexp (ri : GenReg) (M : Memory) HR HR' HF addr v b,
@@ -218,7 +221,7 @@ Inductive HQ__ : Memory * HRstate -> Command -> Memory * HRstate -> Prop :=
 (* We add two Pseudo instructions : Psave and Prestore *)
 | HPsave_step : forall M M' (HR HR' HR'': HRegFile) sz b b' (HF : HFrameList) fmo fml fmi fm1 fm2,
     Hfetch HR = Some [fmo; fml; fmi] ->
-    (HR' = set_Hwindow HR fm1 fm2 fmo /\ HR r14 = Some (Ptr (b, $ 0)) /\
+    (HR' = set_Hwindow HR fm1 fm2 fmo /\ wdFp HR HF /\ HR r14 = Some (Ptr (b, $ 0)) /\
      HR'' = HRegMap.set r14 (Some (Ptr (b', $ 0))) HR') ->
     Malloc M b' ($ 64) sz M' ->
     HQ__ (M, (HR, b, HF)) (Psave sz) (M', (HR'', b', (b, fml, fmi) :: HF))

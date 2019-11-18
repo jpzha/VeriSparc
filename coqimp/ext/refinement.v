@@ -69,7 +69,7 @@ Definition DomCtx (l : Address) (t : Tid) (b : Z) :=
                  o' = $ 0 \/ (int_leu ctx_s o' = true /\ Int.ltu o' ctx_e = true)
                else
                  if Z.eq_dec b b' then
-                   int_leu ($ 0) o' = true /\ Int.ltu o' ($64) = true
+                   int_leu ($ 0) o' = true /\ Int.ltu o' ($64) = true /\ Int.eq (o' modu ($ 4)) ($ 0) = true
                  else
                    False
   end.
