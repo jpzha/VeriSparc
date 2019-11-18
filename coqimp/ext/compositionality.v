@@ -31,6 +31,46 @@ Unset Strict Implicit.
 Open Scope code_scope.
 Open Scope mem_scope.
 
+(** Auxiliary Lemmas about list *)
+Lemma list_get_tail_two :
+  forall A (l : list A),
+    (length l >= 2) % nat -> exists a b l', l = l' ++ [a; b].
+Proof.
+  induction l; intros; simpls; try omega.
+  destruct l; simpls; try omega.
+  destruct l; simpls; eauto.
+  exists a a0 (@nil A); simpl; eauto.
+  assert ((S (S (length l)) >= 2)%nat).
+  destruct l; omega.
+  eapply IHl in H0; eauto.
+  simpljoin1.
+  exists x x0 (a :: x1).
+  simpl.
+  rewrite H0; eauto.
+Qed.
+
+Lemma list_tail_two :
+  forall A (l1 l2 : list A) a1 b1 a2 b2,
+    l1 ++ [a1; b1] = l2 ++ [a2; b2] ->
+    l1 = l2 /\ a1 = a2 /\ b1 = b2.
+Proof.
+  induction l1; intros; simpls.
+  destruct l2; simpls; tryfalse.
+  inv H; eauto.
+  destruct l2; simpls; tryfalse.
+  destruct l2; simpls; tryfalse.
+  destruct l2; simpls; tryfalse.
+  assert (length (a :: l1 ++ [a1; b1]) = length [a2; b2]).
+  rewrite H; eauto.
+  simpls.
+  rewrite app_length in H0; simpls.
+  inv H0.
+  omega.
+  inv H.
+  eapply IHl1 in H2; eauto; simpljoin1.
+  split; eauto.
+Qed.
+
 (** Auxiliary Lemmas about Integer *)
 Lemma Int_unsigned_64 :
   Int.unsigned $ 64 = 64%Z.
@@ -149,6 +189,45 @@ Proof.
   rewrite Int_unsigned_8, Int_unsigned_1.
   eapply in_range_0_7_num in H.
   repeat (destruct H; subst; eauto).
+Qed.
+
+Lemma not_overflow :
+  forall x x0,
+    $ 0 <=ᵤᵢ x <=ᵤᵢ $ 7 -> $ 0 <=ᵤᵢ x0 <=ᵤᵢ $ 7 -> pre_cwp x <> x0 -> x <> x0 ->
+    $ 0 <=ᵤᵢ (((N +ᵢ x0) -ᵢ x) -ᵢ ($ 1)) modu N <=ᵤᵢ $ 5.
+Proof.
+  intros.
+  unfolds pre_cwp, N.
+  eapply in_range_0_7_num in H.
+
+  Ltac auto_solve :=
+    match goal with
+    | H : ?A \/ ?B |- _ => destruct H; subst; tryfalse; eauto; auto_solve
+    | _ => subst; eauto
+    end.
+
+  repeat (destruct H; subst; [eapply in_range_0_7_num in H0; subst; auto_solve | idtac]).
+  eapply in_range_0_7_num in H0; subst; auto_solve.
+Qed.
+
+Lemma valid_frame_list_length :
+  forall x,
+    $ 0 <=ᵤᵢ x <=ᵤᵢ $ 5 ->
+    (0 <= 2 * Z.to_nat (Int.unsigned x) <= 10)%nat.
+Proof.
+  intros.
+  eapply in_range_0_5_num in H; eauto.
+  destruct H; subst.
+  rewrite Int_unsigned_0; simpl; omega.
+  destruct H; subst.
+  rewrite Int_unsigned_1; simpl; omega.
+  destruct H; subst.
+  rewrite Int_unsigned_2; simpl; omega.
+  destruct H; subst.
+  rewrite Int_unsigned_3; simpl; omega.
+  destruct H; subst.
+  rewrite Int_unsigned_4; simpl; omega.
+  rewrite Int_unsigned_5; simpl; omega.
 Qed.
 
 (** Auxiliary Lemmas about windows *)
@@ -3656,8 +3735,78 @@ Proof.
         rewrite HL_cwp in H10; inv H10.
         rewrite HL_wim in H11; inv H11.
         repeat (destruct F'0 as [_ | ?fm F'0]; simpl in H19; tryfalse); clear H19.
-        simpl in H14.
-        admit.
+        unfold win_masked in Hmask_false.
+        destruct (((($ 1) <<ᵢ (pre_cwp x)) &ᵢ (($ 1) <<ᵢ x0)) !=ᵢ ($ 0)) eqn:Heqe; tryfalse.
+        assert (Hmask_false' : pre_cwp x <> x0).
+        {
+          intro; subst.
+          clear - Heqe H15.
+          destruct (classic (((($ 1) <<ᵢ (pre_cwp x)) &ᵢ (($ 1) <<ᵢ (pre_cwp x))) = $ 0)).
+          rewrite H in Heqe; tryfalse.
+          eapply and_zero_not_eq in H; eauto; tryfalse.
+          eapply in_range_0_7_pre_cwp_still; eauto.
+          eapply in_range_0_7_pre_cwp_still; eauto.
+          eapply negb_false_iff in Heqe.
+          eapply int_eq_true_eq in Heqe; tryfalse.
+        }
+        lets Hrange : H15.
+        eapply not_overflow with (x0 := x0) in Hrange; eauto.
+        eapply valid_frame_list_length in Hrange.
+        rewrite <- H17 in Hrange.
+        assert (exists fm1' fm2' x', x1 = x' ++ [fm1'; fm2']).
+        {
+          clear - H14 Hrange.
+          destruct x1; subst; simpls.
+          repeat (destruct F' as [_ | ?fm F']; simpls; tryfalse; try omega).
+          destruct x1; subst; simpls.
+          repeat (destruct F' as [_ | ?fm F']; simpls; tryfalse; try omega).
+          eapply list_get_tail_two; eauto.
+          destruct x1; simpl; omega.
+        }
+        destruct H10 as (fm1' & fm2' & x' & H10); subst.
+        rewrite <- app_assoc_reverse in H14.
+        eapply list_tail_two in H14; eauto; simpljoin1.
+        econstructor.
+        instantiate (1 := pre_cwp x).
+        exists x0 x'.
+        split.
+        {
+          simpl.
+          eapply get_R_set_neq_stable; eauto.
+          2 : intro; tryfalse.
+          eapply get_R_set_R_same_reg; eauto.
+          intro; tryfalse.
+          eapply indom_setwin_still.
+          clear - HL_cwp.
+          unfold get_R, indom in *.
+          destruct (LR cwp); eauto.
+        }
+        split.
+        {
+          simpl.
+          eapply get_R_set_neq_stable; eauto.
+          2 : intro; tryfalse.
+          eapply get_R_set_neq_stable; eauto.
+          2 : intro; tryfalse.
+          admit.
+        }
+        split; eauto.
+        split; eauto.
+        {
+          simpl.
+          rewrite <- H14; eauto.
+        }
+        split; eauto.
+        {
+          eapply in_range_0_7_pre_cwp_still; eauto.
+        }
+        split; eauto.
+        split; eauto.
+        {
+          >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        }
+ 
+        >>>>>>>>>>>>>>>>>>>>>>>>>>>
       }
       {
         instantiate (1 := b0).

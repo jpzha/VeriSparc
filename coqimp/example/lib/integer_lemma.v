@@ -1743,6 +1743,32 @@ Proof.
   eauto.
 Qed.
 
+
+Lemma in_range_0_5_num :
+  forall v,
+    $ 0 <=ᵤᵢ v <=ᵤᵢ $ 5 ->
+    v = ($ 0) \/ v = ($ 1) \/ v = ($ 2) \/ v = ($ 3) \/
+    v = ($ 4) \/ v = ($ 5).
+Proof.
+  intros.
+  rewrite <- Int.repr_unsigned with (i := v).
+  unfolds int_leu.
+  unfolds Int.ltu, Int.eq.
+  assert (Int.unsigned $ 0 = 0%Z); eauto.
+  assert (Int.unsigned $ 5 = 5%Z); eauto.
+  try rewrite H0 in *.
+  try rewrite H1 in *.
+  destruct v.
+  simpl Int.unsigned in *.
+  destruct (zlt 0 intval); destruct (zeq 0 intval);
+    destruct (zlt intval 5); destruct (zeq intval 5); subst; eauto;
+      tryfalse; try omega.
+  destruct intval; tryfalse; eauto 20.
+  do 3 (try destruct p; eauto 10; tryfalse).
+  do 5 right.
+  eauto.
+Qed.
+
 Lemma post_cwp_step_limit_8 :
   forall id vi,
     $ 0 <=ᵤᵢ id <=ᵤᵢ $ 7 -> $ 0 <=ᵤᵢ vi <=ᵤᵢ $ 7 ->
