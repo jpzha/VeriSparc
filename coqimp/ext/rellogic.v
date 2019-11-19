@@ -302,7 +302,7 @@ Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
     ) ->
     (
       forall lv, exists num Pr L,
-        (forall rls, INV (Pm hprim lv) num lv rls <-> rls ||= (Fp L) ⋆ Pr) /\
+        (forall rls, INV (Pm hprim lv) num lv rls -> rls ||= (Fp L) ⋆ Pr) /\
         (forall rls', rls' ||= (Fq L) ⋆ Pr -> exists num' lv', INV Pdone num' lv' rls') /\ Sta (Pm hprim lv) Pr
     ) ->
     wdSpec Fp Fq hprim.
@@ -310,9 +310,10 @@ Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
 (** Well-formed Primitive *)
 Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) :=
   exists Speci, rel_wf_cdhp Speci C /\
-           (forall f L, indom f C ->
-                        (exists Fp Fq hprim I, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim /\ LookupXC C f I
-                                               /\ wdSpec Fq Fq hprim /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
+           (forall f L hprim, PrimSet f = Some hprim ->
+                              (exists Fp Fq I vl, Spec f = Some (Fp, Fq) /\ LookupXC C f I /\
+                                                  Fp L ⇒ RAprim (Pm hprim vl) ⋆ RAtrue
+                                               /\ wdSpec Fp Fq hprim /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
 
 (*+ Logic Soundness +*)
 

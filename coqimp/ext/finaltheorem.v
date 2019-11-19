@@ -1,5 +1,5 @@
 (*+ Final Theorem Proof +*)  
-Require Import Coqlib.             
+Require Import Coqlib.               
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -303,6 +303,12 @@ Lemma logic_ensures_simulation :
     rel_wf_prim Spec Cas PrimSet ->
     simImpsPrimSet Spec Cas PrimSet.
 Proof.
+  intros.
+  inv H; simpljoin1.
+  unfold simImpsPrimSet; intros.
+  eapply H0 with (L := L) in H1; eauto.
+  simpljoin1.
+  renames x to Spec_i, x0 to Fp, x1 to Fq, x2 to I.
 Admitted.
 
 (** Simulation Implies Contexttual Refinement *)
