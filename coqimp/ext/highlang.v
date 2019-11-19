@@ -228,7 +228,7 @@ Inductive HQ__ : Memory * HRstate -> Command -> Memory * HRstate -> Prop :=
 
 | HRestore_step : forall M M' (HR HR' : HRegFile) (b b' : Z) (HF : HFrameList) fmo fml fmi fm1 fm2,
     Hfetch HR = Some [fmo; fml; fmi] ->
-    (Mfree M b = M' /\ HR r30 = Some (Ptr (b', $ 0))) ->
+    (Mfree M b = M' /\ HR r30 = Some (Ptr (b', $ 0)) /\ HR r14 = Some (Ptr (b, $ 0))) ->
     HR' = set_Hwindow HR fmi fm1 fm2 ->
     HQ__ (M, (HR, b, (b', fm1, fm2) :: HF)) Prestore (M', (HR', b', HF)).
 

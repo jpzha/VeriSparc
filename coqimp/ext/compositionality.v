@@ -134,7 +134,7 @@ Qed.
 
 Ltac auto_solve :=
     match goal with
-    | H : ?A \/ ?B |- _ => destruct H; subst; tryfalse; eauto; auto_solve
+    | H : ?A \/ ?B |- _ => destruct H; subst; tryfalse; eauto; try omega; auto_solve
     | _ => subst; eauto
     end.
 
@@ -259,6 +259,19 @@ Proof.
   eapply in_range_0_7_num in H0; subst; auto_solve.
 Qed.
 
+Lemma post_valid_head_two :
+  forall x x0,
+    $ 0 <=ᵤᵢ x <=ᵤᵢ $ 7 -> $ 0 <=ᵤᵢ x0 <=ᵤᵢ $ 7 -> x <> x0 ->
+    ((x +ᵢ ($ 1)) modu N) <> x0 ->
+    $ 1 <=ᵤᵢ (((N +ᵢ x0) -ᵢ x) -ᵢ ($ 1)) modu N <=ᵤᵢ $ 6.
+Proof.
+  intros.
+  unfold N.
+  eapply in_range_0_7_num in H.
+  repeat (destruct H; subst; [eapply in_range_0_7_num in H0; subst; auto_solve | idtac]).
+  eapply in_range_0_7_num in H0; subst; auto_solve.
+Qed.
+
 Lemma range_split :
   forall a b c i,
     a <=ᵤᵢ i <ᵤᵢ b -> a <=ᵤᵢ c <ᵤᵢ b ->
@@ -271,6 +284,68 @@ Proof.
     destruct (zlt intval intval2); destruct (zeq intval intval2); destruct (zlt intval2 intval0);
       destruct (zlt intval1 intval2); try destruct (zlt intval2 intval1); destruct (zeq intval2 intval1);
         eauto; try omega; simpls; tryfalse.
+Qed.
+
+Lemma legal_frame_range0 :
+  forall v,
+    $ 0 <=ᵤᵢ v <ᵤᵢ $ 32 -> Int.eq (v modu $ 4) ($ 0) = true ->
+    v = ($ 0) \/ v = ($ 4) \/ v = ($ 8) \/ v = ($ 12) \/
+    v = ($ 16) \/ v = ($ 20) \/ v = ($ 24) \/ v = ($ 28).
+Proof.
+  intros.
+  rewrite <- Int.repr_unsigned with (i := v).
+  unfolds int_leu.
+  unfolds Int.ltu, Int.eq, Int.modu.
+  assert (Int.unsigned $ 0 = 0%Z); eauto.
+  assert (Int.unsigned $ 32 = 32%Z); eauto. 
+  try rewrite H1 in *.
+  try rewrite H2 in *.
+  try rewrite Int_unsigned_4 in *.
+  destruct v.
+  simpl Int.unsigned in *.
+  destruct (zlt 0 intval); destruct (zeq 0 intval);
+    destruct (zlt intval 32); subst; eauto; tryfalse; try omega.
+  destruct intval; tryfalse; eauto 20.
+  do 8 (try destruct p; eauto 10; tryfalse).
+Qed.
+
+Lemma legal_frame_range32 :
+  forall v,
+    $ 32 <=ᵤᵢ v <ᵤᵢ $ 64 -> Int.eq (v modu $ 4) ($ 0) = true ->
+    v = ($ 32) \/ v = ($ 36) \/ v = ($ 40) \/ v = ($ 44) \/
+    v = ($ 48) \/ v = ($ 52) \/ v = ($ 56) \/ v = ($ 60).
+Proof.
+  intros.
+  rewrite <- Int.repr_unsigned with (i := v).
+  unfolds int_leu.
+  unfolds Int.ltu, Int.eq, Int.modu.
+  assert (Int.unsigned $ 32 = 32%Z); eauto.
+  assert (Int.unsigned $ 64 = 64%Z); eauto. 
+  try rewrite H1 in *.
+  try rewrite H2 in *.
+  try rewrite Int_unsigned_4, Int_unsigned_0 in *.
+  destruct v.
+  simpl Int.unsigned in *.
+  destruct (zlt 32 intval); destruct (zeq 32 intval);
+    destruct (zlt intval 64); subst; eauto; tryfalse; try omega.
+  destruct intval; tryfalse; eauto 20.
+  do 8 (try destruct p; eauto 10; tryfalse).
+Qed.
+
+Lemma range_1_6_lenF_ge_2 :
+  forall x,
+    $ 1 <=ᵤᵢ x <=ᵤᵢ $ 6 -> (2 <= 2 * Z.to_nat (Int.unsigned x) <= 12)%nat.
+Proof.
+  intros.
+  destruct x; simpls.
+  unfolds int_leu, Int.ltu, Int.eq; simpls.
+  rewrite Int_unsigned_1, Int_unsigned_6 in *.
+  destruct (zlt 1 intval); destruct (zeq 1 intval);
+    destruct (zlt intval 6); destruct (zeq intval 6); eauto; simpls; try omega; tryfalse.
+  destruct intval; simpl; try omega; tryfalse.
+  repeat (destruct p; simpls; try omega; tryfalse; eauto).
+  subst; simpl; omega.
+  subst; simpl; omega.
 Qed.
 
 (** Auxiliary Lemmas about Memory *)
@@ -1548,6 +1623,67 @@ Proof.
   unfolds empM; tryfalse.
 Qed.
 
+Ltac auto_solve1 :=
+  match goal with
+  | |- context [MemMap.set ?A _ _ ?B] =>
+    rewrite MemMap.gso; [idtac | try intro; tryfalse]
+  end.
+
+
+Lemma range_legal_set_Mframe_ok0 :
+  forall i b fm,
+    $ 0 <=ᵤᵢ i <ᵤᵢ $ 32 -> (i modu ($ 4)) =ᵢ ($ 0) = true ->
+    exists v, set_Mframe' b $ 0 fm (b, i) = Some v.
+Proof.
+  intros.
+  unfold set_Mframe', set_Mframe.
+  destruct fm; simpl.
+  eapply legal_frame_range0 in H; eauto.
+  
+  destruct H; subst; simpl.
+  do 7 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 6 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 5 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 4 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 3 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 2 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 1 auto_solve1; rewrite MemMap.gss; eauto.
+  rewrite MemMap.gss; eauto.
+Qed.
+
+Lemma range_legal_set_Mframe_ok32 :
+  forall i b fm,
+    $ 32 <=ᵤᵢ i <ᵤᵢ $ 64 -> (i modu ($ 4)) =ᵢ ($ 0) = true ->
+    exists v, set_Mframe' b $ 32 fm (b, i) = Some v.
+Proof.
+  intros.
+  unfold set_Mframe', set_Mframe.
+  destruct fm; simpl.
+  eapply legal_frame_range32 in H; eauto.
+  
+  destruct H; subst; simpl.
+  do 7 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 6 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 5 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 4 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 3 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 2 auto_solve1; rewrite MemMap.gss; eauto.
+  destruct H; subst; simpl.
+  do 1 auto_solve1; rewrite MemMap.gss; eauto.
+  rewrite MemMap.gss; eauto.
+Qed.
+
 (** Auxiliary Lemmas about Malloc and Mfree *)
 Lemma block_fresh_merge_sep :
   forall b M1 M2,
@@ -1562,6 +1698,87 @@ Proof.
   specialize (H o).
   intro; contradiction H.
   eapply indom_merge_still2; eauto.
+Qed.
+
+Lemma Mfree_merge_sep :
+  forall m1 m2 b,
+    Mfree (m1 ⊎ m2) b = Mfree m1 b ⊎ Mfree m2 b.
+Proof.
+  intros.
+  unfold Mfree.
+  eapply FunctionalExtensionality.functional_extensionality; intros.
+  destruct x.
+  unfold merge.
+  destruct (Z.eq_dec b z); subst; eauto.
+Qed.
+
+Lemma Mfree_merge_sep_fresh_left :
+  forall m1 m2 b,
+    Mfresh b m1 ->
+    Mfree (m1 ⊎ m2) b = m1 ⊎ Mfree m2 b.
+Proof.
+  intros.
+  unfold Mfree.
+  eapply FunctionalExtensionality.functional_extensionality; intros.
+  destruct x.
+  unfold merge.
+  destruct (Z.eq_dec b z); subst; eauto.
+  destruct (m1 (z, i)) eqn:Heqe; eauto.
+  unfolds Mfresh.
+  specialize (H i).
+  contradiction H; unfold indom; eauto.
+Qed.
+
+Lemma Mfree_merge_sep_fresh_right :
+  forall m1 m2 b,
+    Mfresh b m2 ->
+    Mfree (m1 ⊎ m2) b = Mfree m1 b ⊎ m2.
+Proof.
+  intros.
+  unfold Mfree.
+  eapply FunctionalExtensionality.functional_extensionality; intros.
+  destruct x.
+  unfold merge.
+  destruct (Z.eq_dec b z); subst; eauto.
+  destruct (m2 (z, i)) eqn:Heqe; eauto.
+  unfolds Mfresh.
+  specialize (H i).
+  contradiction H; unfold indom; eauto.
+Qed.
+
+Lemma Mfree_left_disjoint_stable :
+  forall M m b,
+    M ⊥ m -> Mfree M b ⊥ m.
+Proof.
+  intros.
+  unfold disjoint in *; intros.
+  specialize (H x).
+  unfold Mfree; destruct x.
+  destruct (Z.eq_dec b z); subst.
+  destruct (m (z, i)); eauto.
+  eauto.
+Qed.
+
+Lemma Mfree_right_disjoint_stable :
+  forall M m b,
+    M ⊥ m -> M ⊥ Mfree m b.
+Proof.
+  intros.
+  unfold disjoint in *; intros.
+  specialize (H x).
+  unfold Mfree; destruct x.
+  destruct (M (z, i)); destruct (Z.eq_dec b z); eauto.
+Qed.
+
+Lemma Mfree_both_sides_disjoint_stable :
+  forall M m b,
+    M ⊥ m -> Mfree M b ⊥ Mfree m b.
+Proof.
+  intros.
+  unfold disjoint in *; intros.
+  specialize (H x).
+  unfold Mfree; destruct x.
+  destruct (Z.eq_dec b z); subst; eauto.
 Qed.
 
 (** Auxiliary Lemmas about state Relation *)
@@ -2907,6 +3124,7 @@ Qed.
   
 Lemma LH__progress_HH_progress :
   forall C Cas Spec Mc Mr LR F pc npc LM' LR' F' D' pc' npc' T t HR b HF M PrimSet idx,
+    Mfresh b Mr ->
     simImpsPrimSet Spec Cas PrimSet -> C ⊥ Cas -> 
     LH__ C ((Mc ⊎ Mr ⊎ M, (LR, F), []), pc, npc) tau
          ((LM', (LR', F'), D'), pc', npc') ->
@@ -2924,7 +3142,8 @@ Lemma LH__progress_HH_progress :
       )
       /\ curTRel (Mc', (LR', F')) (t, K') /\ wfIndex C (Mc' ⊎ Mr ⊎ M', (LR', F'), D') pc' idx'
       /\ get_Hs_pcont (T, t, K', M') = (pc', npc') /\ D' = [].
-Proof.
+Proof.  
+  introv HMfresh_sp.
   intros.
   inv H1.
   {
@@ -4228,7 +4447,7 @@ Proof.
           eapply DomCtx_fetch_frame_32; eauto.
         }
         destruct Hfetch_frame2 as [fm2' Hfetch_frame2].
-        assert (
+        assert (Hmem : 
             (fun l : Address => match l with
                              |  (b'0, o'0) => if Z.eq_dec b'0 b then
                                                if int_leu $ 0 o'0 && Int.ltu o'0 $ 64 &&
@@ -4267,11 +4486,17 @@ Proof.
             assert (Hrange_sp : $ 0 <=ᵤᵢ i <ᵤᵢ $ 64).
             rewrite Hrange1, Hrange2; eauto.
             eapply range_split with (c := $ 32) in Hrange_sp; eauto.
-            
-            >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+            destruct Hrange_sp as [Hrange_sp | Hrange_sp].
+            {
+              eapply range_legal_set_Mframe_ok0 in Hrange_sp; simpljoin1; eauto.
+              rewrite H10 in Heqe1; tryfalse.
+            }
+            {
+              eapply range_legal_set_Mframe_ok32 in Hrange_sp; simpljoin1; eauto.
+              rewrite H10 in Heqe2; tryfalse.
+            }
           }
         }
-        destruct H10 as (fm1' & fm2' & Hmem).
         rewrite Hmem.
         eapply LFconsHFcons; eauto.
         eapply set_frame_0_32_disj; eauto.
@@ -4692,6 +4917,229 @@ Proof.
   }
   {
     (* Prestore : no trap *)
+    assert (HHprop : exists b' fm1 fm2 HF', HR r14 = Some (Ptr (b, $ 0)) /\ HR r30 = Some (Ptr (b', $ 0))
+                                       /\ HF = (b', fm1, fm2) :: HF').
+    {
+      clear - H13 H2.
+      eapply HProgSafe_progress_and_preservation in H2; eauto; simpljoin1.
+      inv H; CElim C.
+      inv H8; CElim C.
+      inv H9; CElim C.
+      simpljoin1; eauto.
+      do 4 eexists.
+      repeat (split; eauto).
+      inv H8; CElim C.
+      inv H8.
+      contradiction H4; unfold indom; eauto.
+    }
+    destruct HHprop as (b' & fm1 & fm2 & HF' & HHR_sp & HHR_fp & HHF); subst.    
+    inv H24.
+    assert (b0 = b).
+    {
+      clear - HHR_sp H23 H6.
+      inv H6.
+      inv H13.
+      simpljoin1.
+      specialize (H r14); simpljoin1.
+      rewrite H23 in H; inv H; eauto.
+      rewrite HHR_sp in H5; inv H5; eauto.
+    }
+    subst b0.
+    
+    exists (Mfree Mc b) (Mfree M b).
+    eexists.
+    exists (5%nat, 6%nat).
+
+    split.
+    rewrite Mfree_merge_sep.
+    rewrite Mfree_merge_sep_fresh_right; eauto.
+
+    split.
+    eapply Mfree_left_disjoint_stable; eauto.
+
+    split.
+    eapply Mfree_both_sides_disjoint_stable with (b := b) in H5; eauto.
+    rewrite Mfree_merge_sep_fresh_right in H5; eauto.
+
+    split.
+    {
+      left.
+      econstructor.
+      eapply HNTrans; eauto.
+      econstructor; eauto.
+      eapply fetch_window_LH; eauto.
+      inv H6.
+      inv H26; eauto.
+    }
+
+    split; eauto.
+    {
+      inv H6.
+      inv H24; simpljoin1.
+      rewrite H11 in H1; inv H1.
+      rewrite H12 in H6; inv H6.
+      unfold win_masked in H15.
+      destruct (((($ 1) <<ᵢ (post_cwp x)) &ᵢ (($ 1) <<ᵢ x0)) !=ᵢ ($ 0)) eqn:Heqe; tryfalse.
+      unfold post_cwp in Heqe.
+
+      lets Hin : H10.
+      eapply post_valid_head_two with (x0 := x0) in Hin; eauto.
+      Focus 2.
+      clear - Heqe H10 H14.
+      intro; subst. 
+      destruct (classic (((($ 1) <<ᵢ ((x +ᵢ ($ 1)) modu N)) &ᵢ (($ 1) <<ᵢ ((x +ᵢ ($ 1)) modu N))) = $ 0)).
+      rewrite H in Heqe.
+      unfolds Int.eq.
+      rewrite Int_unsigned_0 in Heqe; eauto.
+      destruct (zeq 0 0); simpls; tryfalse.
+      eapply and_zero_not_eq in H; eauto; tryfalse.
+      eapply negb_false_iff in Heqe.
+      eapply int_eq_true_eq in Heqe; tryfalse.
+      eapply range_1_6_lenF_ge_2 in Hin; eauto.
+      rewrite <- H16 in Hin.
+      assert (exists fm1' fm2' F'', F' = fm1' :: fm2' :: F'').
+      {
+        destruct F'; simpls; tryfalse; try omega.
+        destruct F'; simpls; tryfalse; try omega.
+        eauto.
+      }
+      destruct H1 as (fm1' & fm2' & F'' & HLF''); subst.
+      simpl in H9.
+      inv H9.
+      assert (b'0 = b').
+      {
+        inv H25; subst; eauto.
+      }
+      subst b'0.
+      assert (Hblock_neq : b <> b').
+      {
+        clear - H22 H25 H20. 
+        intro; subst.
+        admit.
+      }
+      assert (Hblock_neq_t : b' <> t).
+      {
+        admit.
+      }
+
+      assert (HMk_b_none : forall ofs, Mk (b, ofs) = None).
+      {
+        clear - H22 H20 H25; intros.
+        specialize (H22 (b, ofs)); simpljoin1.
+        destruct (classic (indom (b, ofs) Mk)); unfold indom in *; simpljoin1; eauto.
+        eapply indom_stk_ofs_in_restrict_range with (ofs' := ofs) in H25; eauto.
+        2 : unfold indom; eauto.
+        Focus 2.
+        destruct (Mk (b, ofs)) eqn:Heqe; eauto.
+        contradiction H1; eauto. 
+        assert (DomCtx (b, ofs) t b).
+        {
+          unfold DomCtx.
+          destruct (Z.eq_dec t b); eauto; tryfalse.
+          destruct (Z.eq_dec b b); subst; tryfalse; eauto.
+        }
+        eapply H in H2; simpljoin1.
+        unfold disjoint in *.
+        specialize (H20 (b, ofs)).
+        rewrite H2, H1 in H20; tryfalse.
+      }
+      
+      inv H25.
+
+      econstructor.
+      { 
+        instantiate
+          (2 := fun l : Address => match l with
+                                 | (b'0, o'0) => if Z.eq_dec b'0 b' then
+                                                    (set_Mframe' b' $ 0 fm1'0 ⊎ set_Mframe' b' $ 32 fm2'0) (b'0, o'0)
+                                                else
+                                                  if Z.eq_dec b'0 t then
+                                                    Mctx (b'0, o'0)
+                                                  else
+                                                    None
+                                 end).
+        instantiate (1 := Mfree M' b).
+        split. 
+        { 
+          unfold Mfree, disjoint.
+          eapply FunctionalExtensionality.functional_extensionality; intros.
+          destruct x2; simpl. 
+          destruct (Z.eq_dec b z); subst; tryfalse.
+ 
+          unfold merge.
+          destruct (Z.eq_dec z b'); tryfalse; eauto.
+          specialize (H22 (z, i)); simpljoin1.
+          destruct (Z.eq_dec z t); tryfalse.
+          destruct (Z.eq_dec z z); tryfalse; eauto.
+
+          unfold merge. 
+          destruct (Mctx (z, i)) eqn:Heqe'; destruct (Z.eq_dec z b'); subst; tryfalse; eauto.
+          {
+            specialize (H22 (b', i)).
+            simpljoin1.
+            assert (indom (b', i) Mctx).
+            unfold indom; eauto.
+
+            eapply H9 in H15.
+            clear - n H15 Hblock_neq_t.
+            unfolds DomCtx.
+            destruct (Z.eq_dec t b'); tryfalse; eauto.
+            destruct (Z.eq_dec b b'); tryfalse.
+          }
+          {
+            destruct (Z.eq_dec z t); subst; eauto.
+            destruct (Z.eq_dec b z); subst; tryfalse.
+            assert (indom (z, i) Mctx).
+            unfold indom; eauto.
+            specialize (H22 (z, i)); simpljoin1.
+            eapply H17 in H1.
+            unfold DomCtx in H1.
+            destruct (Z.eq_dec t z); tryfalse.
+            destruct (Z.eq_dec b z); tryfalse.
+          }
+          {
+            destruct (Z.eq_dec b b'); eauto; tryfalse.
+          }
+          {
+            destruct (set_Mframe' b' $ 0 fm1'0 (z, i)) eqn:Heqe1; tryfalse.
+            eapply set_Mframe'_get_some_address_0 in Heqe1; eauto; simpljoin1; tryfalse.
+            destruct (set_Mframe' b' $ 32 fm2'0 (z, i)) eqn:Heqe2; tryfalse.
+            eapply set_Mframe'_get_some_address_32 in Heqe2; eauto; simpljoin1; tryfalse.
+            destruct (Z.eq_dec z t); subst; eauto; tryfalse.
+            destruct (Z.eq_dec b t); subst; eauto; tryfalse.
+            destruct (Z.eq_dec b z); subst; eauto; tryfalse.
+          }
+        }
+        {
+          eapply Mfree_right_disjoint_stable; eauto.
+          unfold disjoint; intros.
+          destruct x2.
+          destruct (Z.eq_dec z b'); subst; eauto.
+
+          destruct ((set_Mframe' b' $ 0 fm1'0 ⊎ set_Mframe' b' $ 32 fm2'0) (b', i)) eqn:Heqe1;
+            destruct (M' (b', i)) eqn:Heqe2; eauto; tryfalse.
+          clear - H31 Heqe1 Heqe2.
+          unfold disjoint in *.
+          specialize (H31 (b', i)).
+          rewrite Heqe1, Heqe2 in H31; tryfalse.
+ 
+          destruct (Z.eq_dec z t); destruct (M' (z, i)) eqn:Heqe1;
+            destruct (Mctx (z, i)) eqn:Heqe2; subst; tryfalse; eauto.
+          clear - H20 Heqe1 Heqe2.
+          eapply disj_merge_disj_sep in H20; simpljoin1.
+          eapply disj_merge_disj_sep in H; simpljoin1.
+          unfold disjoint in H0.
+          specialize (H0 (t, i)).
+          unfolds Tid.
+          rewrite Heqe2, Heqe1 in H0; tryfalse.
+        }
+      }
+    }
+
+    split; eauto.
+    econstructor; intros; econstructor; eauto; unfold Nat.lt; try omega.
+    
+    >>>>>>>>>>>>>>>>>>>>>>>>
     admit.
   }
   {
