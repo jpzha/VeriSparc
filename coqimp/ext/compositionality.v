@@ -259,6 +259,21 @@ Proof.
   eapply in_range_0_7_num in H0; subst; auto_solve.
 Qed.
 
+Lemma valid_rotate_sub_1 :
+  forall x0 x,
+    $ 0 <=ᵤᵢ x <=ᵤᵢ $ 7 -> $ 0 <=ᵤᵢ x0 <=ᵤᵢ $ 7 -> x <> x0 -> post_cwp x <> x0 ->
+    (2 * Z.to_nat (Int.unsigned (((N +ᵢ x0) -ᵢ x) -ᵢ ($ 1)) modu N) - 2)%nat =
+    (2 * Z.to_nat (Int.unsigned (((N +ᵢ x0) -ᵢ ((x +ᵢ ($ 1)) modu N)) -ᵢ ($ 1)) modu N))%nat.
+Proof.
+  intros. 
+  eapply in_range_0_7_num in H.
+  unfolds post_cwp.
+  repeat (destruct H; subst; [eapply in_range_0_7_num in H0; subst; auto_solve | idtac]);
+    try solve [contradiction H2; eauto].
+  eapply in_range_0_7_num in H0; subst; auto_solve.
+  contradiction H2; eauto.
+Qed.
+
 Lemma post_valid_head_two :
   forall x x0,
     $ 0 <=ᵤᵢ x <=ᵤᵢ $ 7 -> $ 0 <=ᵤᵢ x0 <=ᵤᵢ $ 7 -> x <> x0 ->
@@ -392,6 +407,21 @@ Proof.
   simpljoin1.
   unfold merge in *.
   destruct (M l); eauto.
+Qed.
+
+Lemma indom_merge_indom_one_of :
+  forall A B (M m : A -> option B) l v,
+    (M ⊎ m) l = Some v -> M ⊥ m ->
+    M l = Some v \/ m l = Some v.
+Proof.
+  intros.
+  unfold disjoint, merge in *.
+  destruct (M l) eqn:Heqe; tryfalse.
+  inv H.
+  eauto.
+  specialize (H0 l).
+  rewrite Heqe in H0.
+  eauto.
 Qed.
 
 Lemma get_R_set_same_stable :
@@ -1781,6 +1811,20 @@ Proof.
   destruct (Z.eq_dec b z); subst; eauto.
 Qed.
 
+Lemma Mfresh_Mfree_stable :
+  forall M b,
+    Mfresh b M -> Mfree M b = M.
+Proof.
+  intros.
+  unfolds Mfresh, Mfree.
+  eapply FunctionalExtensionality.functional_extensionality; intro; subst.
+  destruct x. 
+  destruct (Z.eq_dec b z); subst; eauto.
+  destruct (M (z, i)) eqn:Heqe; eauto.
+  specialize (H i).
+  contradiction H; unfold indom; eauto.
+Qed.
+
 (** Auxiliary Lemmas about state Relation *)
 Lemma stkRel_sep :
   forall n b F1 F2 M HF,
@@ -2222,6 +2266,50 @@ Proof.
     {
       eapply indom_merge_still2; eauto.
     }
+  }
+Qed.
+
+Fixpoint get_block_HF (HF : list HFrame) :=
+  match HF with
+  | (b, _, _) :: HF' => b :: get_block_HF HF'
+  | _ => nil
+  end.
+
+Lemma indom_stkRel_HF_b_0_in :
+  forall HF b F M b',
+    stkRel (b, F, M) HF -> In b' (get_block_HF HF) ->
+    indom (b', $ 0) M.
+Proof.
+  induction HF; intros; simpls; tryfalse.
+  destruct a.
+  destruct p.
+  simpl in H0.
+  destruct H0; subst.
+  { 
+    inv H.
+    
+    eapply indom_merge_still; eauto.
+    eapply indom_merge_still; eauto.
+    unfold set_Mframe', set_Mframe.
+    destruct f0; simpl.
+    unfold indom.
+    do 7 (rewrite MemMap.gso; [idtac | try intro; tryfalse]).
+    rewrite MemMap.gss; eauto.
+ 
+    eapply indom_merge_still; eauto.
+    eapply indom_merge_still; eauto.
+    unfold set_Mframe', set_Mframe.
+    destruct fm1'; simpl.
+    unfold indom.
+    do 7 (rewrite MemMap.gso; [idtac | try intro; tryfalse]).
+    rewrite MemMap.gss; eauto.
+  }
+  {
+    inv H.
+    eapply indom_merge_still2.
+    eapply IHHF; eauto.
+    eapply indom_merge_still2.
+    eapply IHHF; eauto.
   }
 Qed.
 
@@ -4996,7 +5084,7 @@ Proof.
       eapply negb_false_iff in Heqe.
       eapply int_eq_true_eq in Heqe; tryfalse.
       eapply range_1_6_lenF_ge_2 in Hin; eauto.
-      rewrite <- H16 in Hin.
+      rewrite <- H17 in Hin.
       assert (exists fm1' fm2' F'', F' = fm1' :: fm2' :: F'').
       {
         destruct F'; simpls; tryfalse; try omega.
@@ -5015,11 +5103,39 @@ Proof.
       {
         clear - H22 H25 H20. 
         intro; subst.
-        admit.
+        eapply indom_stkRel_HF_b_0_in with (b' := b') in H25; simpl; eauto.
+        specialize (H22 (b', $ 0)); simpljoin1.
+
+        assert (indom (b', $ 0) Mctx).
+        {
+          eapply H.
+          unfold DomCtx.
+          destruct (Z.eq_dec t b'); subst; tryfalse.
+          destruct (Z.eq_dec b' b'); subst; tryfalse.
+          split; eauto.
+        }
+        unfold indom in *; simpljoin1.
+        unfold disjoint in *.
+        specialize (H20 (b', $ 0)).
+        rewrite H1, H2 in H20; tryfalse.
       }
       assert (Hblock_neq_t : b' <> t).
       {
-        admit.
+        intro; subst.
+        eapply indom_stkRel_HF_b_0_in with (b' := t) in H25; simpl; eauto.
+        clear - H20 H25 H22.
+        specialize (H22 (t, $ 0)).
+        simpljoin1.
+
+        assert (indom (t, $ 0) Mctx).
+        {
+          eapply H.
+          unfold DomCtx.
+          destruct (Z.eq_dec t t); subst; tryfalse; eauto.
+        }
+        unfold indom, disjoint in *; simpljoin1.
+        specialize (H20 (t, $ 0)).
+        unfolds Tid; rewrite H1, H2 in H20; tryfalse.
       }
 
       assert (HMk_b_none : forall ofs, Mk (b, ofs) = None).
@@ -5092,7 +5208,7 @@ Proof.
             assert (indom (z, i) Mctx).
             unfold indom; eauto.
             specialize (H22 (z, i)); simpljoin1.
-            eapply H17 in H1.
+            eapply H18 in H1.
             unfold DomCtx in H1.
             destruct (Z.eq_dec t z); tryfalse.
             destruct (Z.eq_dec b z); tryfalse.
@@ -5134,13 +5250,140 @@ Proof.
           rewrite Heqe2, Heqe1 in H0; tryfalse.
         }
       }
+      {
+        intros.
+        split; eauto.
+
+        split; intros.
+        {
+          unfold indom in H1; simpljoin1.
+          destruct l; simpls.
+          destruct (Z.eq_dec z b'); subst; tryfalse.
+          destruct (Z.eq_dec t b'); subst; tryfalse.
+          destruct (Z.eq_dec b' b'); subst; tryfalse.
+          eapply indom_merge_indom_one_of in H1; eauto; simpljoin1.
+          destruct H1.
+          eapply set_Mframe'_get_some_address_0 in H1; eauto.
+          simpljoin1.
+          split; eauto.
+          split; eauto.
+          eapply int_ltu_trans with (m := $ 32); eauto.
+          eapply set_Mframe'_get_some_address_32 in H1; eauto.
+          simpljoin1.
+          split; eauto.
+          eapply int_leu_trans with (m := $ 32); eauto.
+
+          destruct (Z.eq_dec z t); subst; tryfalse; eauto.
+          specialize (H22 (t, i)); simpljoin1.
+          assert (indom (t, i) Mctx).
+          unfold indom; eauto.
+          eapply H15 in H21; eauto.
+          unfold DomCtx in H21.
+          destruct (Z.eq_dec t t); tryfalse; eauto.
+        }
+        {
+          unfold indom; destruct l.
+          destruct (Z.eq_dec z b'); subst; eauto.
+
+          unfold DomCtx in H1.
+          destruct (Z.eq_dec t b'); subst; tryfalse.
+          destruct (Z.eq_dec b' b'); subst; tryfalse.
+          simpljoin1.
+          assert (Hrange : $ 0 <=ᵤᵢ i <ᵤᵢ $ 64); eauto.
+          rewrite H1, H6; eauto.
+          eapply range_split with (c := $ 32) in Hrange; eauto.
+          destruct Hrange as [Hrange | Hrange].
+          eapply range_legal_set_Mframe_ok0 with (b := b') (fm := fm1'0) in Hrange; eauto.
+          simpljoin1.
+          exists x2.
+          eapply get_vl_merge_still; eauto.
+          eapply range_legal_set_Mframe_ok32 with (b := b') (fm := fm2'0) in Hrange; eauto.
+          simpljoin1.
+          exists x2.
+          rewrite disj_merge_reverse_eq; eauto.
+          eapply get_vl_merge_still; eauto.
+
+          destruct (Z.eq_dec z t); subst; tryfalse.
+          unfold DomCtx in H1.
+          destruct (Z.eq_dec t t); tryfalse; subst.
+          assert (indom (t, i) Mctx).
+          {
+            specialize (H22 (t, i)); simpljoin1.
+            eapply H18; unfold DomCtx.
+            destruct (Z.eq_dec t t); tryfalse; eauto.
+          }
+          unfold indom in H6; simpljoin1; eauto.
+
+          clear - H1 n n0.
+          unfolds DomCtx.
+          destruct (Z.eq_dec t z); subst; tryfalse.
+          destruct (Z.eq_dec b' z); subst; tryfalse.
+        }
+      }
+      {
+        instantiate (1 := F'').
+        econstructor. 
+        exists x0 (x1 ++ [fmo; fml]).
+        split.
+        simpl; rewrite get_R_set_R_same_reg; eauto.
+        intro; tryfalse.
+        eapply indom_setwin_still; eauto.
+        clear - H26.
+        inv H26; simpljoin1.
+        unfold indom; eauto. 
+
+        split.
+        eapply get_R_set_neq_stable; eauto.
+        2 : intro; tryfalse.
+        eapply get_R_spreg_set_window_still; eauto.
+
+        split.
+        eapply negb_false_iff in Heqe.
+        unfold post_cwp.
+        eapply int_eq_true_eq in Heqe; eauto.
+        eapply and_zero_not_eq in Heqe; eauto.
+        eapply in_range_0_7_post_cwp_still; eauto.
+
+        split; eauto.
+        rewrite app_assoc_reverse; eauto.
+
+        split.
+        eapply in_range_0_7_post_cwp_still; eauto.
+
+        split; eauto.
+
+        split; eauto.
+        unfold post_cwp.
+        rewrite <- valid_rotate_sub_1; eauto.
+        clear - H17; simpls.
+        rewrite <- H17; simpl.
+        rewrite Nat.sub_0_r; eauto.
+        eapply negb_false_iff in Heqe.
+        eapply int_eq_true_eq in Heqe; eauto.
+        eapply and_zero_not_eq in Heqe; eauto.
+        eapply in_range_0_7_post_cwp_still; eauto.
+
+        rewrite app_length; simpl; eauto.
+        simpl in H19.
+        rewrite Nat.add_comm; eauto.
+      }
+      {
+        instantiate (1 := b'0).
+        rewrite Mfresh_Mfree_stable; eauto.
+        clear - HMk_b_none.
+        unfold Mfresh; intros.
+        unfold indom; intro; subst; simpljoin1.
+        specialize (HMk_b_none o).
+        eapply merge_none_sep_none in HMk_b_none; simpljoin1; tryfalse.
+      }
+      {
+        simpl.
+        eapply Rinj_set_cwp_stable, Rinj_set_window_HL; eauto.
+      }
     }
 
     split; eauto.
     econstructor; intros; econstructor; eauto; unfold Nat.lt; try omega.
-    
-    >>>>>>>>>>>>>>>>>>>>>>>>
-    admit.
   }
   {
     (* Prestore : trap *)

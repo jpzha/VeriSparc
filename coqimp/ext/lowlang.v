@@ -37,12 +37,12 @@ Inductive opsave : RegName -> Val -> RegFile * FrameList -> RegFile * FrameList 
     R'' = set_Rs R' [(Rpsr cwp, W k'); (rr, v')] ->
     opsave rr v' (R, F) (R'', fml :: fmi :: F').
 
-Inductive oprestore : RegName -> Val -> RegFile * FrameList -> RegFile * FrameList -> Prop :=
-| Oprestore : forall R R' R'' F F' k k' v v' rr fmo fml fmi fm1 fm2,
+Inductive oprestore' : RegFile * FrameList -> RegFile * FrameList -> Prop :=
+| Oprestore : forall R R' R'' F F' k k' v fmo fml fmi fm1 fm2,
     get_R R cwp = Some (W k) -> get_R R Rwim = Some (W v) -> k' = post_cwp k -> win_masked k' v = false ->
     fetch R = Some [fmo; fml; fmi] -> F = fm1 :: fm2 :: F' -> R' = set_window R fmi fm1 fm2 ->
-    R'' = set_Rs R' [(Rpsr cwp, W k'); (rr, v')] ->
-    oprestore rr v' (R, F) (R'', F' ++ [fmo; fml]).
+    R'' = set_Rs R' [(Rpsr cwp, W k')] ->
+    oprestore' (R, F) (R'', F' ++ [fmo; fml]).
 
 Fixpoint set_Ms M (vl : list (Address * Val)) :=
   match vl with
@@ -134,7 +134,7 @@ Inductive LH__ : XCodeHeap -> State * Word * Word -> msg -> State * Word * Word 
 
 | LPrestore_no_trap : forall M M' (R R' : RegFile) F F' D pc npc b C,
     C pc = Some Prestore ->
-    Mfree M b = M' -> R r14 = Some (Ptr (b, $ 0)) -> oprestore r0 (W ($ 0)) (R, F) (R', F') ->
+    Mfree M b = M' -> R r14 = Some (Ptr (b, $ 0)) -> oprestore' (R, F) (R', F') ->
     LH__ C ((M, (R, F), D), pc, npc) tau ((M', (R', F'), D), npc, npc +ᵢ ($ 4))
 
 | LPrestore_trap : forall M M' R R' F F' D pc npc C k v,
