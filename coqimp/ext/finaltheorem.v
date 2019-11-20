@@ -21,6 +21,7 @@ Require Import refinement.
 Require Import rellogic.
 Require Import lemmas_comp.
 Require Import compositionality.
+Require Import rellogic_soundness.
 
 Set Asymmetric Patterns.
 
@@ -306,10 +307,19 @@ Proof.
   intros.
   inv H; simpljoin1.
   unfold simImpsPrimSet; intros.
+  lets Hhprim : H1.
   eapply H0 with (L := L) in H1; eauto.
   simpljoin1.
-  renames x to Spec_i, x0 to Fp, x1 to Fq, x2 to I.
-Admitted.
+  renames x to Spec_i, x0 to Fp, x1 to Fq, x2 to I, x3 to vl.
+
+  exists vl Fp Fq.
+  repeat (split; eauto).
+  eapply wf_insSeq_rel_soundness in H5; eauto.
+  eapply wf_cdhp_rel_sound in H; eauto.
+  unfolds simImpPrim; intros.
+  exists (w, (1 + get_insSeqLen I)%nat).
+  eapply function_correctness; eauto.
+Qed.
 
 (** Simulation Implies Contexttual Refinement *)
 Lemma sim_imp_ctx_refinement :
