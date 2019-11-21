@@ -196,6 +196,20 @@ Inductive rel_wf_ins : relasrt -> ins -> relasrt -> Prop :=
 
 Notation " '⊩' '{{' P '}}' i '{{' Q '}}' " := (rel_wf_ins P i Q) (at level 50).
 
+Fixpoint GoodFrm (Pr : relasrt) :=
+  match Pr with
+  | RAreg hrn v => False
+  | RAcur t K => False
+  | RAprim A => False
+  | RATimeReduce Pr' => GoodFrm Pr'
+  | RAconj P1 P2 => GoodFrm P1 /\ GoodFrm P2
+  | RAdisj P1 P2 => GoodFrm P1 /\ GoodFrm P2
+  | RAstar P1 P2 => GoodFrm P1 /\ GoodFrm P2
+  | RAforall ty P => forall x : ty, GoodFrm (P x)
+  | RAexists ty P => exists x : ty, GoodFrm (P x)
+  | _ => True
+  end.
+
 (** well-formed instruction sequence *)
 Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop :=
 | rel_seq_rule : forall f i I P P' Q Spec,
@@ -206,7 +220,7 @@ Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop 
     Spec f' = Some (Fp, Fq) ->
     (P ⤈) ⇒ (RAlst (r15 |=> v)) ⋆ P1 ->
     ⊩ {{ ((RAlst (r15 |=> W f)) ⋆ P1) ⤈ }} i {{ P2 }} ->
-    P2 ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ P'-> Fq L ⇒ RAlst ((Or r15) ==ₑ W f) ->
+    P2 ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ P'-> Fq L ⇒ RAlst ((Or r15) ==ₑ W f) -> GoodFrm Pr -> 
     rel_wf_seq Spec P' (f +ᵢ ($ 8)) I Q ->
     rel_wf_seq Spec P f (call f' # i # I) Q
 
@@ -217,14 +231,14 @@ Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop 
 | rel_J_rule : forall P P1 P' Q (r1 : GenReg) f f' aexp Spec Fp Fq L v Pr i,
     (P ⤈) ⇒ RAlst (aexp ==ₓ W f') -> Spec f' = Some (Fp, Fq) ->
     (P ⤈) ⇒ RAlst (r1 |=> v) ⋆ P1 -> ⊩ {{ (RAlst (r1 |=> W f) ⋆ P1) ⤈ }} i {{ P' }} ->
-    P' ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ Q ->
+    P' ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ Q -> GoodFrm Pr ->
     rel_wf_seq Spec P f (consJ aexp r1 i) Q
 
 | rel_Be_rule : forall P P' Q bv Spec L f f' Pr i I Fp Fq,
     Spec f' = Some (Fp, Fq) ->
     P ⇒ RAlst (z |=> W bv) ⋆ RAtrue -> ⊩ {{ P ⤈⤈ }} i {{ P' }} ->
     (bv =ᵢ ($ 0) = true -> rel_wf_seq Spec P' (f +ᵢ ($ 8)) I Q) ->
-    ((bv =ᵢ ($ 0) = false) -> ((P' ⇒ Fp L ⋆ Pr) /\ (Fq L ⋆ Pr ⇒ Q))) ->
+    ((bv =ᵢ ($ 0) = false) -> ((P' ⇒ Fp L ⋆ Pr) /\ (Fq L ⋆ Pr ⇒ Q))) -> GoodFrm Pr ->
     rel_wf_seq Spec P f (be f' # i # I) Q
 
 | rel_ABSCSQ_rule : forall P P' Q' Q f I Spec,
@@ -383,7 +397,7 @@ CoInductive rel_safety_insSeq :
                 pc2 = f /\ npc2 = f +ᵢ ($ 4) /\
                 Spec f = Some (Fp, Fq) /\
                 ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
-                (S2, HS, A, w) ||= (Fp L) ⋆ r /\
+                (S2, HS, A, w) ||= (Fp L) ⋆ r /\ GoodFrm r /\ 
                 (forall S' HS' A' w', (S', HS', A', w') ||= (Fq L) ⋆ r ->
                                  rel_safety_insSeq Spec idx1 (C, S', (pc +ᵢ ($ 8)), (pc +ᵢ ($ 12))) (A', HS') Q) /\
                 (forall S' HS' A' w', (S', HS', A', w') ||= Fq L ->
@@ -409,7 +423,7 @@ CoInductive rel_safety_insSeq :
               exists Fp Fq L r idx1 w A' HS',
                 ((idx1 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
                 Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', w) ||= (Fp L) ⋆ r /\
-                (Fq L) ⋆ r ⇒ Q /\ npc2 = pc2 +ᵢ ($ 4)
+                (Fq L) ⋆ r ⇒ Q /\ GoodFrm r /\ npc2 = pc2 +ᵢ ($ 4)
             )
         )
     ) ->
@@ -435,7 +449,7 @@ CoInductive rel_safety_insSeq :
                   (
                     exists Fp Fq L r,
                       Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', w) ||= (Fp L) ⋆ r /\
-                      (Fq L ⋆ r) ⇒ Q /\ npc2 = pc2 +ᵢ ($ 4)
+                      (Fq L ⋆ r) ⇒ Q /\ GoodFrm r /\  npc2 = pc2 +ᵢ ($ 4)
                   )
                 ) /\
                 ( 

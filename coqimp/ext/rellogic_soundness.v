@@ -56,7 +56,13 @@ Admitted.
 Lemma wf_cdhp_rel_sound : forall Spec C,
     rel_wf_cdhp Spec C -> cdhp_rel_sound Spec C.
 Proof.
-Admitted.
+  intros.
+  unfolds rel_wf_cdhp, cdhp_rel_sound; intros.
+  eapply H with (L := L) in H0; eauto; simpljoin1.
+  exists x.
+  split; eauto.
+  eapply wf_insSeq_rel_soundness; eauto.
+Qed.
 
 Lemma function_correctness :
   forall P Q Spec S HS A w pc I C,
