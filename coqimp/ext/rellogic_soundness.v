@@ -1,4 +1,4 @@
-Require Import Coqlib.               
+Require Import Coqlib.                   
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -19,6 +19,7 @@ Require Import soundness.
 Require Import refinement.
 Require Import rellogic.
 Require Import lemmas_comp.
+Require Import lemmas_comp2.
 
 (** Auxiliary Lemmas *)
 Lemma last_Kq_cons_Q_same :
@@ -45,11 +46,37 @@ Fixpoint get_insSeqLen (I : InsSeq) :=
   | consBe f i I' => (2 + get_insSeqLen I')%nat
   | consBne f i I' => (2 + get_insSeqLen I')%nat
   end.
+
+Lemma LookupXC_hold_legal_com :
+  forall C pc I,
+    LookupXC C pc I ->
+    legal_com (C pc) /\ legal_com (C pc +ᵢ ($ 4)).
+Proof.
+  intros.
+  inv H.
+  {
+    unfold legal_com at 1.
+    rewrite H0; eauto.
+    inv H1; unfold legal_com; try rewrite H; eauto.
+  }
+  {
+    unfold legal_com; rewrite H0, H1; eauto.
+  }
+  {
+    unfold legal_com; rewrite H0, H1; eauto.
+  }
+  {
+    unfold legal_com; rewrite H0, H1; eauto.
+  }
+  {
+    unfold legal_com; rewrite H0, H1; eauto.
+  }
+Qed.
  
 Definition insSeq_rel_sound Spec P f I Q :=
   forall C S HS A w,
     LookupXC C f I -> (S, HS, A, w) ||= P ->
-    rel_safety_insSeq Spec (w, (1 + get_insSeqLen I)%nat) (C, S, f, f +ᵢ ($ 4)) (A, HS) Q.
+    rel_safety_insSeq Spec w (C, S, f, f +ᵢ ($ 4)) (A, HS) Q.
 
 Definition cdhp_rel_sound Spec C :=
   forall f Fp Fq L,
@@ -60,6 +87,23 @@ Lemma wf_insSeq_rel_soundness :
   forall (I : InsSeq) Spec P Q f,
     Spec ⊩ {{ P }} f # I {{ Q }} ->
     insSeq_rel_sound Spec P f I Q.
+Proof.
+Admitted.
+
+Lemma rel_safety_insSeq_frame_property :
+  forall I Spec C pc S1 S2 S HS1 HS2 HS w1 w2 Q Pr A,
+    LookupXC C pc I -> (S2, HS2, A, w2) ||= Pr -> Sta A Pr ->
+    state_union S1 S2 S -> hstate_union HS1 HS2 HS ->
+    rel_safety_insSeq Spec w1 (C, S1, pc, pc +ᵢ ($ 4)) (A, HS1) Q ->
+    rel_safety_insSeq Spec (w1 + w2)%nat (C, S, pc, pc +ᵢ ($ 4)) (A, HS) (Q ⋆ Pr).
+Proof.
+Admitted.
+
+Lemma rel_safety_insSeq_conseq :
+  forall I Spec C pc npc S Q Q' w A HS,
+    LookupXC C pc I ->
+    rel_safety_insSeq Spec w (C, S, pc, npc) (A, HS) Q -> Q ⇒ Q' ->
+    rel_safety_insSeq Spec w (C, S, pc, npc) (A, HS) Q'.
 Proof.
 Admitted.
 
@@ -81,7 +125,7 @@ Fixpoint WFST (Q : relasrt) (Kq : list relasrt) (Spec : Funspec) (C : XCodeHeap)
   | nil => (Q ⇒ RAprim Pdone ⋆ RAtrue)
   | Q' :: Kq' => forall S HS A w, (S, HS, A, w) ||= Q ->
                               exists f I, (getregs S) r15 = Some (W f) /\ LookupXC C (f +ᵢ ($ 8)) I /\ 
-                                   rel_safety_insSeq Spec (w, (1 + get_insSeqLen I)%nat)
+                                   rel_safety_insSeq Spec w
                                                      (C, S, f +ᵢ ($ 8), f +ᵢ ($ 12)) (A, HS) Q' /\
                                    WFST Q' Kq' Spec C
   end.
@@ -162,19 +206,410 @@ CoInductive rel_safety_WFST : Index -> (XCodeHeap * State * Word * Word) -> (pri
     rel_safety_WFST idx (C, S, pc, npc) (A, HS) Q Kq Spec.
 
 Lemma function_correctness_aux' :
-    forall P Q Spec S HS A w pc I C Kq,
-      rel_safety_insSeq Spec (w, (1 + get_insSeqLen I)%nat) (C, S, pc, pc +ᵢ ($ 4)) (A, HS) Q -> 
-      LookupXC C pc I ->
-      (S, HS, A, w) ||= P -> WFST Q Kq Spec C ->
-      rel_safety_WFST (w, (1 + get_insSeqLen I)%nat) (C, S, pc, pc +ᵢ ($ 4)) (A, HS) Q Kq Spec.
+    forall Q Spec S HS A pc I C Kq w,
+      rel_safety_insSeq Spec w (C, S, pc, pc +ᵢ ($ 4)) (A, HS) Q -> 
+      LookupXC C pc I ->  WFST Q Kq Spec C -> cdhp_rel_sound Spec C ->
+      (forall Pr, GoodFrm Pr -> Sta A Pr) ->
+      rel_safety_WFST (w, (1 + length Kq + get_insSeqLen I)%nat) (C, S, pc, pc +ᵢ ($ 4)) (A, HS) Q Kq Spec.
 Proof.
+  cofix Hp; intros.
+  rename H3 into Hwdprim.
+  econstructor; intros; eauto.
+  {
+    eapply LookupXC_hold_legal_com in H0; eauto; simpljoin1; eauto.
+  }
+  {
+    eapply LookupXC_hold_legal_com in H0; eauto; simpljoin1; eauto.
+  }
+  {
+    (* C pc = i \/ C pc = jmpl aexp rd \/ C pc = cbe f *)
+    inv H.
+    destruct H3.
+    {
+      (* C pc = i *)
+      lets Hcom : H.
+      eapply H12 in H; clear H12 H14 H15 H16 H17.
+      simpljoin1.
+      inv H0; CElim C.
+      
+      split.
+      do 3 eexists; eauto.
+
+      intros.
+      assert (pc' = pc +ᵢ ($ 4) /\ npc' = (pc +ᵢ ($ 4)) +ᵢ ($ 4)).
+      {
+        inv H0.
+        inv H14; CElim C.
+        eauto.
+      }
+      eapply H3 in H0; eauto.
+      destruct H0; simpljoin1.
+      left.
+      exists (w, (1 + length Kq + get_insSeqLen I0)%nat).
+      split.
+      unfold LtIndex.
+      eapply lex_ord_right.
+      simpl; unfold Nat.lt.
+      omega.
+      eapply Hp; eauto.
+
+      right.
+      exists x2 (w, (1 + length Kq + get_insSeqLen I0)%nat).
+      split; eauto.
+      eapply Hp; eauto.
+      intros.
+      econstructor; eauto.
+    }
+    destruct H.
+    {
+      (* C pc = jmpl aexp rd *)
+      lets Hcom : H.
+      eapply H15 in H; clear H12 H14 H15 H16 H17.
+      inv H0; CElim C.
+      simpljoin1.
+      split.
+      do 3 eexists; eauto.
+
+      intros.
+      left.
+      exists (w, 2%nat).
+      split; simpl.
+      unfold LtIndex.
+      eapply lex_ord_right; eauto.
+      unfold Nat.lt.
+      omega.
+
+      assert ((C, (x, x1, x2)) = (C, (S', pc', npc'))).
+      {
+        eapply LP_deterministic; eauto.
+        simpl; eauto.
+      }
+      inv H6.
+      assert (pc' = pc +ᵢ ($ 4)).
+      {
+        inv H.
+        inv H15; CElim C; eauto.
+      }
+      subst. 
+
+      eapply H0 with (S1 := S') in H5; eauto. 
+      destruct H5 as (Fp & Fq & L & r & A' & HS' & Hh_exec & HSpec & Hfpre & Hfpost & HGoodFrm & Hw & Hnpc).
+      renames x3 to f', x4 to pc'; subst.
+      simpl in Hfpre.
+      destruct Hfpre as (HS1 & HS2 & S1 & S2 & w1 & w2 & Hhstate_union & Hstate_union & Hw' & HFp & Hr).
+      lets Hnxt_block : H2.
+      unfold cdhp_rel_sound in Hnxt_block.
+      lets Hnxt_block_ver : HSpec. 
+      eapply Hnxt_block with (L := L) in Hnxt_block_ver; eauto.
+      destruct Hnxt_block_ver as (I0 & HlookupI0 & HI0_sound).
+      assert (npc' = f').
+      {
+        inv H3.
+        inv H14; CElim C; eauto.
+      }
+      subst npc'.
+ 
+      econstructor; eauto.
+      {
+        unfold legal_com; rewrite H4; eauto.
+      }
+      {        
+        eapply LookupXC_hold_legal_com in HlookupI0; eauto.
+        simpljoin1; eauto.
+      }
+      {
+        intros.
+        destruct H5.
+        rewrite H4 in H5; inv H5.
+ 
+        split. 
+        do 3 eexists; eauto.
+        intros.
+        assert ((C, (S'0, pc', npc')) = (C, (x0, f', f' +ᵢ ($ 4)))).
+        { 
+          eapply LP_deterministic; eauto.
+          simpl; eauto.
+        }
+        inv H6.
+        clear H5.
+        unfold insSeq_rel_sound in HI0_sound.
+        lets Hrel_safety_insSeq' : HlookupI0.
+        eapply HI0_sound in Hrel_safety_insSeq'; eauto.
+         
+        destruct Hh_exec as [Hh_exec | Hh_exec]; simpljoin1; subst.
+        (* high-level doesn't execute *)
+        left. 
+        exists (Nat.pred w, (1 + length Kq + get_insSeqLen I0)%nat).
+        split.
+        econstructor; eauto.
+        unfold Nat.lt.
+        destruct w; omega.
+
+        eapply Hp; eauto.
+        eapply rel_safety_insSeq_frame_property with (w2 := w2) (Pr := r) in Hrel_safety_insSeq'; eauto.
+        rewrite <- Hw' in Hrel_safety_insSeq'.
+        eapply rel_safety_insSeq_conseq; eauto.
+
+        (* high-level executes *)
+        right.
+        exists HS' (Nat.pred w, (1 + length Kq + get_insSeqLen I0)%nat).
+        assert (A' = Pdone).
+        {
+          clear - Hh_exec.
+          inv Hh_exec; eauto.
+        } 
+        subst A'.
+        split; eauto.
+        eapply rel_safety_insSeq_frame_property with (w2 := w2) (Pr := r) in Hrel_safety_insSeq'; eauto.
+        rewrite <- Hw' in Hrel_safety_insSeq'.
+        eapply Hp; eauto.
+        eapply rel_safety_insSeq_conseq; eauto.
+        intros.
+        econstructor; eauto.
+        econstructor; eauto.
+
+        (* contradiction case *)
+        destruct H5; CElim C.
+      }
+
+      (* contradiction cases *)
+      intros; CElim C.
+      intros; CElim C.
+    }
+    {
+      (* C pc = cbe f *)
+      admit.
+    }
+  }
+  {
+    (* C pc = call f *)
+    lets Hcom : H3.
+    inv H. 
+    eapply H14 in H3; eauto; clear H12 H14 H15 H16 H17; eauto.
+    simpljoin1.
+
+    split.
+    do 6 eexists.
+    split; eauto.
+
+    assert (x1 = pc +ᵢ ($ 4) /\ x2 = f).
+    {
+      inv H.
+      inv H14; CElim C; eauto.
+    }
+    destruct H5; subst x1 x2.
+    inv H0; CElim C.
+
+    intros.
+    assert ((C, (x, pc +ᵢ ($ 4), f')) = (C, (S1, pc1, npc1))).
+    { 
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H8.
+    assert ((C, (S2, pc2, npc2)) = (C, (x0, x3, x4))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H8.
+    clear H5.
+
+    eapply H3 with (S1 := S1) in H0; eauto.
+    destruct H0 as (Fp & Fq & L & r & A' & HS' & H0).
+    simpljoin1.
+    lets Hcdhp_spec : H2.
+    unfold cdhp_rel_sound in Hcdhp_spec.
+    lets Hnxt_block : H8.
+    eapply Hcdhp_spec with (L := L) in Hnxt_block; clear Hcdhp_spec.
+    destruct Hnxt_block as (I' & HlookupI' & HinsSeq_rel_sound).
+    
+    exists (Nat.pred w, (1 + length (Q :: Kq) + get_insSeqLen I')%nat)
+      (w, (1 + length (Q :: Kq) + get_insSeqLen I0)%nat).
+    unfold insSeq_rel_sound in HinsSeq_rel_sound.
+    simpl in H11.
+    destruct H11 as (HS1 & HS2 & S1' & S2' & w1 & w2 & Hhstate_union & Hstate_union & Hw' & Hfp & Hr).
+    lets Hrel_safety_insSeq : Hfp. 
+    eapply HinsSeq_rel_sound in Hrel_safety_insSeq; eauto.
+    clear HinsSeq_rel_sound.
+
+    destruct H10; simpljoin1.
+    (* high-level doesn't execute *)
+    exists A HS' (Fq L ⋆ r).
+    split.
+    left; eauto.
+    split; eauto.
+    econstructor; eauto.
+    unfold Nat.lt.
+    destruct w; omega.
+    split; eauto.
+    unfold LtIndex. 
+    eapply lex_ord_right; eauto.
+    simpl.
+    unfold Nat.lt; omega.
+    eapply rel_safety_insSeq_frame_property with (w2 := w2) (Pr := r) in Hrel_safety_insSeq; eauto.
+    rewrite <- Hw' in Hrel_safety_insSeq.
+    eapply Hp; eauto.
+    unfold WFST.
+    fold WFST.
+    intros.
+    lets Hret : H0.
+    eapply H13 in H0.
+    simpl in Hret.
+    simpljoin1.
+    eapply H14 in H15.
+    exists pc I0.
+    split; eauto.
+    destruct_state x2.
+    destruct_state x3.
+    simpl in H10.
+    simpljoin1.
+    simpls.
+    eapply get_vl_merge_still; eauto.
+    clear - H15.
+    unfolds get_R.
+    destruct (r0 r15) eqn:Heqe; tryfalse.
+    inv H15; eauto.
+
+    (* high-level execute *)
+    assert (A' = Pdone).
+    {
+      inv H0; eauto.
+    }
+    subst A'.
+    exists Pdone HS' (Fq L ⋆ r).
+    split.
+    right; eauto.
+    eapply rel_safety_insSeq_frame_property with (w2 := w2) (Pr := r) in Hrel_safety_insSeq; eauto.
+    rewrite <- Hw' in Hrel_safety_insSeq.
+    eapply Hp; eauto.
+    unfold WFST; fold WFST; intros.
+    lets Hret : H5.
+    simpl in Hret.
+    simpljoin1.
+    eapply H13 in H5; eauto.
+    eapply H14 in H16; eauto.
+    exists pc I0.
+    split; eauto.
+    destruct_state x2.
+    destruct_state x3.
+    simpls; simpljoin1.
+    simpl; eauto.
+    clear - H16.
+    unfolds get_R.
+    destruct (r0 r15) eqn:Heqe; tryfalse.
+    inv H16.
+    eapply get_vl_merge_still; eauto.
+    intros.
+    econstructor; eauto.
+    econstructor; eauto.
+  }
+  {
+    (* C pc = retl *)
+    lets Hcom : H3.
+    inv H.
+    eapply H17 in H3; clear H12 H14 H15 H16 H17.
+    simpljoin1.
+    inv H0; CElim C.
+
+    split.
+    do 6 eexists.
+    split; eauto.
+
+    intros.
+    assert ((C, (x, x1, x2)) = (C, (S1, pc1, npc1))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H7.
+    assert (pc1 = pc +ᵢ ($ 4)).
+    {
+      inv H0.
+      inv H16; CElim C; eauto.
+    }
+    subst pc1.
+    assert ((C, (x0, x3, x4)) = (C, (S2, pc2, npc2))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H7.
+    clear H5.
+
+    eapply H3 with (S1 := S1) in H0; eauto.
+    simpljoin1.
+    destruct Kq as [ | Q' Kq'].
+    {
+      destruct H0; simpljoin1.
+      (* high-level doesn't execute *)
+      exists (w, 1%nat) (w, 2%nat).
+      do 3 eexists.
+      split.
+      left; eauto.
+      split; eauto.
+      unfold LtIndex.
+      eapply lex_ord_right; eauto.
+      split; eauto.
+      unfold LtIndex.
+      eapply lex_ord_right; eauto.
+      split; eauto.
+      left.
+      split; eauto.
+      split.
+      simpl in H1.
+      eapply H1 in H5; eauto.
+      simpljoin1.
+      split.
+      destruct w.
+      unfold LtIndex.
+      eapply lex_ord_right; eauto.
+      econstructor; eauto.
+      unfold Nat.lt; omega.
+      exists x1.
+      split; eauto.
+      clear - H7.
+      destruct_state S2; simpls.
+      unfolds get_R.
+      destruct (r r15) eqn:Heqe; tryfalse.
+      inv H7; eauto.
+
+      (* high-level execute *)
+      exists (w, 1%nat) (w, 2%nat).
+      do 3 eexists.
+      split; eauto.
+      split; eauto.
+      left.
+      split; eauto.
+      assert (x = Pdone).
+      {
+        inv H0; subst; eauto.
+      }
+      subst x.
+      split; eauto.
+      split; eauto.
+      destruct w.
+      unfold LtIndex.
+      eapply lex_ord_right; eauto.
+      econstructor; eauto.
+      unfold Nat.lt; omega.
+      exists x1.
+      split; eauto.
+      clear - H7.
+      unfolds get_R.
+      destruct_state S2; simpls.
+      destruct (r r15) eqn:Heqe; tryfalse.
+      inv H7; eauto.
+    }
+  }*)
 Admitted.
 
 Lemma function_correctness_aux :
   forall P Q Spec S HS A w pc I C Kq,
     insSeq_rel_sound Spec P pc I Q -> LookupXC C pc I ->
     cdhp_rel_sound Spec C -> (S, HS, A, w) ||= P -> WFST Q Kq Spec C ->
-    rel_safety_WFST (w, (1 + get_insSeqLen I)%nat) (C, S, pc, pc +ᵢ ($ 4)) (A, HS) Q Kq Spec.
+    (forall Pr, GoodFrm Pr -> Sta A Pr) ->
+    rel_safety_WFST (w, (1 + length Kq + get_insSeqLen I)%nat) (C, S, pc, pc +ᵢ ($ 4)) (A, HS) Q Kq Spec.
 Proof.
   intros.
   unfolds insSeq_rel_sound.
@@ -243,12 +678,44 @@ Proof.
   }
   {
     (* C pc = retl *)
+    eapply H16 in H; clear H14 H15 H16.
+    simpljoin1.
+    split; eauto.
+    do 6 eexists; eauto.
+
+    intros. 
+    eapply H0 with (S1 := S1) in H2; eauto; simpljoin1.
+    do 6 eexists. 
+    destruct H2; eauto.
+    instantiate (1 := x9).
+    destruct H5; simpljoin1.
+    {
+      left.
+      repeat (split; eauto).
+    }
+    {
+      right.
+      split; eauto.
+      assert ((Nat.pred (length (x10 :: x11)) = length x11)%nat); eauto.
+      rewrite H5; eauto.
+      assert (last x11 x10 = last (x10 :: x11) Q).
+      eapply last_Kq_cons_Q_same; eauto.
+      rewrite <- H7.
+      eapply Hp; eauto.
+    }
   }
+  Unshelve.
+  exact (5%nat, 6%nat).
+Qed.
    
 Theorem function_correctness :
   forall P Q Spec S HS A w pc I C,
     insSeq_rel_sound Spec P pc I Q -> LookupXC C pc I ->
     cdhp_rel_sound Spec C -> (S, HS, A, w) ||= P -> Q ⇒ RAprim Pdone ⋆ RAtrue ->
+    (forall Pr, GoodFrm Pr -> Sta A Pr) ->
     rel_safety 0%nat (w, (1 + get_insSeqLen I)%nat) (C, S, pc, pc +ᵢ ($ 4)) (A, HS) Q.
 Proof.
-Admitted.
+  intros.
+  eapply function_correctness_aux with (Kq := nil) in H; eauto.
+  eapply rel_safety_WFST_impl_rel_safety in H; eauto.
+Qed.

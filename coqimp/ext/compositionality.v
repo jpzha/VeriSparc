@@ -847,8 +847,9 @@ Proof.
       split; eauto.
     } 
     destruct HwdSpec as (Fp & Fq & HSpec_pc & HwdSpec).
-    inv HwdSpec.
+    inv HwdSpec. 
     renames H4 to Hret, H5 to Hprim_exec.
+    destruct Hret as [Hret HGoodPrim].
     specialize (H6 lv). 
     destruct H6 as (num & Pr & L & Hwf_pre & Hwf_post & HSta).
     assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
@@ -4216,7 +4217,7 @@ Proof.
     inv H11.
     rewrite H; eauto.
   }
-  { 
+  {  
     inv H13.
     unfolds simImpsPrimSet.
     lets Hprim : H15.
@@ -4230,6 +4231,7 @@ Proof.
     inv HwdSpec.
     specialize (H5 lv).
     destruct H5 as (num & Pr & L & Hpre & Hpost & HSta).
+    destruct H2 as [H2 Hwdprim].
  
     eapply H with (L := L) in Hprim; eauto.
     simpljoin1.

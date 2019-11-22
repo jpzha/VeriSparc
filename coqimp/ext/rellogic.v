@@ -311,8 +311,9 @@ Inductive Sta : primcom -> relasrt -> Prop :=
 Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
 | consWdSpec : forall Fp Fq (hprim : ap),
     (
-      forall lv hs hs' (f : Word), hprim lv hs hs' -> (getHR hs' r15 = Some (W f)) ->
-                                get_Hs_pcont hs' = (f +ᵢ ($ 8), f +ᵢ ($ 12))
+      (forall lv hs hs' (f : Word), hprim lv hs hs' -> (getHR hs' r15 = Some (W f)) ->
+                               get_Hs_pcont hs' = (f +ᵢ ($ 8), f +ᵢ ($ 12)))
+      /\ (forall Pr lv, GoodFrm Pr -> Sta (Pm hprim lv) Pr)  
     ) ->
     (
       forall L, exists vl, Fp L ⇒ RAprim (Pm hprim vl) ⋆ RAtrue /\ Fq L ⇒ RAprim Pdone ⋆ RAtrue
@@ -351,7 +352,143 @@ Definition rel_ins_sound P Q i :=
   forall s sh A w,
     (s, sh, A, w) ||= P -> (exists s', (Q__ s (cntrans i) s') /\ (s', sh, A, w) ||= Q).
 
-(** soundness of instruction sequence rule *) 
+(** soundness of instruction sequence rule *)
+CoInductive rel_safety_insSeq :
+  Funspec -> nat -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
+| Rsafety_insSeq : forall C (S : State) (pc npc : Word) A (HS : HState) Q Spec w,
+    (* i_seq *)
+    (
+      forall i, 
+        C pc = Some (c (cntrans i)) ->
+        (
+          (* progress *)
+          exists S' pc' npc',
+            LP__ (C, (S, pc, npc)) tau (C, (S', pc', npc'))
+        ) /\
+        (
+          (* preservation *)
+          forall S' pc' npc',
+            LP__ (C, (S, pc, npc)) tau (C, (S', pc', npc')) ->
+            (
+              (
+                rel_safety_insSeq Spec w (C, S', pc', npc') (A, HS) Q 
+              )
+              \/
+              (
+                exists HS', exec_prim (A, HS) (Pdone, HS')
+                       /\ rel_safety_insSeq Spec w (C, S', pc', npc') (Pdone, HS') Q
+              )
+            )
+        )
+    ) ->
+    (* call seq *)
+    (
+      forall f,
+        C pc = Some (c (ccall f)) ->
+        (
+          (* progress *)
+          exists S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+        ) /\
+        (
+          (* preservation *)
+          forall S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+            (
+              exists Fp Fq L r A' HS',
+                pc2 = f /\ npc2 = f +ᵢ ($ 4) /\
+                Spec f = Some (Fp, Fq) /\ (w > 0)%nat /\
+                ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+                (S2, HS', A', Nat.pred w) ||= (Fp L) ⋆ r /\ GoodFrm r /\ 
+                (forall S' HS' A' w', (S', HS', A', w') ||= (Fq L) ⋆ r ->
+                                 rel_safety_insSeq Spec w' (C, S', (pc +ᵢ ($ 8)), (pc +ᵢ ($ 12))) (A', HS') Q) /\
+                (forall S' HS' A' w', (S', HS', A', w') ||= Fq L ->
+                                 get_R (getregs S') r15 = Some (W pc))
+            )
+        )
+    ) ->
+    (* jmpl *)
+    (
+      forall aexp rd,
+        C pc = Some (c (cjumpl aexp rd)) ->
+        (
+          (* progress *)
+          exists S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+        ) /\
+        (
+          forall S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+            (
+              exists Fp Fq L r A' HS',
+                ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+                Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', Nat.pred w) ||= (Fp L) ⋆ r /\
+                (Fq L) ⋆ r ⇒ Q /\ GoodFrm r /\ (w > 0)%nat /\ npc2 = pc2 +ᵢ ($ 4)
+            )
+        )
+    ) ->
+    (* be f *)
+    (
+      forall f,
+        C pc = Some (c (cbe f)) ->
+        (
+          exists S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+        ) /\ 
+        (
+          forall S1 S2 pc1 npc1 pc2 npc2,
+            LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+            LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+            (
+              exists v A' HS',
+                ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+                get_R (getregs S) z = Some (W v) /\
+                (
+                  v <> ($ 0) ->
+                  (
+                    exists Fp Fq L r,
+                      Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', Nat.pred w) ||= (Fp L) ⋆ r /\
+                      (Fq L ⋆ r) ⇒ Q /\ GoodFrm r /\ (w > 0)%nat /\ npc2 = pc2 +ᵢ ($ 4)
+                  )
+                ) /\
+                ( 
+                  v = ($ 0) ->
+                  rel_safety_insSeq Spec w (C, S2, pc2, npc2) (A', HS') Q
+                )
+            )
+        )
+    ) ->
+    (* retl *)
+    (
+      C pc = Some (c (cretl)) ->
+      (
+        exists S1 S2 pc1 npc1 pc2 npc2,
+          LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) /\
+          LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2))
+      ) /\
+      (
+        forall S1 S2 pc1 npc1 pc2 npc2,
+          LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
+          LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+          (
+            exists A' HS',
+              ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS')))
+              /\ (S2, HS', A', w) ||= Q /\ 
+              (exists f,
+                  get_R (getregs S2) r15 = Some (W f) /\
+                  pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
+              )
+          )
+      )
+    ) ->
+    rel_safety_insSeq Spec w (C, S, pc, npc) (A, HS) Q.
+
+(*
 CoInductive rel_safety_insSeq :
   Funspec -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
 | Rsafety_insSeq : forall C (S : State) (pc npc : Word) A (HS : HState) Q idx Spec,
@@ -485,7 +622,7 @@ CoInductive rel_safety_insSeq :
           )
       )
     ) ->
-    rel_safety_insSeq Spec idx (C, S, pc, npc) (A, HS) Q.
+    rel_safety_insSeq Spec idx (C, S, pc, npc) (A, HS) Q.*)
 
 Definition legal_com (oc : option Command) :=
   match oc with
