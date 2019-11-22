@@ -1,5 +1,5 @@
 (*+ Final Theorem Proof +*)  
-Require Import Coqlib.               
+Require Import Coqlib.                
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -310,11 +310,14 @@ Proof.
   lets Hhprim : H1.
   eapply H0 with (L := L) in H1; eauto.
   simpljoin1.
-  renames x to Spec_i, x0 to Fp, x1 to Fq, x2 to I, x3 to vl.
-
-  exists vl Fp Fq.
+  renames x to Spec_i, x0 to Fp, x1 to Fq, x2 to I.
+  lets HwdSpec : H3.
+  inv H3.
+  specialize (H6 L); simpljoin1.
+ 
+  exists x Fp Fq. 
   repeat (split; eauto).
-  eapply wf_insSeq_rel_soundness in H5; eauto.
+  eapply wf_insSeq_rel_soundness in H4; eauto.
   eapply wf_cdhp_rel_sound in H; eauto.
   unfolds simImpPrim; intros.
   exists (w, (1 + get_insSeqLen I)%nat).

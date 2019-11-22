@@ -307,12 +307,15 @@ Inductive Sta : primcom -> relasrt -> Prop :=
     ) \/ A = Pdone ->
     Sta A Pr.
 
-(** Well-formed Spec *)  
+(** Well-formed Spec *) 
 Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
 | consWdSpec : forall Fp Fq (hprim : ap),
     (
       forall lv hs hs' (f : Word), hprim lv hs hs' -> (getHR hs' r15 = Some (W f)) ->
                                 get_Hs_pcont hs' = (f +ᵢ ($ 8), f +ᵢ ($ 12))
+    ) ->
+    (
+      forall L, exists vl, Fp L ⇒ RAprim (Pm hprim vl) ⋆ RAtrue /\ Fq L ⇒ RAprim Pdone ⋆ RAtrue
     ) ->
     (
       forall lv, exists num Pr L,
@@ -325,9 +328,9 @@ Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
 Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) :=
   exists Speci, rel_wf_cdhp Speci C /\
            (forall f L hprim, PrimSet f = Some hprim ->
-                              (exists Fp Fq I vl, Spec f = Some (Fp, Fq) /\ LookupXC C f I /\
-                                                  Fp L ⇒ RAprim (Pm hprim vl) ⋆ RAtrue
-                                               /\ wdSpec Fp Fq hprim /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
+                              (exists Fp Fq I, Spec f = Some (Fp, Fq) /\ LookupXC C f I /\
+                                                  (* Fp L ⇒ RAprim (Pm hprim vl) ⋆ RAtrue /\ *)
+                                               wdSpec Fp Fq hprim /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
 
 (*+ Logic Soundness +*)
 

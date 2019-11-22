@@ -837,7 +837,7 @@ Proof.
     eapply HProg_not_clt_exec_prim in Hprim_exec; eauto.
     destruct Hprim_exec as (lv & hprim & Hprimset & HwfHPrimExec & Hnpc).
     unfolds simImpsPrimSet.
-    lets HSpec : Hprimset.
+    lets HSpec : Hprimset. 
     assert (HwdSpec : exists Fp Fq, Spec pc = Some (Fp, Fq) /\ wdSpec Fp Fq hprim).
     { 
       clear - H HSpec.
@@ -848,9 +848,9 @@ Proof.
     } 
     destruct HwdSpec as (Fp & Fq & HSpec_pc & HwdSpec).
     inv HwdSpec.
-    rename H4 into Hret.
-    specialize (H5 lv). 
-    destruct H5 as (num & Pr & L & Hwf_pre & Hwf_post & HSta).
+    renames H4 to Hret, H5 to Hprim_exec.
+    specialize (H6 lv). 
+    destruct H6 as (num & Pr & L & Hwf_pre & Hwf_post & HSta).
     assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
     unfold INV.
     split; eauto. 
@@ -4225,16 +4225,16 @@ Proof.
       eapply H with (L := nil) in Hprim; eauto.
       simpljoin1.
       do 2 eexists; split; eauto.
-    }
+    } 
     destruct HwdSpec as (Fp & Fq & HSpec & HwdSpec).
     inv HwdSpec.
-    specialize (H4 lv).
-    destruct H4 as (num & Pr & L & Hpre & Hpost & HSta).
-
+    specialize (H5 lv).
+    destruct H5 as (num & Pr & L & Hpre & Hpost & HSta).
+ 
     eapply H with (L := L) in Hprim; eauto.
     simpljoin1.
-    rewrite H4 in HSpec; inv HSpec.
-    unfold simImpPrim in H9.
+    rewrite H5 in HSpec; inv HSpec.
+    unfold simImpPrim in H10.
     assert (Hinv : INV (Pm prim lv) num lv (S, (T, t, (h, f, f +ᵢ ($ 4)), M), Pm prim lv, num)).
     {
       unfold INV.
@@ -4245,22 +4245,22 @@ Proof.
       split; eauto.
       econstructor; eauto.
     }
-
+ 
     eapply Hpre in Hinv.
     eapply rel_sep_star_split in Hinv.
     simpljoin1.
-    lets Hrel_safety : H13.
+    lets Hrel_safety : H19.
     assert (x = lv).
-    {
-      lets Hlv : H13.
-      eapply H6 in Hlv.
+    { 
+      lets Hlv : H19.
+      eapply H8 in Hlv.
       simpl in Hlv.
       simpljoin1.
-      inv H23; eauto.
+      inv H24; eauto.
     }
     subst x.
     
-    eapply H9 in Hrel_safety; eauto.
+    eapply H10 in Hrel_safety; eauto.
     destruct Hrel_safety as (i & Hrel_safety).
     inv Hrel_safety.
     assert (Hcom : exists i aexp rd f',
@@ -4272,31 +4272,31 @@ Proof.
     destruct Hcom as (i' & aexp & rd & f' & Hcom).
     destruct Hcom as [Hcom | Hcom].
     {
-      eapply H31 in Hcom.
+      eapply H32 in Hcom.
       simpljoin1.
-      eapply legal_com_safety_property in H20; eauto.
+      eapply legal_com_safety_property in H21; eauto.
       simpljoin1.
-      eapply LP_CdhpInc with (C2 := C) in H20; eauto.
-      rewrite disj_merge_reverse_eq in H20; eauto.
+      eapply LP_CdhpInc with (C2 := C) in H21; eauto.
+      rewrite disj_merge_reverse_eq in H21; eauto.
       eapply disj_sym; eauto.
     }
     destruct Hcom as [Hcom | Hcom].
     {
-      eapply H32 in Hcom.
+      eapply H33 in Hcom.
       simpljoin1.
-      eapply legal_com_safety_property in H20; eauto.
+      eapply legal_com_safety_property in H21; eauto.
       simpljoin1.
-      eapply LP_CdhpInc with (C2 := C) in H20; eauto.
-      rewrite disj_merge_reverse_eq in H20; eauto.
+      eapply LP_CdhpInc with (C2 := C) in H21; eauto.
+      rewrite disj_merge_reverse_eq in H21; eauto.
       eapply disj_sym; eauto.
     }
     {
-      eapply H33 in Hcom; eauto.
+      eapply H34 in Hcom; eauto.
       simpljoin1.
-      eapply legal_com_safety_property in H20; eauto.
+      eapply legal_com_safety_property in H21; eauto.
       simpljoin1.
-      eapply LP_CdhpInc with (C2 := C) in H20; eauto.
-      rewrite disj_merge_reverse_eq in H20; eauto.
+      eapply LP_CdhpInc with (C2 := C) in H21; eauto.
+      rewrite disj_merge_reverse_eq in H21; eauto.
       eapply disj_sym; eauto.
     }
   }
