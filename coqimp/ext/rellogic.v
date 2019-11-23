@@ -336,14 +336,16 @@ Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) :=
 (*+ Logic Soundness +*)
 
 (** index *)
-Definition Index : Type := nat * nat.
+Definition Index : Type := nat * (nat * nat).
 
 (** Index lt *)
-Definition LtIndex := lex_ord Nat.lt Nat.lt.
+Definition LtIndex := lex_ord Nat.lt (lex_ord Nat.lt Nat.lt).
 Notation "i ⩹ j" := (LtIndex i j) (at level 34, right associativity).
 
 Lemma well_founded_LtIndex : well_founded LtIndex.
 Proof.
+  eapply wf_lex_ord.
+  eapply Nat.lt_wf_0.
   eapply wf_lex_ord; eapply Nat.lt_wf_0.
 Qed.
 
@@ -640,7 +642,7 @@ Definition legal_com (oc : option Command) :=
   | _ => False
   end.                 
 
-(** soundness of code heap rule *)
+(** soundness of code heap rule *) 
 CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (primcom * HState) -> relasrt -> Prop :=
 | cons_safety : forall k idx C S pc npc A HS Q, 
     legal_com (C pc) -> legal_com (C npc) ->
@@ -706,7 +708,7 @@ CoInductive rel_safety : nat -> Index -> (XCodeHeap * State * Word * Word) -> (p
             exists idx1 idx2 A' HS' w ,
               ((idx1 ⩹ idx2 /\ idx2 ⩹ idx /\ A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
               (
-                (Nat.eqb k 0 = true /\ (S2, HS', A', w) ||= Q /\ A' = Pdone /\ (0%nat, 0%nat) ⩹ idx1 /\
+                (Nat.eqb k 0 = true /\ (S2, HS', A', w) ||= Q /\ A' = Pdone /\ (0%nat, (0%nat, 0%nat)) ⩹ idx1 /\
                 (exists f', getregs S2 r15 = Some (W f') /\ pc2 = f' +ᵢ ($ 8) /\ npc2 = f' +ᵢ ($ 12))) \/
                 (Nat.eqb k 0 = false /\ rel_safety (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q)
               )

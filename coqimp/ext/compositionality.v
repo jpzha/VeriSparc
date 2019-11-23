@@ -244,7 +244,7 @@ Proof.
        simpljoin1; subst.
        destruct x6.
        do 4 eexists. 
-       exists (Nat.succ (Nat.succ n), n0).
+       exists (Nat.succ (Nat.succ n), p).
        exists x9 0%nat. 
        split.
        econstructor; eauto.
@@ -297,8 +297,8 @@ Proof.
        do 5 eexists.
        split.
        left.  
-       instantiate (3 := (Nat.succ n, n0)).
-       instantiate (3 := (n, n0)).
+       instantiate (3 := (Nat.succ n, p)).
+       instantiate (3 := (n, p)).
        split.
        econstructor; eauto.
        split.
@@ -414,8 +414,8 @@ Proof.
     inv H4.
   }
   Unshelve.
-  exact (4%nat, 4%nat).
-  exact (4%nat, 4%nat).
+  exact (4%nat, (4%nat, 4%nat)).
+  exact (4%nat, (4%nat, 4%nat)).
   exact 4%nat.
 Qed.
 
@@ -425,13 +425,14 @@ Lemma Lsafety_imp_rel_safety_aux :
     exec_prim (A, HS) (Pdone, HS') -> rel_safety k' idx (C, S', pc', npc') (Pdone, HS') Q ->
     A <> Pdone ->
     (Nat.eqb k 0 = true -> C pc = Some (c cretl) -> (n = 0)%nat) ->
-    rel_safety_aux k (idx_sum (0%nat, n) idx) (C, S, pc, npc) (A, HS) Q.
+    rel_safety_aux k (idx_sum (0%nat, (0%nat, n)) idx) (C, S, pc, npc) (A, HS) Q.
 Proof.
-  cofix Hp; intros.
+  cofix Hp; intros. 
   renames H3 to Hstrong.
   inv H.
   {
     destruct idx; simpl.
+    destruct p.
     eapply rel_safety_imp_rel_safety_aux1; eauto.
   }
   {
@@ -454,13 +455,11 @@ Proof.
         clear H4.
         split; eauto.
         intros.
-        exists (idx_sum (0%nat, x2) idx).
+        exists (idx_sum (0%nat, (0%nat, x2)) idx).
         split.
         eapply idx_sum_pre_lt.
-        unfold LtIndex.
-        eapply lex_ord_right.
-        unfold Nat.succ.
-        eapply Nat.lt_succ_diag_r.
+        do 2 eapply lex_ord_right.
+        unfold Nat.lt, Nat.succ; omega.
         assert ((C, (x, x0, x1)) = (C, (S'0, pc'0, npc'0))).
         {
           destruct Hcom' as [Hcom' | Hcom'].
@@ -535,19 +534,15 @@ Proof.
       }
       inv H7.
 
-      exists (idx_sum (0%nat, x5) idx) (idx_sum (0%nat, Nat.succ x5) idx).
+      exists (idx_sum (0%nat, (0%nat, x5)) idx) (idx_sum (0%nat, (0%nat, Nat.succ x5)) idx).
       split.
       eapply idx_sum_pre_lt.
-      unfold LtIndex.
-      eapply lex_ord_right.
-      unfold Nat.succ.
-      eapply Nat.lt_succ_diag_r.
+      do 2 eapply lex_ord_right.
+      unfold Nat.lt, Nat.succ; omega.
       split.
       eapply idx_sum_pre_lt.
-      unfold LtIndex.
-      eapply lex_ord_right.
-      unfold Nat.succ.
-      eapply Nat.lt_succ_diag_r.
+      do 2 eapply lex_ord_right.
+      unfold Nat.lt, Nat.succ; omega.
 
       eapply Hp; eauto.
       intros.
@@ -598,18 +593,18 @@ Proof.
           destruct Hcom_npc; eapply LP_deterministic; eauto; simpl; eauto.
         }
         inv H8.
-        exists (idx_sum (0%nat, x5) idx) (idx_sum (0%nat, Nat.succ x5) idx).
+        exists (idx_sum (0%nat, (0%nat, x5)) idx) (idx_sum (0%nat, (0%nat, Nat.succ x5)) idx).
         do 3 eexists.
         right; eauto.
         split; eauto.
         split; eauto.
         eapply idx_sum_pre_lt; eauto.
-        eapply lex_ord_right.
-        eapply Nat.lt_succ_diag_r; eauto.
+        do 2 eapply lex_ord_right.
+        unfold Nat.lt, Nat.succ; omega.
         split; eauto.
         eapply idx_sum_pre_lt; eauto.
-        eapply lex_ord_right.
-        eapply Nat.lt_succ_diag_r; eauto.
+        do 2 eapply lex_ord_right.
+        unfold Nat.lt, Nat.succ; omega.
 
         split; eauto.
         split; eauto. 
@@ -636,7 +631,7 @@ Proof.
   Focus 2.
   eapply well_founded_LtIndex; eauto.
   simpljoin1.
-  exists (idx_sum (0%nat, x5) x3).
+  exists (idx_sum (0%nat, (0%nat, x5)) x3).
   eapply Lsafety_imp_rel_safety_aux; eauto.
 Qed.
 
@@ -648,14 +643,14 @@ Inductive wfIndex : XCodeHeap -> State -> Word -> Index -> Prop :=
         C pc = Some (Psave w) ->
         get_R R cwp = Some (W k) -> get_R R Rwim = Some (W v) ->
         win_masked (pre_cwp k) v = true ->
-        (0%nat, 0%nat) ⩹ idx
+        (0%nat, (0%nat, 0%nat)) ⩹ idx
     ) ->
     (
       forall k v, 
         C pc = Some Prestore ->
         get_R R cwp = Some (W k) -> get_R R Rwim = Some (W v) ->
         win_masked (post_cwp k) v = true ->
-        (0%nat, 0%nat) ⩹ idx
+        (0%nat, (0%nat, 0%nat)) ⩹ idx
     ) ->
     wfIndex C (M, (R, F), D) pc idx.
 
@@ -821,7 +816,7 @@ Proof.
   lets Ht : (classic (indom pc C)).
   destruct Ht as [Ht | Ht].
   {
-    exists (5%nat, 6%nat).
+    exists (5%nat, (6%nat, 6%nat)).
     eapply clt_wfCth; eauto.
     destruct S.
     destruct p.
@@ -980,7 +975,7 @@ Proof.
 
         exists Mc M.
         eexists.
-        exists (5%nat, 6%nat).
+        exists (5%nat, (6%nat, 6%nat)).
         split; eauto.
         split; eauto.
         split; eauto.
@@ -1035,7 +1030,7 @@ Proof.
 
         exists Mc (MemMap.set addr (Some v) M).
         eexists.
-        exists (5%nat, 6%nat).
+        exists (5%nat, (6%nat, 6%nat)).
         split.
         rewrite disj_merge_reverse_eq; eauto.
         rewrite indom_memset_merge_eq; eauto.
@@ -1069,7 +1064,7 @@ Proof.
         (* nop *)
         exists Mc M.
         eexists.
-        exists (5%nat, 6%nat).
+        exists (5%nat, (6%nat, 6%nat)).
         split; eauto.
         split; eauto.
         split; eauto.
@@ -1090,7 +1085,7 @@ Proof.
         (* add rs oexp rd *)
         exists Mc M.
         eexists.
-        exists (5%nat, 6%nat).
+        exists (5%nat, (6%nat, 6%nat)).
         split; eauto.
         split; eauto.
         split; eauto.
@@ -1126,7 +1121,7 @@ Proof.
         (* sub rs oexp rd *)
         exists Mc M.
         eexists.
-        exists (5%nat, 6%nat).
+        exists (5%nat, (6%nat, 6%nat)).
         split; eauto.
         split; eauto.
         split; eauto.
@@ -1162,7 +1157,7 @@ Proof.
         (* subcc rs oexp rd *)
         exists Mc M.
         eexists.
-        exists (5%nat, 6%nat).
+        exists (5%nat, (6%nat, 6%nat)).
         split; eauto.
         split; eauto.
         split; eauto.
@@ -1336,7 +1331,7 @@ Proof.
     (* Jumpl aexp rd *)
     exists Mc M.
     eexists.
-    exists (5%nat, 6%nat).
+    exists (5%nat, (6%nat, 6%nat)).
     split; eauto.
     split; eauto.
     split; eauto.
@@ -1375,7 +1370,7 @@ Proof.
     (* Call f *)
     exists Mc M.
     eexists.
-    exists (5%nat, 6%nat).
+    exists (5%nat, (6%nat, 6%nat)).
     repeat (split; eauto).
     {
       left.
@@ -1411,7 +1406,7 @@ Proof.
     (* Retl *)
     exists Mc M.
     eexists.
-    exists (5%nat, 6%nat).
+    exists (5%nat, (6%nat, 6%nat)).
     split; eauto.
     split; eauto.
     split; eauto.
@@ -1438,7 +1433,7 @@ Proof.
     (* Be f : true *)
     exists Mc M.
     eexists.
-    exists (5%nat, 6%nat).
+    exists (5%nat, (6%nat, 6%nat)).
     split; eauto.
     split; eauto.
     split; eauto.
@@ -1472,7 +1467,7 @@ Proof.
     (* Be f : false *)
     exists Mc M.
     eexists.
-    exists (5%nat, 6%nat).
+    exists (5%nat, (6%nat, 6%nat)).
     split; eauto.
     split; eauto.
     split; eauto.
@@ -2356,7 +2351,7 @@ Proof.
     }
     split; eauto.
     {
-      instantiate (1 := (5%nat, 6%nat)).
+      instantiate (1 := (5%nat, (6%nat, 6%nat))).
       econstructor; eauto; intros; econstructor; eauto; unfold Nat.lt; omega.
     }
   }
@@ -2414,7 +2409,7 @@ Proof.
     rewrite fetch_some_set_Mframe_still2.
 
     do 3 eexists.
-    exists (0%nat, 0%nat).
+    exists (0%nat, (0%nat, 0%nat)).
     split; eauto.
 
     split.
@@ -2756,7 +2751,7 @@ Proof.
     
     exists (Mfree Mc b) (Mfree M b).
     eexists.
-    exists (5%nat, 6%nat).
+    exists (5%nat, (6%nat, 6%nat)).
 
     split.
     rewrite Mfree_merge_sep.
@@ -3128,7 +3123,7 @@ Proof.
     rewrite H23 in H1.
     inv H1. 
     do 3 eexists.
-    exists (0%nat, 0%nat).
+    exists (0%nat, (0%nat, 0%nat)).
 
     split; eauto.
     split; eauto.
@@ -4597,7 +4592,7 @@ Proof.
           simpljoin1.
           clear H5.
           left.
-          exists (0%nat, 0%nat).
+          exists (0%nat, (0%nat, 0%nat)).
           split; eauto.
           econstructor.
           {

@@ -1094,6 +1094,17 @@ Proof.
   eapply lex_ord_left; eauto.
   inv H0.
   eapply lex_ord_left; eauto.
+  inv H1.
+  inv H2.
+  eapply lex_ord_right; eauto.
+  econstructor; eauto.
+  eapply Nat.lt_trans; eauto.
+  eapply lex_ord_right; eauto.
+  econstructor; eauto.
+  inv H2.
+  eapply lex_ord_right; eauto.
+  econstructor; eauto.
+  eapply lex_ord_right; eauto.
   eapply lex_ord_right; eauto.
   eapply Nat.lt_trans; eauto.
 Qed.
@@ -1122,7 +1133,7 @@ Proof.
     simpljoin1.
     destruct x0.
     eexists.
-    exists (Nat.succ (Nat.succ n), n0).
+    exists (Nat.succ (Nat.succ n), p).
     split; eauto.
     eapply Hp; eauto.
     econstructor; eauto.
@@ -1144,7 +1155,7 @@ Proof.
     do 4 eexists.
     split.
     eauto.
-    instantiate (1 := (Nat.succ (Nat.succ n), n0)).
+    instantiate (1 := (Nat.succ (Nat.succ n), p)).
     eapply Hp; eauto.
     econstructor; eauto.
   }
@@ -1185,9 +1196,9 @@ Proof.
     split; eauto.
   }
   Unshelve.
-  exact (5%nat, 6%nat).
-  exact (5%nat, 6%nat).
-  exact (5%nat, 6%nat).
+  exact (5%nat, (6%nat, 6%nat)).
+  exact (5%nat, (6%nat, 6%nat)).
+  exact (5%nat, (6%nat, 6%nat)).
   exact 5%nat.
 Qed.
 
@@ -1577,7 +1588,8 @@ CoInductive rel_safety_aux :
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
             exists idx1 idx2 A' HS' w,
-              (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS', A', w) ||= Q /\ (0%nat, 0%nat) ⩹ idx
+              (Nat.eqb k 0 = true /\ exec_prim (A, HS) (A', HS') /\ (S2, HS', A', w) ||= Q
+               /\ (0%nat, (0%nat, 0%nat)) ⩹ idx
               /\ (exists f', getregs S2 r15 = Some (W f') /\ pc2 = f' +ᵢ ($ 8) /\ npc2 = f' +ᵢ ($ 12))) \/
               (Nat.eqb k 0 = false /\ idx1 ⩹ idx2 /\ idx2 ⩹ idx /\ A' = A /\ HS = HS' /\
                rel_safety_aux (Nat.pred k) idx1 (C, S2, pc2, npc2) (A', HS') Q))
@@ -1586,36 +1598,53 @@ CoInductive rel_safety_aux :
 
 Definition idx_sum (idx1 idx2 : Index) :=
   match idx1, idx2 with
-  | (a1, b1), (a2, b2) => ((a1 + a2)%nat, (b1 + b2)%nat)
+  | (a1, (b1, c1)), (a2, (b2, c2)) => ((a1 + a2)%nat, ((b1 + b2)%nat, (c1 + c2)%nat))
   end.
 
 Lemma idx_lt_sum_still :
   forall idx idx' idx'',
     idx ⩹ idx' -> idx ⩹ idx_sum idx' idx''.
-Proof.
+Proof. 
   intros.
   destruct idx, idx', idx''.
   simpls.
   inv H.
-  destruct n3.
+  destruct p0, p1.
+  destruct n1.
   econstructor; eauto.
   rewrite Nat.add_0_r; eauto.
   econstructor.
   eapply Nat.lt_trans; eauto.
   eapply Nat.lt_add_pos_r; eauto.
-  omega.
+  omega. 
+  destruct p0, p1.
+  inv H1. 
+  destruct n1.
+  rewrite Nat.add_0_r; eauto.  
+  eapply lex_ord_right.
   destruct n3.
   rewrite Nat.add_0_r; eauto.
-  unfold LtIndex.
-  eapply lex_ord_right.
-  destruct n4.
-  rewrite Nat.add_0_r; eauto.
+  econstructor; eauto.
+  econstructor; eauto.
   eapply Nat.lt_trans; eauto.
   eapply Nat.lt_add_pos_r; eauto.
   omega.
   econstructor.
   eapply Nat.lt_add_pos_r; eauto.
   omega.
+  destruct n1.
+  rewrite Nat.add_0_r; eauto.
+  eapply lex_ord_right.
+  destruct n3.
+  rewrite Nat.add_0_r; eauto.
+  eapply lex_ord_right.
+  destruct n4; simpls.
+  rewrite Nat.add_0_r; eauto.
+  unfolds Nat.lt; omega.
+  econstructor; eauto.
+  unfold Nat.lt; omega.
+  econstructor.
+  unfold Nat.lt; omega.
 Qed.
 
 Lemma idx_sum_pre_lt :
@@ -1625,38 +1654,45 @@ Lemma idx_sum_pre_lt :
 Proof.
   intros.
   destruct idx1, idx2, idx'.
+  destruct p, p0, p1.
   simpls.
-  destruct n3.
+  destruct n1.
   repeat (rewrite Nat.add_0_r; eauto).
-  destruct n4.
+  destruct n6.
   repeat (rewrite Nat.add_0_r; eauto).
+  destruct n7.
+  repeat (rewrite Nat.add_0_r; eauto).
+  
   unfolds LtIndex.
   inv H.
   {
     econstructor; eauto.
   }
+  inv H1.
   eapply lex_ord_right.
-  assert ((n0 + S n4 = S n4 + n0)%nat).
-  rewrite Nat.add_comm; eauto.
-  assert ((n2 + S n4 = S n4 + n2)%nat).
-  rewrite Nat.add_comm; eauto.
-  rewrite H, H0.  
-  eapply plus_lt_compat_l; eauto.
+  econstructor; eauto.
+  do 2 eapply lex_ord_right.
+  unfolds Nat.lt; omega.
 
-  unfolds LtIndex.
   inv H.
-  econstructor.
-  assert ((n + S n3 = S n3 + n)%nat).
-  rewrite Nat.add_comm; eauto.
-  assert ((n1 + S n3 = S n3 + n1)%nat).
-  rewrite Nat.add_comm; eauto.
-  rewrite H, H0.
-  eapply plus_lt_compat_l; eauto.
-
+  econstructor; eauto.
+  inv H1.
   eapply lex_ord_right.
-  rewrite Nat.add_comm with (n := n0).
-  rewrite Nat.add_comm with (n := n2).
-  eapply plus_lt_compat_l; eauto.
+  econstructor.
+  unfolds Nat.lt; omega.
+
+  do 2 eapply lex_ord_right.
+  unfolds Nat.lt; omega.
+
+  inv H.
+  econstructor; eauto.
+  unfolds Nat.lt; omega.
+  inv H1.
+  eapply lex_ord_right.
+  econstructor; eauto.
+  unfolds Nat.lt; omega.
+  do 2 eapply lex_ord_right.
+  unfolds Nat.lt; omega.
 Qed.
 
 Inductive Lsafety : nat -> nat * LProg -> nat * LProg -> Prop :=
