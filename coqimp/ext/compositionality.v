@@ -4617,8 +4617,8 @@ Proof.
             }
             inv H22.
 
-            assert (Hexec_prim : exists HS' HSr' w', exec_prim (A, (T, t, K, M)) (Pdone, HS')
-                                                /\ hstate_union x2 HSr' HS' /\ (x7, HSr', Pdone, w') ||= Pr).
+            assert (Hexec_prim : exists HS' HSr', exec_prim (A, (T, t, K, M)) (Pdone, HS')
+                                                /\ hstate_union x2 HSr' HS' /\ (x7, HSr', Pdone, w) ||= Pr).
             {
               clear - H11 H14 H18 H21.
               inv H18.
@@ -4628,7 +4628,7 @@ Proof.
               2 : tryfalse.
               assert (Pm prim lv = Pm prim lv); eauto.
             }
-            destruct Hexec_prim as (HS' & HSr' & w' & Hexec_prim & Hhstate_union & HPr).
+            destruct Hexec_prim as (HS' & HSr' & Hexec_prim & Hhstate_union & HPr).
 
             assert (x1  = Pdone).
             {
@@ -4638,7 +4638,7 @@ Proof.
             }
             subst x1.
             
-            assert (((LM'0, (LR''0, F'0), D''0), HS', Pdone, (x3 + w')%nat) ||= Q ⋆ Pr).
+            assert (((LM'0, (LR''0, F'0), D''0), HS', Pdone, (x3 + w)%nat) ||= Q ⋆ Pr).
             {
               
               clear - H12 H6 HPr Hhstate_union.

@@ -299,9 +299,9 @@ Inductive Sta : primcom -> relasrt -> Prop :=
                       hstate_union HSc HSr HS -> 
                       (S, HSr, Pm hprim lv, w) ||= Pr ->
                       (
-                        exists HS' HSr' w', exec_prim (Pm hprim lv, HS) (Pdone, HS') /\
-                                       hstate_union HSc' HSr' HS' /\
-                                       (S, HSr', Pdone, w') ||= Pr
+                        exists HS' HSr', exec_prim (Pm hprim lv, HS) (Pdone, HS') /\
+                                    hstate_union HSc' HSr' HS' /\
+                                    (S, HSr', Pdone, w) ||= Pr
                       )
                   )
     ) \/ A = Pdone ->
@@ -404,7 +404,7 @@ CoInductive rel_safety_insSeq :
                 Spec f = Some (Fp, Fq) /\ (w > 0)%nat /\
                 ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
                 (S2, HS', A', Nat.pred w) ||= (Fp L) ⋆ r /\ GoodFrm r /\ 
-                (forall S' HS' A' w', (S', HS', A', w') ||= (Fq L) ⋆ r ->
+                (forall S' HS' A' w', (S', HS', A', w') ||= (Fq L) ⋆ r -> (forall Pr, GoodFrm Pr -> Sta A' Pr) ->
                                  rel_safety_insSeq Spec w' (C, S', (pc +ᵢ ($ 8)), (pc +ᵢ ($ 12))) (A', HS') Q) /\
                 (forall S' HS' A' w', (S', HS', A', w') ||= Fq L ->
                                  get_R (getregs S') r15 = Some (W pc))

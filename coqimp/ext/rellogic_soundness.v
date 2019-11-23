@@ -32,6 +32,172 @@ Proof.
   destruct Kq; eauto.
 Qed.
 
+(** Auxiliary Lemmas about SepStar *)
+Lemma sep_star_assoc :
+  forall P Q R,
+    (P ⋆ Q) ⋆ R ⇔ P ⋆ (Q ⋆ R).
+Proof.
+  intros.
+  split; intros.
+  {
+    simpl in H.
+    destruct rls.
+    destruct p.
+    destruct p.
+    simpljoin1.
+    destruct_state x1.
+    destruct_state x2.
+    simpl in H0; simpljoin1.
+    destruct_state x7.
+    destruct_state x8.
+    simpl in H4; simpljoin1.
+
+    destruct_hstate x.
+    destruct_hstate x0.
+    destruct_hstate x5.
+    destruct_hstate x6.
+    simpl in H, H2; simpljoin1.
+ 
+    repeat (rewrite <- merge_assoc).
+    simpl.
+    exists (T1, t2, K2, M1) ((T2 ⊎ T0), t2, K2, (M2 ⊎ M0)).
+    exists (m1, (r1, f1), d1) ((m2 ⊎ m0), ((r2 ⊎ r0), f1), d1).
+    exists x9 (x10 + x4); simpl.
+    repeat (split; eauto).
+
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_sym in H. 
+    eapply disj_sym.
+    eapply disj_merge_disj_sep1; eauto.
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_sym in H12.
+    eapply disj_sym.
+    eapply disj_merge_disj_sep1 in H12; eauto. 
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_sym in H0.
+    eapply disj_sym.
+    eapply disj_merge_disj_sep1 in H0; eauto.
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_sym in H1.
+    eapply disj_sym.
+    eapply disj_merge_disj_sep1 in H1; eauto.
+
+    rewrite plus_assoc_reverse; eauto.
+    exists (T2, t2, K2, M2) (T0, t2, K2, M0).
+    exists (m2, (r2, f1), d1) (m0, (r0, f1), d1).
+    exists x10 x4.
+    simpl.
+    repeat (split; eauto).
+    eapply disj_sym in H.
+    eapply disj_sym.
+    eapply disj_merge_disj_sep2; eauto.
+    eapply disj_sym in H12.
+    eapply disj_sym.
+    eapply disj_merge_disj_sep2; eauto.
+    eapply disj_sym in H0.
+    eapply disj_sym.
+    eapply disj_merge_disj_sep2; eauto.
+    eapply disj_sym in H1.
+    eapply disj_sym.
+    eapply disj_merge_disj_sep2; eauto.
+  }
+  {
+    simpl in H.
+    destruct rls.
+    destruct p.
+    destruct p.
+    simpljoin1.
+
+    destruct_state x1.
+    destruct_state x2.
+    destruct_state x7.
+    destruct_state x8.
+    simpl in H0, H4.
+    simpljoin1.
+    destruct_hstate x.
+    destruct_hstate x0.
+    destruct_hstate x5.
+    destruct_hstate x6.
+    simpl in H, H3; simpljoin1.
+
+    repeat (rewrite merge_assoc); eauto.
+    simpl.
+    exists ((T ⊎ T1), t2, K2, (M ⊎ M1)) (T2, t2, K2, M2).
+    exists ((m ⊎ m1), (r ⊎ r1, f2), d2) (m2, (r2, f2), d2). 
+    exists (x3 + x9) x10.
+    simpl.
+    repeat (split; eauto).
+
+    eapply disj_sym.
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_merge_disj_sep2 in H; eapply disj_sym; eauto.
+    eapply disj_sym; eauto. 
+    eapply disj_sym.
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_merge_disj_sep2 in H12; eapply disj_sym; eauto.
+    eapply disj_sym; eauto.
+    eapply disj_sym.
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_merge_disj_sep2 in H0; eapply disj_sym; eauto.
+    eapply disj_sym; eauto.
+    eapply disj_sym.
+    eapply disj_sep_merge_still; eauto.
+    eapply disj_merge_disj_sep2 in H10; eapply disj_sym; eauto.
+    eapply disj_sym; eauto.
+
+    rewrite plus_assoc_reverse; eauto.
+
+    exists (T, t2, K2, M) (T1, t2, K2, M1).
+    exists (m, (r, f2), d2) (m1, (r1, f2), d2).
+    exists x3 x9.
+    simpl.
+    repeat (split; eauto).
+    eapply disj_merge_disj_sep1; eauto.
+    eapply disj_merge_disj_sep1; eauto.
+    eapply disj_merge_disj_sep1; eauto.
+    eapply disj_merge_disj_sep1; eauto.
+  }
+Qed.
+
+Lemma sep_star_hold :
+  forall S S1 S2 HS HS1 HS2 A w1 w2 w P Q,
+    (S1, HS1, A, w1) ||= P -> (S2, HS2, A, w2) ||= Q ->
+    state_union S1 S2 S -> hstate_union HS1 HS2 HS -> w = w1 + w2 ->
+    (S, HS, A, w) ||= P ⋆ Q.
+Proof.
+  intros.
+  simpl.
+  do 6 eexists.
+  repeat (split; eauto).
+Qed.
+
+Lemma sep_star_imply :
+  forall P P' Q Q',
+    P ⇒ P' -> Q ⇒ Q' -> P ⋆ Q ⇒ P' ⋆ Q'.
+Proof.
+  intros.
+  simpls.
+  destruct rls.
+  destruct p.
+  destruct p.
+  simpljoin1.
+  do 6 eexists.
+  repeat (split; eauto).
+Qed.
+
+Lemma sep_star_split :
+  forall P Q S HS A w,
+    (S, HS, A, w) ||= P ⋆ Q ->
+    exists S1 S2 HS1 HS2 w1 w2, state_union S1 S2 S /\ hstate_union HS1 HS2 HS /\ w = w1 + w2 /\
+                           (S1, HS1, A, w1) ||= P /\ (S2, HS2, A, w2) ||= Q.
+Proof.
+  intros.
+  simpls.
+  simpljoin1.
+  do 6 eexists.
+  repeat (split; eauto).
+Qed.
+
 (** Well formed Instruction Seqence Soundness *)
 Definition get_index_fcall (rls : RelState) :=
   match rls with
@@ -90,16 +256,596 @@ Lemma wf_insSeq_rel_soundness :
     Spec ⊩ {{ P }} f # I {{ Q }} ->
     insSeq_rel_sound Spec P f I Q.
 Proof.
+  intros.
+  induction H; intros.
 Admitted.
 
 Lemma rel_safety_insSeq_frame_property :
   forall I Spec C pc S1 S2 S HS1 HS2 HS w1 w2 Q Pr A,
+    GoodFrm Pr ->
     LookupXC C pc I -> (S2, HS2, A, w2) ||= Pr -> Sta A Pr ->
     state_union S1 S2 S -> hstate_union HS1 HS2 HS ->
     rel_safety_insSeq Spec w1 (C, S1, pc, pc +ᵢ ($ 4)) (A, HS1) Q ->
     rel_safety_insSeq Spec (w1 + w2)%nat (C, S, pc, pc +ᵢ ($ 4)) (A, HS) (Q ⋆ Pr).
 Proof.
-Admitted.
+  induction I;
+  introv HGoodFrmPr; intros.
+  {
+    (** i *)
+    inv H.
+    inv H4.
+    lets Hcont : H9.
+    eapply H14 in Hcont; clear H14 H16 H17 H18 H19.
+    simpljoin1.
+    econstructor; try solve [intros; CElim C].
+
+    intros.
+    rewrite H9 in H5; inv H5.
+    split.
+    {
+      eapply legal_com_safety_property in H; eauto.
+      2 : unfold legal_com; rewrite H9; eauto.
+      destruct H as (S' & S2' & HLP__ & Hstate_union & HPr').
+      do 3 eexists; eauto.
+    }
+    {
+      intros.
+      lets Hcont : H.
+      eapply legal_com_safety_property in H; eauto.
+      2 : unfold legal_com; rewrite H9; eauto.
+      destruct H as (S'0 & S2' & HLP__ & Hstate_union & HPr').
+      assert ((C, (S', pc', npc')) = (C, (S'0, x0, x1))).
+      {
+        eapply LP_deterministic; eauto.
+        simpl; eauto.
+      }
+      inv H; clear H5.
+
+      eapply H4 in Hcont; eauto.
+      inv HLP__.
+      inv H15; CElim C.
+      destruct Hcont as [Hcon | Hcont].
+      {
+        left.
+        eapply IHI; eauto.
+      }
+      { 
+        destruct Hcont as (HS1' & Hexec_prim & Hrel_safety_insSeq).
+        lets Hexec_prim' : Hexec_prim.
+        inv Hexec_prim'.
+        inv H1.
+        destruct H; tryfalse.
+        assert (Pm prim lv = Pm prim lv).
+        eauto.
+        eapply H in H1; eauto.
+        destruct H1 as (HS' & HS2' & Hexec_prim' & Hhstate_union' & HPr'').
+        right.
+        exists HS'.
+        split; eauto. 
+        eapply IHI; eauto.
+        econstructor; eauto.
+      }
+    }
+  }
+  {
+    (** jmpl aexp rd *)
+    inv H.
+    inv H4.
+    lets Hcont : H9.
+    eapply H17 in Hcont; clear H14 H16 H17 H18 H19.
+    simpljoin1.
+    lets Hcont : H.
+    eapply H4 with (S2 := x) in Hcont; eauto; clear H4.
+    destruct Hcont as (Fp & Fq & L & r & A' & HS1' & Hexec_prim & HSpec & HFp & HFq & HGoodFrm & Hw1 & Hnpc).
+    econstructor; try solve [intros; tryfalse].
+
+    intros.
+    rewrite H9 in H4; inv H4.
+    split.
+    eapply legal_com_safety_property in H; eauto.
+    2 : unfold legal_com; rewrite H9; eauto.
+    destruct H as (S' & S2' & HLP__ & Hstate_union & HPr).
+    eapply legal_com_safety_property in H5; eauto.
+    destruct H5 as (S'' & S2'' & HLP__' & Hstate_union' & HPr').
+    do 6 eexists.
+    split; eauto.
+    inv HLP__.
+    inv H15; CElim C.
+    unfold legal_com; rewrite H11; eauto.
+ 
+    intros.
+    eapply legal_com_safety_property in H; eauto.
+    2 : unfold legal_com; rewrite H9; eauto.
+    destruct H as (S' & S2' & HLP__ & Hstate_union & HPr).
+    assert ((C, (S0, pc1, npc1)) = (C, (S', x1, x2))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H.
+    assert (x1 = pc +ᵢ ($ 4)).
+    {
+      inv H4.
+      inv H17; CElim C; eauto.
+    }
+    subst x1.
+    eapply legal_com_safety_property in H5; eauto.
+    2 : unfold legal_com; rewrite H11; eauto.
+    destruct H5 as (S'' & S2'' & HLP__' & Hstate_union' & HPr').
+    assert ((C, (S3, pc2, npc2)) = (C, (S'', x3, x3 +ᵢ ($ 4)))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H.
+    
+    destruct Hexec_prim as [Hexec_prim | Hexec_prim]; simpljoin1.
+    {
+      exists Fp Fq L (r ⋆ Pr) A HS. 
+      split.
+      left; eauto.
+      split; eauto.
+      split; eauto.
+      assert (Nat.pred (w1 + w2) = Nat.pred w1 + w2).
+      {
+        destruct w1; try omega; eauto.
+      }
+      rewrite H.
+      eapply sep_star_assoc.
+      eapply sep_star_hold; eauto.
+
+      split.
+      intros.
+      eapply sep_star_assoc in H.
+      eapply sep_star_imply with (P := (Fq L ⋆ r)) (P' := Q); eauto.
+      split; simpl; eauto.
+      split; eauto.
+      omega.
+    }
+    {
+      lets Hexec_prim' : Hexec_prim.
+      inv Hexec_prim'.
+      inv H1.
+      destruct H; tryfalse.
+      assert (Pm prim lv = Pm prim lv); eauto.
+      eapply H in H1; eauto; clear H.
+      destruct H1 as (HS' & HS2' & Hexec_prim' & Hhstate_union & HPr'').
+      exists Fp Fq L (r ⋆ Pr) Pdone HS'.
+      split.
+      right; eauto.
+      split; eauto.
+      split; eauto.
+
+      assert (Nat.pred (w1 + w2) = Nat.pred w1 + w2).
+      {
+        destruct w1; try omega; eauto.
+      }
+      rewrite H.
+      eapply sep_star_assoc.
+      eapply sep_star_hold; eauto.
+
+      split; eauto.
+      intros.
+      eapply sep_star_assoc in H.
+      eapply sep_star_imply with (P := (Fq L ⋆ r)) (P' := Q); eauto.
+
+      split; eauto.
+      simpl; eauto.
+      split; try omega.
+      eauto.
+    }
+  }
+  {
+    (** call f *)
+    inv H.
+    inv H4.
+    lets Hcont : H10.
+    eapply H17 in Hcont; clear H15 H17 H18 H19 H20.
+    simpljoin1.
+    lets Hcont : H.
+    eapply H4 with (S2 := x) in Hcont; eauto; clear H4. 
+    destruct Hcont as (Fp & Fq & L & r & A' & HS1' & Hcont).
+    simpljoin1.
+    econstructor; try solve [intros; tryfalse].
+
+    intros.
+    rewrite H10 in H4; inv H4.
+    eapply legal_com_safety_property in H; eauto.
+    2 : unfold legal_com; rewrite H10; eauto.
+    destruct H as (S' & S2' & HLP__ & Hstate_union & HPr).
+    assert (x1 = pc +ᵢ ($ 4)).
+    {
+      inv HLP__.
+      inv H23; CElim C; eauto.
+    }
+    subst x1. 
+    eapply legal_com_safety_property in H5; eauto.
+    2 : unfold legal_com; rewrite H11; eauto.
+    destruct H5 as (S'' & S2'' & HLP__' & Hstate_union' & HPr'). 
+
+    split.
+    do 6 eexists; eauto.
+
+    intros.
+    assert ((C, (S', pc +ᵢ ($ 4), x2)) = (C, (S0, pc1, npc1))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    } 
+    inv H5.
+    assert ((C, (S'', f, f +ᵢ ($ 4))) = (C, (S3, pc2, npc2))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H5.
+    clear H H4.
+    assert (Nat.pred (w1 + w2) = Nat.pred w1 + w2).
+    {
+      destruct w1; simpls; try omega.
+    }
+
+    destruct H9; simpljoin1.
+    { 
+      exists Fp Fq L (r ⋆ Pr) A HS.
+      split; eauto.
+      split; eauto.
+      split; eauto.
+      split.
+      omega.
+
+      split.
+      left; eauto.
+
+      split.
+      rewrite H.
+      eapply sep_star_assoc.
+      eapply sep_star_hold; eauto.
+
+      split.
+      simpl; eauto.
+ 
+      split; intros.
+      assert (pc +ᵢ ($ 12) = (pc +ᵢ ($ 8)) +ᵢ ($ 4)).
+      rewrite Int.add_assoc; eauto.
+      rewrite H6.
+      eapply sep_star_assoc in H4.
+      eapply sep_star_split in H4.
+      destruct H4 as (S_1 & S_2 & HS_1 & HS_2 & w1' & w2' & Hstate_union'' & Hhstate_union'' &
+                      Hw' & HFq_r & HPr'').
+      subst w'.
+      eapply IHI; eauto.
+      eapply H15 in HFq_r; eauto.
+      rewrite <- H6; eauto.
+      eapply H16 in H4; eauto.
+    }
+    {
+      lets Hexec_prim : H4.
+      inv H4.
+      lets HSta_Pr : H1.
+      inv HSta_Pr.
+      destruct H4; tryfalse.
+      assert (Pm prim lv = Pm prim lv); eauto.
+      eapply H4 in H5; simpljoin1; eauto.
+
+      exists Fp Fq L (r ⋆ Pr) Pdone x1.
+      split; eauto.
+      split; eauto.
+      split; eauto.
+      split.
+      omega.
+      split.
+      right; eauto.
+      split; eauto.
+
+      eapply sep_star_assoc.
+      rewrite H.
+      eapply sep_star_hold; eauto.
+
+      split.
+      simpl; eauto.
+
+      split.
+      intros.
+      assert (pc +ᵢ ($ 12) = (pc +ᵢ ($ 8)) +ᵢ ($ 4)).
+      rewrite Int.add_assoc; eauto.
+      rewrite H20.
+      eapply sep_star_assoc in H18.
+      eapply sep_star_split in H18.
+      simpljoin1.
+      eapply IHI; eauto.
+      rewrite <- H20.
+      eapply H15; eauto.
+
+      intros.
+      eapply H16 in H18; eauto.
+    }
+  }
+  { 
+    (** retl *)
+    inv H.
+    inv H4.
+    lets Hcont : H6.
+    eapply H19 in Hcont; clear H14 H16 H17 H18 H19.
+    simpljoin1.
+    lets Hcont : H.
+    eapply H4 with (S2 := x) in Hcont; eauto. 
+    destruct Hcont as (A' & HS1' & Hexec_prim & HQ & f & Hret & Hpc & Hnpc); subst.
+
+    econstructor; try solve [intros; CElim C].
+    intros.
+    clear H7.
+
+    eapply legal_com_safety_property in H; eauto.
+    2 : unfold legal_com; rewrite H6; eauto.
+    destruct H as (S' & S2' & HLP__ & Hstate_union & HPr).
+    assert (x1 = pc +ᵢ ($ 4)).
+    {
+      inv HLP__.
+      inv H16; CElim C; eauto.
+    }
+    subst x1.
+    eapply legal_com_safety_property in H5; eauto.
+    2 : unfold legal_com; rewrite H9; eauto.
+    destruct H5 as (S'' & S2'' & HLP__' & Hstate_union' & HPr').
+    lets Hcont : HLP__.
+
+    split.
+    do 6 eexists; eauto.
+
+    intros.
+    assert ((C, (S', pc +ᵢ ($ 4), x2)) = (C, (S0, pc1, npc1))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H7.
+    assert ((C, (S3, pc2, npc2)) = (C, (S'', f +ᵢ ($ 8), f +ᵢ ($ 12)))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H7.
+    clear H H5.
+
+    destruct Hexec_prim as [Hexec_prim | Hexec_prim].
+    {
+      simpljoin1.
+      do 2 eexists.
+      split; eauto.
+      split.
+      simpl.
+      do 6 eexists.
+      split; eauto.
+
+      exists f.
+      split; eauto.
+      clear - Hret Hstate_union'.
+      unfolds get_R.
+      destruct_state x0.
+      destruct_state S2''.
+      simpl in Hstate_union'; simpljoin1; simpls.
+      destruct (r r15) eqn:Heqe; tryfalse.
+      inv Hret.
+      eapply get_vl_merge_still in Heqe; eauto.
+      rewrite Heqe; eauto.
+    }
+    {
+      lets Hexec_prim' : Hexec_prim.
+      inv Hexec_prim'.
+      inv H1.
+      destruct H; tryfalse.
+      eapply H in Hexec_prim; eauto.
+      simpljoin1.
+      do 2 eexists.
+      split.
+      right; eauto.
+      split.
+      simpl.
+      do 6 eexists.
+      split; eauto.
+
+      exists f.
+      split; eauto.
+      clear - Hret Hstate_union'.
+      destruct_state x0.
+      destruct_state S2''.
+      simpls; simpljoin1; simpls.
+      unfolds get_R.
+      destruct (r r15) eqn:Heqe; tryfalse.
+      inv Hret.
+      eapply get_vl_merge_still in Heqe; eauto.
+      rewrite Heqe; eauto.
+    }
+  }
+  {
+    inv H.
+  }
+  {
+    (** be f *)
+    inv H.
+    inv H4.
+    lets Hcont : H10.
+    eapply H19 in Hcont; eauto; clear H15 H17 H18 H19 H20.
+    simpljoin1.
+    lets Hcont : H.
+    eapply H4 with (S2 := x) in Hcont; eauto; clear H4.
+    simpljoin1.
+
+    econstructor; try solve [intros; CElim C].
+    intros.
+    rewrite H10 in H9.
+    inv H9.
+
+    eapply legal_com_safety_property in H; eauto.
+    2 : unfold legal_com; rewrite H10; eauto.
+    destruct H as (S' & S2' & HLP__ & Hstate_union & HPr).
+    assert (x1 = pc +ᵢ ($ 4)).
+    {
+      inv HLP__.
+      inv H20; CElim C; eauto.
+    }
+    subst x1. 
+    eapply legal_com_safety_property in H5; eauto.
+    2 : unfold legal_com; rewrite H11; eauto.
+    destruct H5 as (S'' & S2'' & HLP__' & Hstate_union' & HPr').
+
+    split.
+    do 6 eexists.
+    split; eauto.
+
+    intros.
+    assert ((C, (S0, pc1, npc1)) = (C, (S', pc +ᵢ ($ 4), x2))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H9.
+    assert ((C, (S3, pc2, npc2)) = (C, (S'', x3, x4))).
+    {
+      eapply LP_deterministic; eauto.
+      simpl; eauto.
+    }
+    inv H9; clear H H5.
+
+    destruct H4; simpljoin1.
+    {
+      do 3 eexists.
+      split; eauto.
+      split; eauto.
+      instantiate (1 := x5).
+      clear - H2 H6.
+      destruct_state S1.
+      destruct_state S2.
+      simpls; simpljoin1; simpls.
+      unfolds get_R.
+      destruct (r z) eqn:Heqe; tryfalse.
+      inv H6.
+      eapply get_vl_merge_still in Heqe; eauto.
+      rewrite Heqe; eauto.
+
+      split; intros.
+      {
+        eapply H7 in H.
+        destruct H as (Fp & Fq & L & r & H); simpljoin1.
+        assert (Nat.pred (w1 + w2) = Nat.pred w1 + w2).
+        destruct w1; omega.
+        exists Fp Fq L (r ⋆ Pr).
+        split; eauto.
+        split.
+        eapply sep_star_assoc.
+        eapply sep_star_hold; eauto.
+
+        split.
+        intros.
+        eapply sep_star_assoc in H15.
+        eapply sep_star_imply; eauto.
+        split; eauto.
+        simpl; eauto.
+        split; eauto.
+        omega.
+      }
+      {
+        lets Hv : H.
+        inv HLP__.
+        inv H19; CElim C.
+        clear - H2 H6 H15 H24 H25.
+        destruct_state S1.
+        destruct_state S2.
+        simpls; simpljoin1.
+        unfolds get_R.
+        destruct (r z) eqn:Heqe; tryfalse.
+        inv H6.
+        eapply regz_exe_delay_stable with (v := W ($ 0)) in H15; eauto.
+        2 : eapply get_vl_merge_still; eauto.
+        rewrite H15 in H24; simpls.
+        inv H24; tryfalse.
+        
+        inv HLP__'.
+        inv H22; CElim C.
+        eapply IHI; eauto.
+        rewrite Int.add_assoc; eauto.
+      }
+    }
+    {
+      lets Hexec_prim : H.
+      inv H.
+      inv H1.
+      destruct H; tryfalse.
+      eapply H in Hexec_prim; eauto.
+      clear H; simpljoin1.
+
+      do 3 eexists.
+      split.
+      right; eauto.
+      split.
+      instantiate (1 := x5).
+      clear - H6 H2.
+      destruct_state S1.
+      destruct_state S2.
+      simpls; simpljoin1; simpls.
+      unfolds get_R.
+      destruct (r z) eqn:Heqe; tryfalse.
+      inv H6.
+      eapply get_vl_merge_still in Heqe; eauto.
+      rewrite Heqe; eauto.
+
+      split.
+      {
+        intros.
+        eapply H7 in H9.
+        destruct H9 as (Fp & Fq & L & r & HSpec & HFp & HFq & HGoodFrm & Hw1 & Hnpc); subst.
+        assert (Nat.pred (w1 + w2) = Nat.pred w1 + w2).
+        {
+          destruct w1; try omega.
+        }
+        exists Fp Fq L (r ⋆ Pr).
+        split; eauto.
+        split.
+        eapply sep_star_assoc.
+        rewrite H9.
+        eapply sep_star_hold; eauto.
+
+        split; intros.
+        eapply sep_star_assoc in H13.
+        eapply sep_star_imply; eauto.
+
+        split; eauto.
+        simpl; eauto.
+
+        split; eauto.
+        omega.
+      }
+      {
+        intros.
+        lets Hrel_safety_insSeq : H9.
+        eapply H8 in Hrel_safety_insSeq; eauto; subst.
+        inv HLP__.
+        inv H21; CElim C.
+        clear - H2 H6 H17 H27 H28.
+        destruct_state S1.
+        destruct_state S2.
+        simpl in H2; simpljoin1; simpls.
+        unfolds get_R.
+        destruct (r z) eqn:Heqe; tryfalse.
+        inv H6.
+        eapply regz_exe_delay_stable with (v := W ($ 0)) in H17; eauto.
+        2 : eapply get_vl_merge_still; eauto.
+        rewrite H17 in H27; eauto.
+        inv H27; tryfalse.
+
+        inv HLP__'.
+        inv H25; CElim C.
+        eapply IHI; eauto.
+        rewrite Int.add_assoc; eauto.
+        econstructor; eauto.
+      }
+    }
+  }
+  {
+    inv H.
+  }
+Qed.
 
 Lemma rel_safety_insSeq_conseq :
   forall I Spec C pc npc S Q Q' w A HS,
@@ -125,7 +871,7 @@ Qed.
 Fixpoint WFST (Q : relasrt) (Kq : list relasrt) (Spec : Funspec) (C : XCodeHeap) :=
   match Kq with
   | nil => (Q ⇒ RAprim Pdone ⋆ RAtrue)
-  | Q' :: Kq' => forall S HS A w, (S, HS, A, w) ||= Q ->
+  | Q' :: Kq' => forall S HS A w, (S, HS, A, w) ||= Q -> (forall Pr, GoodFrm Pr -> Sta A Pr) ->
                               exists f I, (getregs S) r15 = Some (W f) /\ LookupXC C (f +ᵢ ($ 8)) I /\ 
                                    rel_safety_insSeq Spec w
                                                      (C, S, f +ᵢ ($ 8), f +ᵢ ($ 12)) (A, HS) Q' /\
@@ -457,6 +1203,108 @@ Proof.
           simpl; eauto.
         }
         inv H9.
+        rewrite H7 in H0; inv H0.
+        eapply H3 with (S1 := S') in H6; eauto.
+        clear H5.
+        destruct H6 as (v & A' & HS' & Hexec_prim & Hz & Hv_not_0 & Hv_0).
+        (* high-level doesn't execute *)
+        destruct Hexec_prim as [Hexec_prim | Hexec_prim]; simpljoin1.
+        left.
+        destruct (classic (v = $ 0)).
+        {
+          lets Hrel_safety_insSeq : H0.
+          eapply Hv_0 in Hrel_safety_insSeq; eauto.
+          exists (w, (length Kq, 1 + get_insSeqLen I0)%nat).
+          split.
+          do 2 eapply lex_ord_right.
+          unfold Nat.lt; omega.
+          eapply Hp; eauto.
+          inv H.
+          inv H16; CElim C. 
+          clear - Hz H20 H12 H21; simpls.
+          unfolds get_R.
+          destruct (LR z) eqn:Heqe; tryfalse.
+          eapply regz_exe_delay_stable in H12; eauto.
+          inv Hz.
+          rewrite H12 in H20; simpls; tryfalse.
+          rewrite Int.add_assoc; eauto.
+        }
+        {
+          lets Hcont : H0.
+          eapply Hv_not_0 in Hcont; eauto.
+          destruct Hcont as (Fp & Fq & L & r & HSpec & HFp & HFq & HGoodFrm & Hw & Hpc').
+          simpl in HFp.
+          destruct HFp as (HS1 & HS2 & S1 & S2 & w1 & w2 & Hhstate_union & Hstate_union & Hw' &
+                           HFp & Hr).
+          lets Hcdhp_rel_sound : H2.
+          unfold cdhp_rel_sound in Hcdhp_rel_sound.
+          eapply Hcdhp_rel_sound with (L := L) in HSpec; clear Hcdhp_rel_sound.
+          destruct HSpec as (I' & HlookupXC_I' & HinsSeq_rel_sound).
+          exists (Nat.pred w, (length Kq, (1 + get_insSeqLen I')%nat)).
+
+          split.
+          econstructor; eauto.
+          unfold Nat.lt; destruct w; omega.
+
+          unfold insSeq_rel_sound in HinsSeq_rel_sound.
+          eapply HinsSeq_rel_sound in HFp; eauto.
+          eapply rel_safety_insSeq_frame_property with (Pr := r) in HFp; eauto.
+          eapply rel_safety_insSeq_conseq with (Q' := Q) in HFp; eauto.
+          eapply Hp; eauto.
+          rewrite Hw'; eauto.
+        }
+
+        (* high-level executes *)
+        assert (A' = Pdone).
+        {
+          inv Hexec_prim; eauto.
+        }
+        subst A'.
+        right.
+        destruct (classic (v = $ 0)).
+        {
+          lets Hrel_safety_insSeq : H0.
+          eapply Hv_0 in Hrel_safety_insSeq; eauto.
+          exists HS' (w, (length Kq, 1 + get_insSeqLen I0)%nat).
+          split; eauto.
+          eapply Hp; eauto.
+          inv H.
+          inv H16; CElim C. 
+          clear - Hz H20 H12 H21; simpls.
+          unfolds get_R.
+          destruct (LR z) eqn:Heqe; tryfalse.
+          eapply regz_exe_delay_stable in H12; eauto.
+          inv Hz.
+          rewrite H12 in H20; simpls; tryfalse.
+          rewrite Int.add_assoc; eauto.
+          intros.
+          econstructor; eauto.
+        }
+        {
+          lets Hcont : H0.
+          eapply Hv_not_0 in Hcont; eauto.
+          destruct Hcont as (Fp & Fq & L & r & HSpec & HFp & HFq & HGoodFrm & Hw & Hpc').
+          simpl in HFp.
+          destruct HFp as (HS1 & HS2 & S1 & S2 & w1 & w2 & Hhstate_union & Hstate_union & Hw' &
+                           HFp & Hr).
+          lets Hcdhp_rel_sound : H2.
+          unfold cdhp_rel_sound in Hcdhp_rel_sound.
+          eapply Hcdhp_rel_sound with (L := L) in HSpec; clear Hcdhp_rel_sound.
+          destruct HSpec as (I' & HlookupXC_I' & HinsSeq_rel_sound).
+          exists HS' (Nat.pred w, (length Kq, (1 + get_insSeqLen I')%nat)).
+
+          split; eauto.
+
+          unfold insSeq_rel_sound in HinsSeq_rel_sound.
+          eapply HinsSeq_rel_sound in HFp; eauto.
+          eapply rel_safety_insSeq_frame_property with (Pr := r) in HFp; eauto.
+          eapply rel_safety_insSeq_conseq with (Q' := Q) in HFp; eauto.
+          eapply Hp; eauto.
+          rewrite Hw'; eauto.
+          intros.
+          econstructor; eauto.
+          econstructor; eauto.
+        }
 
         destruct H0; CElim C.
       }
@@ -533,28 +1381,28 @@ Proof.
     unfold LtIndex. 
     do 2 eapply lex_ord_right; eauto.
     eapply rel_safety_insSeq_frame_property with (w2 := w2) (Pr := r) in Hrel_safety_insSeq; eauto.
-    rewrite <- Hw' in Hrel_safety_insSeq.
+    rewrite <- Hw' in Hrel_safety_insSeq. 
     eapply Hp; eauto.
     unfold WFST.
     fold WFST.
     intros.
-    lets Hret : H0.
-    eapply H13 in H0.
+    lets Hret : H0. 
+    eapply H13 in H0; eauto.
     simpl in Hret.
     simpljoin1.
-    eapply H14 in H15.
+    eapply H14 in H16.
     exists pc I0.
     split; eauto.
     destruct_state x2.
     destruct_state x3.
-    simpl in H10.
+    simpl in H11.
     simpljoin1.
     simpls.
     eapply get_vl_merge_still; eauto.
-    clear - H15.
+    clear - H16.
     unfolds get_R.
     destruct (r0 r15) eqn:Heqe; tryfalse.
-    inv H15; eauto.
+    inv H16; eauto.
 
     (* high-level execute *)
     assert (A' = Pdone).
@@ -563,7 +1411,7 @@ Proof.
     }
     subst A'.
     exists Pdone HS' (Fq L ⋆ r).
-    split.
+    split. 
     right; eauto.
     eapply rel_safety_insSeq_frame_property with (w2 := w2) (Pr := r) in Hrel_safety_insSeq; eauto.
     rewrite <- Hw' in Hrel_safety_insSeq.
@@ -573,17 +1421,17 @@ Proof.
     simpl in Hret.
     simpljoin1.
     eapply H13 in H5; eauto.
-    eapply H14 in H16; eauto.
+    eapply H14 in H17; eauto.
     exists pc I0.
     split; eauto.
     destruct_state x2.
     destruct_state x3.
     simpls; simpljoin1.
     simpl; eauto.
-    clear - H16.
+    clear - H17.
     unfolds get_R.
     destruct (r0 r15) eqn:Heqe; tryfalse.
-    inv H16.
+    inv H17.
     eapply get_vl_merge_still; eauto.
     intros.
     econstructor; eauto.
@@ -748,12 +1596,17 @@ Proof.
         rewrite H1.
         eapply Hp; eauto.
         rewrite <- H1; eauto.
-        intros.
+        intros. 
         econstructor; eauto.
       }
+
+      destruct H0; simpljoin1; eauto.
+      inv H0.
+      intros.
+      econstructor; eauto.
     }
   }
-Admitted.
+Qed.
 
 Lemma function_correctness_aux :
   forall P Q Spec S HS A w pc I C Kq,
