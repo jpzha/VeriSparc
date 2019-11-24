@@ -1,4 +1,4 @@
-Require Import Coqlib.                   
+Require Import Coqlib.                     
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -21,6 +21,8 @@ Require Import rellogic.
 Require Import lemmas_comp.
 Require Import lemmas_comp2.
 
+Require Import lemmas_ins.
+Require Import inssound.
 Require Import wf_seq_sound.
 
 (** Auxiliary Lemmas *)
@@ -32,7 +34,122 @@ Proof.
   destruct Kq; eauto.
 Qed.
 
-(** Auxiliary Lemmas about SepStar *)
+Lemma merge_empThrdPool_r_eq :
+  forall T,
+    T ⊎ EmpThrdPool = T.
+Proof.
+  intros.
+  eapply FunctionalExtensionality.functional_extensionality; intros.
+  unfold merge.
+  destruct (T x) eqn:Heqe; eauto.
+Qed.
+
+Lemma merge_empThrdPool_l_eq :
+  forall T,
+    EmpThrdPool ⊎ T = T.
+Proof.
+  intros.
+  eapply FunctionalExtensionality.functional_extensionality; intros.
+  unfold merge.
+  eauto.
+Qed.
+
+Lemma RAlst_down :
+  forall S HS A w p,
+    (S, HS, A, w) ||= RAlst p ->
+    S |= p /\ getHM HS = empM /\ getHThrdPool HS = EmpThrdPool.
+Proof.
+  intros.
+  simpls.
+  eauto.
+Qed. 
+
+Lemma RAlst_hold :
+  forall S A w t K p,
+    S |= p -> (S, (EmpThrdPool, t, K, empM), A, w) ||= RAlst p.
+Proof.
+  intros.
+  simpls.
+  eauto.
+Qed.
+
+Lemma token_inc_asrt_stable :
+  forall P w w' S HS A,
+    (S, HS, A, w) ||= P -> (w <= w')%nat ->
+    (S, HS, A, w') ||= P.
+Proof.
+  induction P; intros; try solve [simpls; simpljoin1; eauto].
+  {
+    simpls; simpljoin1.
+    destruct_hstate HS; simpljoin1.
+    repeat (split; eauto).
+    omega.
+  }
+  {
+    simpls.
+    destruct H.
+    eapply IHP1 in H; eauto.
+    eapply IHP2 in H; eauto.
+  }
+  {
+    simpls.
+    simpljoin1.
+    assert (w' = x3 + (w' - x3)).
+    omega.
+    rewrite H2 in H0.
+    eapply IHP1 in H3; eauto.
+    eapply IHP2 in H4; eauto.
+    do 4 eexists.
+    exists x3 (w' - x3).
+    split; eauto.
+    split; eauto.
+    split; eauto.
+    split; eauto.
+    eapply IHP2; eauto.
+    omega.
+  }
+Qed.
+
+Lemma token_consume :
+  forall S HS A w w' P,
+    (S, HS, A, w) ||= P ⋆ RAtoken w' ->
+    (S, HS, A, w - w') ||= P.
+Proof.
+  intros.
+  simpls.
+  simpljoin1.
+  destruct x0.
+  destruct p.
+  destruct p.
+  simpljoin1.
+  destruct_state x1.
+  destruct_state x2.
+  simpls; simpljoin1.
+  destruct_hstate x.
+  simpls; simpljoin1.
+  do 2 rewrite empM_merge_still_r; eauto.
+  rewrite sep_lemma.merge_empR_r_eq; eauto.
+  rewrite merge_empThrdPool_r_eq.
+  assert (x3 <= x3 + x4 - w').
+  {
+    omega.
+  }
+  eapply token_inc_asrt_stable; eauto.
+Qed.
+
+(** Auxiliary Lemmas about exec delay *)
+Lemma dly_reduce_relasrt_stable :
+  forall P M R R' F D D' HS A w,
+    ((M, (R, F), D), HS, A, w) ||= P -> (R', D') = exe_delay R D ->
+    ((M, (R', F), D'), HS, A, w) ||= (P ⤈).
+Proof.
+  intros.
+  simpls.
+  exists R D.
+  eauto.
+Qed.  
+
+(** Auxiliary Lemmas about SepStar *) 
 Lemma sep_star_assoc :
   forall P Q R,
     (P ⋆ Q) ⋆ R ⇔ P ⋆ (Q ⋆ R).
@@ -198,6 +315,111 @@ Proof.
   repeat (split; eauto).
 Qed.
 
+Lemma sep_star_sym :
+  forall P Q,
+    P ⋆ Q ⇒ Q ⋆ P.
+Proof.
+  intros.
+  destruct rls.
+  destruct p.
+  destruct p.
+  eapply sep_star_split in H.
+  simpljoin1.
+  eapply sep_star_hold; eauto.
+
+  clear - H.
+  destruct_state x.
+  destruct_state x0.
+  simpls; simpljoin1.
+  repeat (split; eauto).
+  eapply disj_sym; eauto.
+  eapply disj_sym; eauto.
+  rewrite disj_merge_reverse_eq; eauto. 
+  rewrite disj_merge_reverse_eq with (m1 := r); eauto.
+
+  clear - H0.
+  destruct_hstate x1.
+  destruct_hstate x2; simpls; simpljoin1.
+  repeat (split; eauto).
+  eapply disj_sym; eauto.
+  eapply disj_sym; eauto.
+  rewrite disj_merge_reverse_eq; eauto. 
+  rewrite disj_merge_reverse_eq with (m1 := M); eauto.
+
+  rewrite Nat.add_comm; eauto.
+Qed.
+
+(** Auxiliary Lemmas about Register *)
+Lemma reg_vl_rel_change :
+  forall M R F D rn v v1 HS A w P,
+    ((M, (R, F), D), HS, A, w) ||= RAlst (rn |=> v) ⋆ P ->
+    ((M, (set_R R rn v1, F), D), HS, A, w) ||= RAlst (rn |=> v1) ⋆ P.
+Proof.
+  intros.
+  eapply sep_star_split in H.
+  simpljoin1.
+  eapply RAlst_down in H2; simpljoin1.
+  eapply sep_lemma.astar_emp_intro_r in H1.
+  destruct_state x.
+  destruct_state x0.
+  simpl in H; simpljoin1.
+  eapply reg_vl_change with (v1 := v1) in H1; eauto.
+  eapply sep_lemma.astar_emp_elim_r in H1.
+  destruct_hstate x1.
+  destruct_hstate x2.
+  simpl in H0, H2, H4; simpljoin1.
+  eapply sep_star_hold; eauto.
+  eapply RAlst_hold; eauto.
+  simpl.
+  repeat (split; eauto).
+  eapply disjoint_setR_still1; eauto.
+  rewrite indom_setR_merge_eq1; eauto.
+  clear - H1.
+  simpl in H1.
+  unfolds regSt; simpls.
+  simpljoin1.
+  unfolds set_R.
+  unfold is_indom in *.
+  destruct (r rn) eqn:Heqe; tryfalse.
+  unfold indom; eauto.
+  subst.
+  rewrite RegMap.gss in Heqe; tryfalse.
+  simpl.
+  split; eauto.
+Qed.
+
+(** Well formed Instruction *)
+Lemma wf_ins_rel_soundness :
+  forall P i Q,
+    ⊩ {{ P }} i {{ Q }} -> rel_ins_sound P Q i.
+Proof.
+  intros.
+  inv H.
+  eapply ins_rule_sound in H1.
+  unfold rel_ins_sound; intros.
+  eapply H0 in H.
+  simpl in H.
+  simpljoin1.
+  unfold ins_sound in H1.
+  eapply H1 in H5; simpljoin1.
+  destruct_hstate x.
+  destruct_hstate x0.
+  simpl in H, H7, H8; simpljoin1.
+  eapply legal_com_ins_safety_property_relasrt' in H4; eauto.
+  simpljoin1.
+  exists x.
+  split; eauto.
+  eapply H2.
+  simpl.
+  exists (EmpThrdPool, t0, K0, empM) (T0, t0, K0, M0) x5 x0 x3 x4.
+
+  split.
+  simpl.
+  split; eauto.
+
+  split; eauto.
+Qed.
+
 (** Well formed Instruction Seqence Soundness *)
 Definition get_index_fcall (rls : RelState) :=
   match rls with
@@ -240,25 +462,6 @@ Proof.
     unfold legal_com; rewrite H0, H1; eauto.
   }
 Qed.
- 
-Definition insSeq_rel_sound Spec P f I Q :=
-  forall C S HS A w,
-    LookupXC C f I -> (S, HS, A, w) ||= P ->
-    rel_safety_insSeq Spec w (C, S, f, f +ᵢ ($ 4)) (A, HS) Q.
-
-Definition cdhp_rel_sound Spec C :=
-  forall f Fp Fq L,
-    Spec f = Some (Fp, Fq) -> 
-    exists I : InsSeq, LookupXC C f I /\ insSeq_rel_sound Spec (Fp L) f I (Fq L).
-
-Lemma wf_insSeq_rel_soundness :
-  forall (I : InsSeq) Spec P Q f,
-    Spec ⊩ {{ P }} f # I {{ Q }} ->
-    insSeq_rel_sound Spec P f I Q.
-Proof.
-  intros.
-  induction H; intros.
-Admitted.
 
 Lemma rel_safety_insSeq_frame_property :
   forall I Spec C pc S1 S2 S HS1 HS2 HS w1 w2 Q Pr A,
@@ -853,6 +1056,194 @@ Lemma rel_safety_insSeq_conseq :
     rel_safety_insSeq Spec w (C, S, pc, npc) (A, HS) Q -> Q ⇒ Q' ->
     rel_safety_insSeq Spec w (C, S, pc, npc) (A, HS) Q'.
 Proof.
+Admitted.
+
+(* soundness of seqence rule *)
+Lemma wf_seq_rule_relsound :
+  forall P P' i Q f Spec I,
+    rel_ins_sound (P ⤈) P' i -> insSeq_rel_sound Spec P' f +ᵢ ($ 4) I Q ->
+    insSeq_rel_sound Spec P f (i;; I) Q.
+Proof.
+  intros.
+  unfolds insSeq_rel_sound, rel_ins_sound; intros.
+  inv H1.
+  econstructor; try solve [intros; CElim C].
+
+  intros.
+  rewrite H7 in H1; inv H1.
+  destruct_state S.
+  assert (exists R' D', exe_delay r d = (R', D')).
+  {    
+    eapply exe_delay_no_abort; eauto.
+  }
+  destruct H1 as (R' & D' & Hexe_delay).
+  lets HP_nxt : Hexe_delay.
+  symmetry in HP_nxt.
+  eapply dly_reduce_relasrt_stable in HP_nxt; eauto.
+  eapply H in HP_nxt; simpljoin1.
+
+  split.
+  (* Progress *)
+  exists x (f +ᵢ ($ 4)) (f +ᵢ ($ 4)) +ᵢ ($ 4).
+  destruct_state x.
+  econstructor; eauto.
+  eapply LNTrans; eauto.
+
+  (* preservation *)
+  intros.
+  inv H4.
+  eapply dly_reduce_relasrt_stable in H15; eauto.
+  inv H19; CElim C.
+  eapply H in H15; simpljoin1.
+  assert (x0 = (LM', (LR'', F'), D'')).
+  {
+    eapply lemmas_ins.ins_exec_deterministic; eauto.
+  }
+  subst.
+  left.
+  eapply H0; eauto.
+Qed.
+
+(* soundness of call rule *)
+Lemma wf_call_rule_relsound :
+  forall f f' Spec Fp Fq P P1 P2 Pr P' v i Q L I,
+    Spec f' = Some (Fp, Fq) -> P ⤈ ⇒ RAlst (r15 |=> v) ⋆ P1 ->
+    rel_ins_sound ((RAlst (r15 |=> W f) ⋆ P1) ⤈) (P2 ⋆ RAtoken 1%nat) i ->
+    P2 ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ P' -> Fq L ⇒ RAlst (Or r15 ==ₑ W f) -> GoodFrm Pr ->
+    insSeq_rel_sound Spec P' f +ᵢ ($ 8) I Q ->
+    insSeq_rel_sound Spec P f (call f'#i#I) Q.
+Proof.
+  intros.
+  unfold insSeq_rel_sound; intros.
+  inv H7.
+  econstructor; try solve [intros; CElim C].
+
+  intros.
+  rewrite H14 in H7; inv H7.
+  unfold rel_ins_sound in H1.
+
+  split.
+  (* progress *)
+  destruct_state S.
+  assert (exists R' D', exe_delay r d = (R', D')).
+  {    
+    eapply exe_delay_no_abort; eauto.
+  }
+  destruct H7 as (R' & D' & Hexe_delay).
+  lets HP_nxt : Hexe_delay.
+  symmetry in HP_nxt.
+  eapply dly_reduce_relasrt_stable in HP_nxt; eauto.
+  eapply H0 in HP_nxt.
+  lets Hreg_ret : HP_nxt.
+  eapply reg_vl_rel_change with (v1 := W f) in HP_nxt.
+  assert (exists R'' D'', exe_delay (set_R R' r15 (W f)) D' = (R'', D'')).
+  {    
+    eapply exe_delay_no_abort; eauto.
+  }
+  destruct H7 as (R'' & D'' & Hexe_delay').
+  lets HP_nxt' : Hexe_delay'.
+  symmetry in HP_nxt'.
+  eapply dly_reduce_relasrt_stable in HP_nxt'; eauto.
+  eapply H1 in HP_nxt'; eauto.
+  simpljoin1.
+  destruct_state x.
+  do 6 eexists.
+  split.
+  {
+    econstructor; eauto.
+    eapply LCall; eauto.
+    clear - Hreg_ret.
+    simpls.
+    simpljoin1.
+    destruct_state x1.
+    destruct_state x2.
+    simpls; simpljoin1.
+    unfolds regSt; simpls; simpljoin1.
+
+    unfold indom, merge.
+    rewrite RegMap.gss; eauto.
+  }
+  {
+    econstructor; eauto.
+    eapply LNTrans; eauto.
+  }
+
+  (* preservation *)
+  intros.
+  inv H7.
+  inv H22; CElim C.
+  inv H9.
+  inv H25; CElim C.
+  symmetry in H18.
+  eapply dly_reduce_relasrt_stable in H8; eauto.
+  eapply H0 in H8.
+  eapply reg_vl_rel_change with (v1 := W f) in H8; eauto.
+  eapply dly_reduce_relasrt_stable in H8; eauto.
+  eapply H1 in H8.
+  simpljoin1.
+  assert (x = (LM'0, (LR'', F'0), D''0)).
+  {
+    eapply ins_exec_deterministic; eauto.
+  }
+  subst x.
+  assert (Hw : w > 0%nat).
+  {
+    clear - H8.
+    simpl in H8.
+    simpljoin1.
+    destruct x0.
+    destruct p.
+    destruct p; simpljoin1.
+    omega.
+  }
+  exists Fp Fq L Pr A HS.
+  split; eauto.
+  split; eauto.
+  split; eauto.
+  split; eauto.
+
+  split.
+  left; eauto.
+  eapply token_consume in H8.
+  assert (w - 1 = Nat.pred w).
+  {
+    destruct w; omega.
+  }
+  rewrite H9 in H8.
+  eapply H2 in H8.
+  split; eauto.
+  split; eauto.
+
+  split.
+  intros.
+  eapply H3 in H10.
+  unfold insSeq_rel_sound in H6.
+  eapply H6 in H10; eauto.
+  rewrite Int.add_assoc in H10; eauto.
+
+  intros.
+  eapply H4 in H10.
+  clear - H10.
+  simpls; simpljoin1; eauto.
+Qed.
+
+Lemma wf_insSeq_rel_soundness :
+  forall (I : InsSeq) Spec P Q f,
+    Spec ⊩ {{ P }} f # I {{ Q }} ->
+    insSeq_rel_sound Spec P f I Q.
+Proof.
+  intros.
+  induction H; intros.
+  {
+    (* seq rule *)
+    eapply wf_ins_rel_soundness in H.
+    eapply wf_seq_rule_relsound; eauto.
+  }
+  {
+    (* call rule *)
+    eapply wf_ins_rel_soundness in H1.
+    eapply wf_call_rule_relsound; eauto.
+  }  
 Admitted.
 
 (** Well formed CodeHeap Soundness *)

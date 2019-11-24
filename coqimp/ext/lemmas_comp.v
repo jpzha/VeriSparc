@@ -1859,6 +1859,310 @@ Proof.
   eapply fetch_frame_HL with (R := R) in Heqe2; eauto.
   rewrite Heqe2; eauto.
 Qed.
+
+Lemma legal_com_ins_safety_property_relasrt' :
+  forall s s1 s1' s2 hs A w Pr i,
+    Q__ s1 (cntrans i) s1' -> state_union s1 s2 s -> (s2, hs, A, w) ||= Pr ->
+    exists s' s2', Q__ s (cntrans i) s' /\ state_union s1' s2' s' /\ (s2', hs, A, w) ||= Pr.
+Proof.
+  intros. 
+  destruct_state s1.
+  destruct_state s2.
+  simpls.
+  simpljoin1. 
+  lets Hfrm : H. 
+  eapply ins_frm_property in Hfrm; eauto.
+  Focus 2. 
+  instantiate (2 := (m0, (r0, f0), d0)).
+  simpl; repeat (split; eauto).
+  simpljoin1.
+  destruct_state s1'.
+  destruct_state x0.
+  simpls; simpljoin1.
+
+  inv H.
+  { 
+    inv H5.
+    {
+      (* ld aexp ri *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Ld_step; eauto.
+      eapply eval_addrexp_merge_still; eauto.
+      eapply get_vl_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* st ri aexp *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply ST_step; eauto.
+      eapply eval_addrexp_merge_still; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_memset_merge_eq; eauto.
+    }
+    {
+      (* nop *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Nop_step; eauto.
+    }
+    {
+      (* add rs oexp rd *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Add_step; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* sub rs oexp rd *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Sub_step; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* subcc rs oexp rd *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Subcc_step; try eapply indom_merge_still; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      simpl. 
+      erewrite indom_setR_merge_eq1; eauto.
+      erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
+      erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
+      eauto.
+      eauto.
+      eauto.
+    }
+    {
+      (* and *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply And_step; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* andcc *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Andcc_step; try eapply indom_merge_still; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      simpl.
+      erewrite indom_setR_merge_eq1; eauto.
+      erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
+      erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
+      eauto.
+      eauto.
+      eauto.
+    }
+    {
+      (* or rs oexp rd *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Or_step; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* sll rs oexp rd *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Sll_step; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* srl rs oexp rd *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Srl_step; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply eval_opexp_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* sett v rd *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Set_step; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* rd rsp ri *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply Rd_step; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+    {
+      (* getcwp ri *)
+      eexists.
+      exists (m2, (r2, f1), d1).
+      split.
+      Focus 2.
+      repeat (split; eauto).
+      eapply NormalIns; eauto.
+      eapply GetCwp_step; eauto.
+      eapply get_R_merge_still; eauto.
+      eapply indom_merge_still; eauto.
+      rewrite indom_setR_merge_eq1; eauto.
+    }
+  }
+  {
+    (* save rs oexp rd *)
+    eexists. 
+    exists (m2, (r2, fml :: fmi :: F'), d1).
+    split.
+    Focus 2.
+    repeat (split; eauto).
+    eapply dlyfrmfree_changeFrm_stable_relasrt; eauto.
+    clear - H2 H15.
+    intro.  
+    eapply indom_m2_disj_notin_m1 with (l := cwp) in H2; eauto.
+    contradiction H2.
+    unfold indom.
+    unfolds get_R.
+    destruct (r cwp) eqn:Heqe; eauto.
+    eapply SSave; try eapply get_R_merge_still; eauto.
+    eapply fetch_disj_merge_still1; eauto.
+    eapply indom_merge_still; eauto.
+    eapply eval_opexp_merge_still; eauto.
+    simpl. 
+    rewrite <- indom_setR_merge_eq1; eauto.
+    rewrite <- indom_setR_merge_eq1; eauto.
+    erewrite fetch_some_set_win_merge_eq; eauto.
+    eapply indom_setwin_still; eauto.
+    unfold indom.
+    clear - H15.
+    unfolds get_R.
+    destruct (r cwp); eauto.
+    eapply indom_setR_still; eauto.
+    eapply indom_setwin_still; eauto.
+  }
+  {
+    (* restore rs oexp rd *)
+    eexists. 
+    exists (m2, (r2, F' ++ [fmo; fml]), d1).
+    split.
+    Focus 2.
+    repeat (split; eauto).
+    eapply dlyfrmfree_changeFrm_stable_relasrt; eauto.
+    clear - H2 H15.
+    intro.  
+    eapply indom_m2_disj_notin_m1 with (l := cwp) in H2; eauto.
+    contradiction H2.
+    unfold indom.
+    unfolds get_R.
+    destruct (r cwp) eqn:Heqe; eauto.
+    eapply RRestore; try eapply get_R_merge_still; eauto.
+    eapply fetch_disj_merge_still1; eauto.
+    eapply indom_merge_still; eauto.
+    eapply eval_opexp_merge_still; eauto.
+    simpl.
+    rewrite <- indom_setR_merge_eq1; eauto.
+    rewrite <- indom_setR_merge_eq1; eauto. 
+    erewrite fetch_some_set_win_merge_eq; eauto.
+    eapply indom_setwin_still; eauto.
+    unfold indom. 
+    clear - H15.
+    unfolds get_R.
+    destruct (r cwp); eauto.
+    eapply indom_setR_still; eauto.
+    eapply indom_setwin_still; eauto.
+  }
+  {
+    (* wr rs oexp rsp *)
+    eexists.
+    exists (m2, (r2, f1), set_delay rsp (set_spec_reg rsp v1 xor v2) d0).
+    split.
+    Focus 2.
+    repeat (split; eauto).
+    eapply dlyfrmfree_notin_changeDly_still_relasrt; eauto.
+    clear - H2 H17.
+    intro.
+    eapply indom_m1_disj_notin_m2 in H2; eauto; tryfalse.
+    eapply H2 in H; tryfalse.
+    eauto.
+    eapply Wr; eauto.
+    eapply get_R_merge_still; eauto.
+    eapply eval_opexp_merge_still; eauto.
+    eapply indom_merge_still; eauto.
+  }
+Qed.
   
 Lemma legal_com_ins_safety_property_relasrt :
   forall s s1 s1' s2 hs A w Pr C pc npc pc' npc',
@@ -1881,315 +2185,13 @@ Proof.
                 end
               ].
   {
-    (* i *)
-    lets Hfrm : H12.
-    eapply ins_frm_property in Hfrm; eauto.
-    Focus 2.
-    instantiate (2 := (m0, (r0, f0), d0)).
-    simpl; repeat (split; eauto).
+    eapply legal_com_ins_safety_property_relasrt' in H12; eauto.
+    2 : simpl; eauto.
     simpljoin1.
-    destruct_state s1'.
-    destruct_state x0.
-    simpls; simpljoin1.
-
-    inv H12.
-    {
-      inv H5.
-      {
-        (* ld aexp ri *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Ld_step; eauto.
-        eapply eval_addrexp_merge_still; eauto.
-        eapply get_vl_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* st ri aexp *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply ST_step; eauto.
-        eapply eval_addrexp_merge_still; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_memset_merge_eq; eauto.
-      }
-      {
-        (* nop *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Nop_step; eauto.
-      }
-      {
-        (* add rs oexp rd *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Add_step; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply eval_opexp_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* sub rs oexp rd *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Sub_step; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply eval_opexp_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* subcc rs oexp rd *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Subcc_step; try eapply indom_merge_still; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply eval_opexp_merge_still; eauto.
-        simpl. 
-        erewrite indom_setR_merge_eq1; eauto.
-        erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
-        erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
-        eauto.
-        eauto.
-        eauto.
-      }
-      {
-        (* and *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply And_step; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply eval_opexp_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* andcc *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Andcc_step; try eapply indom_merge_still; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply eval_opexp_merge_still; eauto.
-        simpl.
-        erewrite indom_setR_merge_eq1; eauto.
-        erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
-        erewrite indom_setR_merge_eq1; repeat (eapply indom_setR_still; eauto).
-        eauto.
-        eauto.
-        eauto.
-      }
-      {
-        (* or rs oexp rd *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Or_step; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply eval_opexp_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* sll rs oexp rd *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Sll_step; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply eval_opexp_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* srl rs oexp rd *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Srl_step; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply eval_opexp_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* sett v rd *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Set_step; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* rd rsp ri *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply Rd_step; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-      {
-        (* getcwp ri *)
-        eexists.
-        exists (m2, (r2, f1), d1).
-        split.
-        Focus 2.
-        repeat (split; eauto).
-        eapply LNTrans; eauto.
-        eapply NormalIns; eauto.
-        eapply GetCwp_step; eauto.
-        eapply get_R_merge_still; eauto.
-        eapply indom_merge_still; eauto.
-        rewrite indom_setR_merge_eq1; eauto.
-      }
-    }
-    {
-      (* save rs oexp rd *)
-      eexists. 
-      exists (m2, (r2, fml :: fmi :: F'), d1).
-      split.
-      Focus 2.
-      repeat (split; eauto).
-      eapply dlyfrmfree_changeFrm_stable_relasrt; eauto.
-      clear - H3 H17.
-      intro.  
-      eapply indom_m2_disj_notin_m1 with (l := cwp) in H3; eauto.
-      contradiction H3.
-      unfold indom.
-      unfolds get_R.
-      destruct (r cwp) eqn:Heqe; eauto.
-      eapply LNTrans; eauto.
-      eapply SSave; try eapply get_R_merge_still; eauto.
-      eapply fetch_disj_merge_still1; eauto.
-      eapply indom_merge_still; eauto.
-      eapply eval_opexp_merge_still; eauto.
-      simpl. 
-      rewrite <- indom_setR_merge_eq1; eauto.
-      rewrite <- indom_setR_merge_eq1; eauto.
-      erewrite fetch_some_set_win_merge_eq; eauto.
-      eapply indom_setwin_still; eauto.
-      unfold indom.
-      clear - H17.
-      unfolds get_R.
-      destruct (r cwp); eauto.
-      eapply indom_setR_still; eauto.
-      eapply indom_setwin_still; eauto.
-    }
-    {
-      (* restore rs oexp rd *)
-      eexists. 
-      exists (m2, (r2, F' ++ [fmo; fml]), d1).
-      split.
-      Focus 2.
-      repeat (split; eauto).
-      eapply dlyfrmfree_changeFrm_stable_relasrt; eauto.
-      clear - H3 H17.
-      intro.  
-      eapply indom_m2_disj_notin_m1 with (l := cwp) in H3; eauto.
-      contradiction H3.
-      unfold indom.
-      unfolds get_R.
-      destruct (r cwp) eqn:Heqe; eauto.
-      eapply LNTrans; eauto.
-      eapply RRestore; try eapply get_R_merge_still; eauto.
-      eapply fetch_disj_merge_still1; eauto.
-      eapply indom_merge_still; eauto.
-      eapply eval_opexp_merge_still; eauto.
-      simpl.
-      rewrite <- indom_setR_merge_eq1; eauto.
-      rewrite <- indom_setR_merge_eq1; eauto. 
-      erewrite fetch_some_set_win_merge_eq; eauto.
-      eapply indom_setwin_still; eauto.
-      unfold indom. 
-      clear - H17.
-      unfolds get_R.
-      destruct (r cwp); eauto.
-      eapply indom_setR_still; eauto.
-      eapply indom_setwin_still; eauto.
-    }
-    {
-      eexists.
-      exists (m2, (r2, f1), set_delay rsp (set_spec_reg rsp v1 xor v2) d0).
-      split.
-      Focus 2.
-      repeat (split; eauto).
-      eapply dlyfrmfree_notin_changeDly_still_relasrt; eauto.
-      clear - H3 H19.
-      intro.
-      eapply indom_m1_disj_notin_m2 in H3; eauto; tryfalse.
-      eapply H3 in H; tryfalse.
-      eauto.
-      eapply LNTrans; eauto.
-      eapply Wr; eauto.
-      eapply get_R_merge_still; eauto.
-      eapply eval_opexp_merge_still; eauto.
-      eapply indom_merge_still; eauto.
-    }
+    exists x x0.
+    split.
+    eapply LNTrans; eauto.
+    split; eauto.
   }
   {
     (* jumpl aexp rd *)

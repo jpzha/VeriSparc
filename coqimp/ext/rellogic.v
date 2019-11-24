@@ -191,7 +191,7 @@ Definition FretSta (P1 P2 : relasrt) :=
 (** well-formed instruction *)
 Inductive rel_wf_ins : relasrt -> ins -> relasrt -> Prop :=
 | Rel_wf_ins : forall P P' Pr p p' i,
-    P ⇒ (RAlst p) ⋆ Pr -> wf_ins p i p' -> RAlst p ⋆ Pr ⇒ P' ->
+    P ⇒ (RAlst p) ⋆ Pr -> wf_ins p i p' -> RAlst p' ⋆ Pr ⇒ P' ->
     rel_wf_ins P i P'.
 
 Notation " '⊩' '{{' P '}}' i '{{' Q '}}' " := (rel_wf_ins P i Q) (at level 50).
@@ -219,7 +219,7 @@ Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop 
 | rel_call_rule : forall f f' i I P P1 P2 P' Q Pr Fp Fq (L : list Logic_var) v (Spec : Funspec),
     Spec f' = Some (Fp, Fq) ->
     (P ⤈) ⇒ (RAlst (r15 |=> v)) ⋆ P1 ->
-    ⊩ {{ ((RAlst (r15 |=> W f)) ⋆ P1) ⤈ }} i {{ P2 }} ->
+    ⊩ {{ ((RAlst (r15 |=> W f)) ⋆ P1) ⤈ }} i {{ P2 ⋆ RAtoken (1%nat) }} ->
     P2 ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ P'-> Fq L ⇒ RAlst ((Or r15) ==ₑ W f) -> GoodFrm Pr -> 
     rel_wf_seq Spec P' (f +ᵢ ($ 8)) I Q ->
     rel_wf_seq Spec P f (call f' # i # I) Q
@@ -230,14 +230,14 @@ Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop 
 
 | rel_J_rule : forall P P1 P' Q (r1 : GenReg) f f' aexp Spec Fp Fq L v Pr i,
     (P ⤈) ⇒ RAlst (aexp ==ₓ W f') -> Spec f' = Some (Fp, Fq) ->
-    (P ⤈) ⇒ RAlst (r1 |=> v) ⋆ P1 -> ⊩ {{ (RAlst (r1 |=> W f) ⋆ P1) ⤈ }} i {{ P' }} ->
+    (P ⤈) ⇒ RAlst (r1 |=> v) ⋆ P1 -> ⊩ {{ (RAlst (r1 |=> W f) ⋆ P1) ⤈ }} i {{ P' ⋆ RAtoken (1%nat) }} ->
     P' ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ Q -> GoodFrm Pr ->
     rel_wf_seq Spec P f (consJ aexp r1 i) Q
 
 | rel_Be_rule : forall P P' Q bv Spec L f f' Pr i I Fp Fq,
     Spec f' = Some (Fp, Fq) ->
-    P ⇒ RAlst (z |=> W bv) ⋆ RAtrue -> ⊩ {{ P ⤈⤈ }} i {{ P' }} ->
-    (bv =ᵢ ($ 0) = true -> rel_wf_seq Spec P' (f +ᵢ ($ 8)) I Q) ->
+    P ⇒ RAlst (z |=> W bv) ⋆ RAtrue -> ⊩ {{ P ⤈⤈ }} i {{ P' ⋆ RAtoken (1%nat) }} ->
+    (bv =ᵢ ($ 0) = true -> rel_wf_seq Spec (P' ⋆ RAtoken (1%nat)) (f +ᵢ ($ 8)) I Q) ->
     ((bv =ᵢ ($ 0) = false) -> ((P' ⇒ Fp L ⋆ Pr) /\ (Fq L ⋆ Pr ⇒ Q))) -> GoodFrm Pr ->
     rel_wf_seq Spec P f (be f' # i # I) Q
 
@@ -625,6 +625,16 @@ CoInductive rel_safety_insSeq :
       )
     ) ->
     rel_safety_insSeq Spec idx (C, S, pc, npc) (A, HS) Q.*)
+
+Definition insSeq_rel_sound Spec P f I Q :=
+  forall C S HS A w,
+    LookupXC C f I -> (S, HS, A, w) ||= P ->
+    rel_safety_insSeq Spec w (C, S, f, f +ᵢ ($ 4)) (A, HS) Q.
+
+Definition cdhp_rel_sound Spec C :=
+  forall f Fp Fq L,
+    Spec f = Some (Fp, Fq) -> 
+    exists I : InsSeq, LookupXC C f I /\ insSeq_rel_sound Spec (Fp L) f I (Fq L).
 
 Definition legal_com (oc : option Command) :=
   match oc with
