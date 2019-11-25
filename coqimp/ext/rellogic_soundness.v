@@ -1227,6 +1227,97 @@ Proof.
   simpls; simpljoin1; eauto.
 Qed.
 
+Lemma wf_retl_rule_relsound :
+  forall P P' Q Spec f i,
+    rel_ins_sound ((P ⤈) ⤈) P' i ->
+    P' ⇒ Q -> FretSta ((P ⤈) ⤈) P' ->
+    insSeq_rel_sound Spec P f (retl ;; i) Q.
+Proof.
+  intros.
+  unfolds insSeq_rel_sound; intros.
+  inv H2.
+  unfolds rel_ins_sound.
+  econstructor; try solve [intros; CElim C].
+
+  intros.
+  rewrite H5 in H2; inv H2.
+  unfold FretSta in H1.
+
+  split.
+  (* progress *)
+  destruct_state S.
+  assert (exists R' D', exe_delay r d = (R', D')).
+  {    
+    eapply exe_delay_no_abort; eauto.
+  }
+  destruct H2 as (R' & D' & Hexe_delay).
+  lets HP_nxt : Hexe_delay.
+  symmetry in HP_nxt.
+  eapply dly_reduce_relasrt_stable in HP_nxt; eauto.
+  assert (exists R'' D'', exe_delay R' D' = (R'', D'')).
+  {    
+    eapply exe_delay_no_abort; eauto.
+  }
+  destruct H2 as (R'' & D'' & Hexe_delay').
+  lets HP_nxt' : Hexe_delay'.
+  symmetry in HP_nxt'.
+  eapply dly_reduce_relasrt_stable in HP_nxt'; eauto.
+  lets Hfinal : HP_nxt'.
+  eapply H in Hfinal; eauto.
+  simpljoin1.
+  lets Hret : HP_nxt'.
+  eapply H1 in Hret; eauto.
+  simpljoin1.
+  simpl in H6, H7.
+  destruct_state x.
+  do 6 eexists.
+  split.
+  econstructor; eauto.
+  eapply LRetl; eauto.
+  unfold get_R.
+  eapply exe_delay_general_reg_stable with (R' := R'') in Hexe_delay'.
+  eapply Hexe_delay' in H6.
+  rewrite H6; eauto.
+
+  econstructor; eauto.
+  eapply LNTrans; eauto.
+
+  (* preservation *)
+  intros.
+  inv H2.
+  inv H16; CElim C.
+  inv H4.
+  inv H19; CElim C. 
+  eapply dly_reduce_relasrt_stable in H3; eauto.
+  eapply dly_reduce_relasrt_stable in H3; eauto.
+  lets HP' : H3.
+  do 2 eexists.
+  split.
+  left; eauto.
+  eapply H in H3; eauto.
+  simpljoin1.
+  assert (x = (LM'0, (LR''0, F'0), D''0)).
+  {
+    eapply ins_exec_deterministic; eauto.
+  }
+  subst x.
+  split; eauto.
+  eapply H1 in HP'; eauto.
+  simpl in HP'; simpljoin1.
+  simpl.
+  eexists.
+  unfold get_R; rewrite H6; eauto.
+  split; eauto.
+  symmetry in H15.
+  eapply exe_delay_general_reg_stable in H15; eauto.
+  eapply H15 in H4.
+  clear - H22 H4.
+  unfolds get_R; rewrite H4 in H22; simpls.
+  inv H22; eauto.
+  split; eauto.
+  rewrite Int.add_assoc; eauto.
+Qed.
+
 Lemma wf_insSeq_rel_soundness :
   forall (I : InsSeq) Spec P Q f,
     Spec ⊩ {{ P }} f # I {{ Q }} ->
@@ -1243,7 +1334,16 @@ Proof.
     (* call rule *)
     eapply wf_ins_rel_soundness in H1.
     eapply wf_call_rule_relsound; eauto.
-  }  
+  }
+  {
+    (* retl rule *)
+    eapply wf_ins_rel_soundness in H.
+    eapply wf_retl_rule_relsound; eauto.
+  }
+  {
+    (* Jmpl rule *)
+    eapply wf_ins_rel_soundness in H2.
+  }
 Admitted.
 
 (** Well formed CodeHeap Soundness *)
