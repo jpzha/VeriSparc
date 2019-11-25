@@ -1318,6 +1318,79 @@ Proof.
   rewrite Int.add_assoc; eauto.
 Qed.
 
+Lemma wf_jmpl_rule_relsound :
+  forall P P' aexp f' f Fp Fq P1 (r1 : GenReg) i Pr L v Q Spec,
+    P ⤈ ⇒ RAlst (aexp ==ₓ W f') ->
+    Spec f' = Some (Fp, Fq) -> P ⤈ ⇒ RAlst (r1 |=> v) ⋆ P1 ->
+    rel_ins_sound ((RAlst (r1 |=> W f) ⋆ P1) ⤈) (P' ⋆ RAtoken 1) i ->
+    P' ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ Q -> GoodFrm Pr ->
+    insSeq_rel_sound Spec P f (consJ aexp r1 i) Q.
+Proof.
+  intros.
+  unfold insSeq_rel_sound; intros.
+  inv H6.
+  destruct_state S.
+  econstructor; intros; try solve [CElim C].
+  rewrite H12 in H6; inv H6.
+
+  split.
+  (* progress *)
+  assert (exists R' D', exe_delay r d = (R', D')).
+  {    
+    eapply exe_delay_no_abort; eauto.
+  }
+  destruct H6 as (R' & D' & Hexe_delay).
+  lets HP_nxt : Hexe_delay.
+  symmetry in HP_nxt.
+  eapply dly_reduce_relasrt_stable in HP_nxt; eauto.
+  lets Haexp : HP_nxt.
+  eapply H1 in HP_nxt.
+  lets Hf : HP_nxt.
+  eapply reg_vl_rel_change with (v1 := W f) in Hf; eauto.
+  eapply H in Haexp.
+  assert (exists R'' D'', exe_delay (set_R R' rd (W f)) D' = (R'', D'')).
+  {    
+    eapply exe_delay_no_abort; eauto.
+  }
+  destruct H6 as (R'' & D'' & Hexe_delay'').
+  lets HP_nxt' : Hexe_delay''.
+  symmetry in HP_nxt'.
+  eapply dly_reduce_relasrt_stable in HP_nxt'; eauto.
+  unfold rel_ins_sound in H2.
+  eapply H2 in HP_nxt'; eauto.
+  simpljoin1.
+  destruct_state x.
+  do 6 eexists.
+  split.
+  econstructor; eauto. 
+  eapply LJumpl with (f := f'); eauto.
+  {
+    clear - Haexp.
+    simpls; simpljoin1; eauto.
+  }
+  {
+    clear - Haexp.
+    simpls; simpljoin1; eauto.
+  }
+  {
+    clear - HP_nxt.
+    eapply sep_star_split in HP_nxt.
+    simpljoin1.
+    destruct_state x.
+    destruct_state x0.
+    simpls.
+    simpljoin1.
+    unfolds regSt; simpls; simpljoin1.
+    eapply indom_merge_still; eauto.
+    unfold indom.
+    rewrite RegMap.gss; eauto.
+  }
+  econstructor; eauto.
+  eapply LNTrans; eauto.
+
+  (* preservation *)
+  intros.
+
 Lemma wf_insSeq_rel_soundness :
   forall (I : InsSeq) Spec P Q f,
     Spec ⊩ {{ P }} f # I {{ Q }} ->
@@ -1343,6 +1416,7 @@ Proof.
   {
     (* Jmpl rule *)
     eapply wf_ins_rel_soundness in H2.
+    >>>>>>>>>>>>>>>>>>>>>>>>>>
   }
 Admitted.
 
