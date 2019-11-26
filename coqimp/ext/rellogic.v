@@ -451,20 +451,20 @@ CoInductive rel_safety_insSeq :
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
             (
-              exists v A' HS',
-                ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
+              exists v A' HS' w',
+                ((A' = A /\ HS = HS' /\ w = w') \/ (exec_prim (A, HS) (A', HS'))) /\
                 get_R (getregs S) z = Some (W v) /\
                 (
                   v <> ($ 0) ->
                   (
                     exists Fp Fq L r,
-                      Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', Nat.pred w) ||= (Fp L) ⋆ r /\
-                      ImplyPrim' (Fq L ⋆ r) Q /\ GoodFrm r /\ (w > 0)%nat /\ npc2 = pc2 +ᵢ ($ 4)
+                      Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', Nat.pred w') ||= (Fp L) ⋆ r /\
+                      ImplyPrim' (Fq L ⋆ r) Q /\ GoodFrm r /\ (w' > 0)%nat /\ npc2 = pc2 +ᵢ ($ 4)
                   )
                 ) /\
                 ( 
                   v = ($ 0) ->
-                  rel_safety_insSeq Spec w (C, S2, pc2, npc2) (A', HS') Q
+                  rel_safety_insSeq Spec w' (C, S2, pc2, npc2) (A', HS') Q
                 )
             )
         )

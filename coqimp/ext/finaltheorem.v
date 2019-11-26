@@ -320,7 +320,7 @@ Proof.
   eapply wf_insSeq_rel_soundness in H4; eauto.
   eapply wf_cdhp_rel_sound in H; eauto.
   unfolds simImpPrim; intros.
-  exists (w, (1 + get_insSeqLen I)%nat).
+  exists (w, (0%nat, (1 + get_insSeqLen I)%nat)).
   eapply function_correctness; eauto.
 Qed.
 
