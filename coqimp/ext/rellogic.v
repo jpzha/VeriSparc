@@ -180,21 +180,27 @@ Definition Funspec := Word -> option Fspec.
 
 Definition ImplyPrim (P P' : relasrt) :=
   forall s hs A w, (s, hs, A, w) ||= P ->
-              (exists hs' A' w', exec_prim (A, hs) (A', hs') /\ (s, hs', A', w') ||= P').
+              (exists hs' A' w', exec_prim (A, hs) (A', hs') /\ (s, hs', A', w') ||= P') \/ (s, hs, A, w) ||= P'.
 Notation "P ⭆ P'" := (ImplyPrim P P') (at level 34, right associativity).
 
-Definition FretSta (P1 P2 : relasrt) :=
-  forall rls rls', rls ||= P1 -> rls' ||= P2 ->
-          (exists f, (getregs (get_ls_rls rls)) r15 = Some (W f) /\
-                (getregs (get_ls_rls rls')) r15 = Some (W f)).
-
-(** well-formed instruction *)
-Inductive rel_wf_ins : relasrt -> ins -> relasrt -> Prop :=
-| Rel_wf_ins : forall P P' Pr p p' i,
-    P ⇒ (RAlst p) ⋆ Pr -> wf_ins p i p' -> RAlst p' ⋆ Pr ⇒ P' ->
-    rel_wf_ins P i P'.
-
-Notation " '⊩' '{{' P '}}' i '{{' Q '}}' " := (rel_wf_ins P i Q) (at level 50).
+(** Sta of frame asrt *)
+Inductive Sta : primcom -> relasrt -> Prop := 
+| consSta : forall A Pr,
+    (
+      forall hprim lv, A = Pm hprim lv ->
+                  (
+                    forall HSc HSc' HSr w S HS,
+                      exec_prim (Pm hprim lv, HSc) (Pdone, HSc') ->
+                      hstate_union HSc HSr HS -> 
+                      (S, HSr, Pm hprim lv, w) ||= Pr ->
+                      (
+                        exists HS' HSr', exec_prim (Pm hprim lv, HS) (Pdone, HS') /\
+                                    hstate_union HSc' HSr' HS' /\
+                                    (S, HSr', Pdone, w) ||= Pr
+                      )
+                  )
+    ) \/ A = Pdone ->
+    Sta A Pr.
 
 Fixpoint GoodFrm (Pr : relasrt) :=
   match Pr with
@@ -209,6 +215,23 @@ Fixpoint GoodFrm (Pr : relasrt) :=
   | RAexists ty P => exists x : ty, GoodFrm (P x)
   | _ => True
   end.
+
+Definition ImplyPrim' (P P' : relasrt) :=
+  forall s hs A w, (s, hs, A, w) ||= P -> (forall Pr, GoodFrm Pr -> Sta A Pr) ->
+              (exists hs' A' w', exec_prim (A, hs) (A', hs') /\ (s, hs', A', w') ||= P') \/ (s, hs, A, w) ||= P'.
+
+Definition FretSta (P1 P2 : relasrt) :=
+  forall rls rls', rls ||= P1 -> rls' ||= P2 ->
+          (exists f, (getregs (get_ls_rls rls)) r15 = Some (W f) /\
+                (getregs (get_ls_rls rls')) r15 = Some (W f)).
+
+(** well-formed instruction *)
+Inductive rel_wf_ins : relasrt -> ins -> relasrt -> Prop :=
+| Rel_wf_ins : forall P P' Pr p p' i,
+    P ⇒ (RAlst p) ⋆ Pr -> wf_ins p i p' -> RAlst p' ⋆ Pr ⇒ P' ->
+    rel_wf_ins P i P'.
+
+Notation " '⊩' '{{' P '}}' i '{{' Q '}}' " := (rel_wf_ins P i Q) (at level 50).
 
 (** well-formed instruction sequence *)
 Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop :=
@@ -225,24 +248,24 @@ Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop 
     rel_wf_seq Spec P f (call f' # i # I) Q
 
 | rel_retl_rule : forall P P' Q f i Spec,
-    ⊩ {{ (P ⤈) ⤈ }} i {{ P' }} -> P' ⇒ Q -> FretSta ((P ⤈) ⤈) P' ->
+    ⊩ {{ (P ⤈) ⤈ }} i {{ P' }} -> P' ⭆ Q -> FretSta ((P ⤈) ⤈) P' ->
     rel_wf_seq Spec P f (retl ;; i) Q
 
 | rel_J_rule : forall P P1 P' Q (r1 : GenReg) f f' aexp Spec Fp Fq L v Pr i,
     (P ⤈) ⇒ RAlst (aexp ==ₓ W f') -> Spec f' = Some (Fp, Fq) ->
     (P ⤈) ⇒ RAlst (r1 |=> v) ⋆ P1 -> ⊩ {{ (RAlst (r1 |=> W f) ⋆ P1) ⤈ }} i {{ P' ⋆ RAtoken (1%nat) }} ->
-    P' ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ Q -> GoodFrm Pr ->
+    P' ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⭆ Q -> GoodFrm Pr ->
     rel_wf_seq Spec P f (consJ aexp r1 i) Q
 
 | rel_Be_rule : forall P P' Q bv Spec L f f' Pr i I Fp Fq,
     Spec f' = Some (Fp, Fq) ->
     P ⇒ RAlst (z |=> W bv) ⋆ RAtrue -> ⊩ {{ P ⤈⤈ }} i {{ P' ⋆ RAtoken (1%nat) }} ->
     (bv =ᵢ ($ 0) = true -> rel_wf_seq Spec (P' ⋆ RAtoken (1%nat)) (f +ᵢ ($ 8)) I Q) ->
-    ((bv =ᵢ ($ 0) = false) -> ((P' ⇒ Fp L ⋆ Pr) /\ (Fq L ⋆ Pr ⇒ Q))) -> GoodFrm Pr ->
+    ((bv =ᵢ ($ 0) = false) -> ((P' ⇒ Fp L ⋆ Pr) /\ (Fq L ⋆ Pr ⭆ Q) /\ GoodFrm Pr)) ->
     rel_wf_seq Spec P f (be f' # i # I) Q
 
-| rel_ABSCSQ_rule : forall P P' Q' Q f I Spec,
-    P ⭆ P' -> rel_wf_seq Spec P' f I Q' -> Q' ⭆ Q ->
+| rel_ABSCSQ_rule : forall P P' Q f I Spec,
+    P ⭆ P' -> rel_wf_seq Spec P' f I Q ->
     rel_wf_seq Spec P f I Q.
 
 Notation " Spec '⊩' '{{' P '}}' f '#' I '{{' Q '}}' " :=
@@ -287,25 +310,6 @@ Definition INV (A : primcom) (w : nat) (lv : list Val) (rls : RelState) :=
     wp_stateRel s hs /\ ((exists hs', exec_prim (A, hs) (Pdone, hs') /\ A <> Pdone) \/ A = Pdone)
                          /\ args (getHQ hs) (getHM hs) lv
   end.
-
-(** Sta of frame asrt *)
-Inductive Sta : primcom -> relasrt -> Prop := 
-| consSta : forall A Pr,
-    (
-      forall hprim lv, A = Pm hprim lv ->
-                  (
-                    forall HSc HSc' HSr w S HS,
-                      exec_prim (Pm hprim lv, HSc) (Pdone, HSc') ->
-                      hstate_union HSc HSr HS -> 
-                      (S, HSr, Pm hprim lv, w) ||= Pr ->
-                      (
-                        exists HS' HSr', exec_prim (Pm hprim lv, HS) (Pdone, HS') /\
-                                    hstate_union HSc' HSr' HS' /\
-                                    (S, HSr', Pdone, w) ||= Pr
-                      )
-                  )
-    ) \/ A = Pdone ->
-    Sta A Pr.
 
 (** Well-formed Spec *) 
 Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
@@ -377,8 +381,8 @@ CoInductive rel_safety_insSeq :
               )
               \/
               (
-                exists HS', exec_prim (A, HS) (Pdone, HS')
-                       /\ rel_safety_insSeq Spec w (C, S', pc', npc') (Pdone, HS') Q
+                exists HS' w', exec_prim (A, HS) (Pdone, HS')
+                       /\ rel_safety_insSeq Spec w' (C, S', pc', npc') (Pdone, HS') Q
               )
             )
         )
@@ -399,11 +403,11 @@ CoInductive rel_safety_insSeq :
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
             (
-              exists Fp Fq L r A' HS',
+              exists Fp Fq L r A' HS' w'',
                 pc2 = f /\ npc2 = f +ᵢ ($ 4) /\
-                Spec f = Some (Fp, Fq) /\ (w > 0)%nat /\
-                ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
-                (S2, HS', A', Nat.pred w) ||= (Fp L) ⋆ r /\ GoodFrm r /\ 
+                Spec f = Some (Fp, Fq) /\ (w'' > 0)%nat /\
+                ((A' = A /\ HS = HS' /\ w'' = w) \/ (exec_prim (A, HS) (A', HS'))) /\
+                (S2, HS', A', Nat.pred w'') ||= (Fp L) ⋆ r /\ GoodFrm r /\ 
                 (forall S' HS' A' w', (S', HS', A', w') ||= (Fq L) ⋆ r -> (forall Pr, GoodFrm Pr -> Sta A' Pr) ->
                                  rel_safety_insSeq Spec w' (C, S', (pc +ᵢ ($ 8)), (pc +ᵢ ($ 12))) (A', HS') Q) /\
                 (forall S' HS' A' w', (S', HS', A', w') ||= Fq L ->
@@ -426,10 +430,10 @@ CoInductive rel_safety_insSeq :
             LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
             LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
             (
-              exists Fp Fq L r A' HS',
-                ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS'))) /\
-                Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', Nat.pred w) ||= (Fp L) ⋆ r /\
-                (Fq L) ⋆ r ⇒ Q /\ GoodFrm r /\ (w > 0)%nat /\ npc2 = pc2 +ᵢ ($ 4)
+              exists Fp Fq L r A' HS' w',
+                ((A' = A /\ HS = HS' /\ w = w') \/ (exec_prim (A, HS) (A', HS'))) /\
+                Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', Nat.pred w') ||= (Fp L) ⋆ r /\ GoodFrm r /\
+                ImplyPrim' (Fq L ⋆ r) Q /\ (w' > 0)%nat /\ npc2 = pc2 +ᵢ ($ 4)
             )
         )
     ) ->
@@ -455,7 +459,7 @@ CoInductive rel_safety_insSeq :
                   (
                     exists Fp Fq L r,
                       Spec pc2 = Some (Fp, Fq) /\ (S2, HS', A', Nat.pred w) ||= (Fp L) ⋆ r /\
-                      (Fq L ⋆ r) ⇒ Q /\ GoodFrm r /\ (w > 0)%nat /\ npc2 = pc2 +ᵢ ($ 4)
+                      ImplyPrim' (Fq L ⋆ r) Q /\ GoodFrm r /\ (w > 0)%nat /\ npc2 = pc2 +ᵢ ($ 4)
                   )
                 ) /\
                 ( 
@@ -477,10 +481,11 @@ CoInductive rel_safety_insSeq :
         forall S1 S2 pc1 npc1 pc2 npc2,
           LP__ (C, (S, pc, npc)) tau (C, (S1, pc1, npc1)) ->
           LP__ (C, (S1, pc1, npc1)) tau (C, (S2, pc2, npc2)) ->
+          (forall Pr, GoodFrm Pr -> Sta A Pr) ->
           (
-            exists A' HS',
-              ((A' = A /\ HS = HS') \/ (exec_prim (A, HS) (A', HS')))
-              /\ (S2, HS', A', w) ||= Q /\ 
+            exists A' HS' w',
+              ((A' = A /\ HS = HS' /\ w' = w) \/ (exec_prim (A, HS) (A', HS')))
+              /\ (S2, HS', A', w') ||= Q /\ 
               (exists f,
                   get_R (getregs S2) r15 = Some (W f) /\
                   pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
