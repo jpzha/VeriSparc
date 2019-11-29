@@ -665,11 +665,11 @@ Inductive wfHPrimExec : XCodeHeap -> primcom -> HState -> apSet -> Prop :=
     wfHPrimExec C A HS PrimSet.
 
 (** Well-formed Current Thread *)
-Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
+Inductive wfCth (restoreQ : Memory -> RState -> Prop) : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
 | clt_wfCth : forall C Cas S HS pc npc PrimSet idx,
-    wp_stateRel S HS -> wfIndex C S pc idx -> 
+    wp_stateRel restoreQ S HS -> wfIndex C S pc idx -> 
     get_Hs_pcont HS = (pc, npc) -> indom pc C ->
-    wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS)
+    wfCth restoreQ idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS)
 
 | prim_wfCth : forall C Cas Sc HSc S HS Sr HSr w Q Pr A pc npc PrimSet idx k,
     state_union Sc Sr S -> hstate_union HSc HSr HS ->
@@ -679,21 +679,22 @@ Inductive wfCth : Index -> XCodeHeap * XCodeHeap -> LProg -> HProg -> Prop :=
     (
       forall S' HS' w' f, (S', HS', Pdone, w') ||= Q ⋆ Pr -> getregs S' r15 = Some (W f) ->
                      HProgSafe (C, PrimSet, HS') -> (exec_prim (A, HS) (Pdone, HS')) -> 
-                     wp_stateRel S' HS' /\ get_Hs_pcont HS' = (f +ᵢ ($ 8), f +ᵢ ($ 12)) 
+                     wp_stateRel restoreQ S' HS' /\ get_Hs_pcont HS' = (f +ᵢ ($ 8), f +ᵢ ($ 12)) 
     ) ->
-    wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
+    wfCth restoreQ idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
 
 (* Well-formed Ready Thread *)
-Inductive wfRdy : XCodeHeap * XCodeHeap -> XCodeHeap * apSet -> Tid -> tlocst -> Prop :=
+Inductive wfRdy (restoreQ : Memory -> RState -> Prop) :
+  XCodeHeap * XCodeHeap -> XCodeHeap * apSet -> Tid -> tlocst -> Prop :=
 | cons_wfRdy : forall t K PrimSet C Cas,
     (
       forall S HS f T HM pc npc, 
-        wp_stateRel S HS -> HS = (T, t, K, HM) -> HProgSafe (C, PrimSet, HS) ->
+        wp_stateRel restoreQ S HS -> HS = (T, t, K, HM) -> HProgSafe (C, PrimSet, HS) ->
         getregs S r15 = Some (W f) -> pc = f +ᵢ ($ 8) -> npc = f +ᵢ ($ 12) ->
         get_Hs_pcont HS = (pc, npc) ->
-        exists idx, wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS)
+        exists idx, wfCth restoreQ idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS)
     ) ->
-    wfRdy (C, Cas) (C, PrimSet) t K.
+    wfRdy restoreQ (C, Cas) (C, PrimSet) t K.
 
 Lemma indom_get_left :
   forall tp tp' (M M' : tp -> option tp') l v,
@@ -801,11 +802,11 @@ Proof.
 Qed.
 
 Lemma inital_wfCth_holds :
-  forall Spec C Cas PrimSet S HS pc npc,
-    simImpsPrimSet Spec Cas PrimSet ->
-    wp_stateRel S HS -> HProgSafe (C, PrimSet, HS) ->
+  forall Spec C Cas PrimSet S HS pc npc restoreQ,
+    simImpsPrimSet Spec Cas PrimSet restoreQ ->
+    wp_stateRel restoreQ S HS -> HProgSafe (C, PrimSet, HS) ->
     get_Hs_pcont HS = (pc, npc) -> C ⊥ Cas ->
-    exists idx, wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
+    exists idx, wfCth restoreQ idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
 Proof.
   intros.
   destruct HS.
@@ -833,7 +834,7 @@ Proof.
     destruct Hprim_exec as (lv & hprim & Hprimset & HwfHPrimExec & Hnpc).
     unfolds simImpsPrimSet.
     lets HSpec : Hprimset. 
-    assert (HwdSpec : exists Fp Fq, Spec pc = Some (Fp, Fq) /\ wdSpec Fp Fq hprim).
+    assert (HwdSpec : exists Fp Fq, Spec pc = Some (Fp, Fq) /\ wdSpec restoreQ Fp Fq hprim).
     { 
       clear - H HSpec.
       eapply H with (L := nil) in HSpec.
@@ -847,7 +848,7 @@ Proof.
     destruct Hret as [Hret HGoodPrim].
     specialize (H6 lv). 
     destruct H6 as (num & Pr & L & Hwf_pre & Hwf_post & HSta).
-    assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num)).
+    assert (Hinv : INV (Pm hprim lv) num lv (S, (T, t, K, m), (Pm hprim lv), num) restoreQ).
     unfold INV.
     split; eauto. 
     clear - HwfHPrimExec. 
@@ -898,7 +899,7 @@ Proof.
     eapply prim_wfCth; eauto.
 
     intros. 
-    assert (wp_stateRel S' HS').
+    assert (wp_stateRel restoreQ S' HS').
     {
       clear - Hwf_post H4.
       eapply Hwf_post in H4.
@@ -926,9 +927,9 @@ Proof.
 Qed.
   
 Lemma LH__progress_HH_progress :
-  forall C Cas Spec Mc Mr LR F pc npc LM' LR' F' D' pc' npc' T t HR b HF M PrimSet idx,
+  forall C Cas Spec Mc Mr LR F pc npc LM' LR' F' D' pc' npc' T t HR b HF M PrimSet idx restoreQ,
     Mfresh b Mr ->
-    simImpsPrimSet Spec Cas PrimSet -> C ⊥ Cas -> 
+    simImpsPrimSet Spec Cas PrimSet restoreQ -> C ⊥ Cas -> 
     LH__ C ((Mc ⊎ Mr ⊎ M, (LR, F), []), pc, npc) tau
          ((LM', (LR', F'), D'), pc', npc') ->
     HProgSafe (C, PrimSet, (T, t, ((HR, b, HF), pc, npc), M)) ->
@@ -3279,8 +3280,8 @@ Proof.
 Qed.
 
 Lemma indom_rdythrd_b_0_valid :
-  forall M T b ofs,
-    rdyTsRel M T -> indom (b, ofs) M ->
+  forall M T b ofs restoreQ,
+    rdyTsRel restoreQ M T -> indom (b, ofs) M ->
     indom (b, $ 0) M.
 Proof.
   intros.
@@ -3329,14 +3330,14 @@ Qed.
 
 (* WfCth and WfRdy Preservation *)
 Lemma wfCth_wfRdy_tau_step_preservation_clt :
-  forall idx C Cas S pc npc S' pc' npc' PrimSet T t K M Spec,
+  forall idx C Cas S pc npc S' pc' npc' PrimSet T t K M Spec restoreQ,
     indom pc C ->
-    simImpsPrimSet Spec Cas PrimSet -> C ⊥ Cas -> 
+    simImpsPrimSet Spec Cas PrimSet restoreQ -> C ⊥ Cas -> 
     HProgSafe (C, PrimSet, (T, t, K, M)) ->
-    wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
+    wfCth restoreQ idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
     (
       forall t' K', (ThrdMap.set t None T) t' = Some K' ->
-                    wfRdy (C, Cas) (C, PrimSet) t' K' 
+                    wfRdy restoreQ (C, Cas) (C, PrimSet) t' K' 
     ) ->
     LP__ (C ⊎ Cas, (S, pc, npc)) tau (C ⊎ Cas, (S', pc', npc')) ->
     exists T' t0 K0 M' idx1,
@@ -3344,10 +3345,10 @@ Lemma wfCth_wfRdy_tau_step_preservation_clt :
        (exists HP', star_tau_step HP__ (C, PrimSet, (T, t, K, M)) HP' /\
                     HP__ HP' tau (C, PrimSet, (T', t0, K0, M'))))
       /\
-      wfCth idx1 (C, Cas) (C ⊎ Cas, (S', pc', npc')) (C, PrimSet, (T', t0, K0, M')) /\
+      wfCth restoreQ idx1 (C, Cas) (C ⊎ Cas, (S', pc', npc')) (C, PrimSet, (T', t0, K0, M')) /\
       (
         forall t1 K1, (ThrdMap.set t0 None T') t1 = Some K1 ->
-                      wfRdy (C, Cas) (C, PrimSet) t1 K1 
+                      wfRdy restoreQ (C, Cas) (C, PrimSet) t1 K1 
       ).
 Proof.   
   introv Ht; intros.
@@ -3420,7 +3421,7 @@ Proof.
 
   destruct Hstep as [Hstep | Hstep].
   {
-    assert (exists idx1, wfCth idx1 (C, Cas)
+    assert (exists idx1, wfCth restoreQ idx1 (C, Cas)
                           (C ⊎ Cas, (((Mc' ⊎ (MT ⊎ MemMap.set TaskCur (Some (Ptr (t, $ 0))) empM)) ⊎ M'',
                                       (LR'', F'), []), pc', npc')) (C, PrimSet, (T, t, K', M''))).
     { 
@@ -3518,13 +3519,13 @@ Proof.
 Qed.
 
 Lemma wfCth_wfRdy_event_step_preservation :
-  forall idx C Cas S pc npc S' pc' npc' PrimSet T t K M Spec v,
-    simImpsPrimSet Spec Cas PrimSet -> C ⊥ Cas -> 
+  forall idx C Cas S pc npc S' pc' npc' PrimSet T t K M Spec v restoreQ,
+    simImpsPrimSet Spec Cas PrimSet restoreQ -> C ⊥ Cas -> 
     HProgSafe (C, PrimSet, (T, t, K, M)) ->
-    wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
+    wfCth restoreQ idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
     (
       forall t' K', (ThrdMap.set t None T) t' = Some K' ->
-                    wfRdy (C, Cas) (C, PrimSet) t' K' 
+                    wfRdy restoreQ (C, Cas) (C, PrimSet) t' K' 
     ) ->
     LP__ (C ⊎ Cas, (S, pc, npc)) (out v) (C ⊎ Cas, (S', pc', npc')) ->
     exists T' t0 K0 M' HP',
@@ -3533,10 +3534,10 @@ Lemma wfCth_wfRdy_event_step_preservation :
                     HP__ HP' (out v) (C, PrimSet, (T', t0, K0, M'))
       )
       /\
-      (exists idx1, wfCth idx1 (C, Cas) (C ⊎ Cas, (S', pc', npc')) (C, PrimSet, (T', t0, K0, M'))) /\
+      (exists idx1, wfCth restoreQ idx1 (C, Cas) (C ⊎ Cas, (S', pc', npc')) (C, PrimSet, (T', t0, K0, M'))) /\
       (
         forall t1 K1, (ThrdMap.set t0 None T') t1 = Some K1 ->
-                      wfRdy (C, Cas) (C, PrimSet) t1 K1 
+                      wfRdy restoreQ (C, Cas) (C, PrimSet) t1 K1 
       ).
 Proof.
   intros.
@@ -3636,13 +3637,13 @@ Proof.
 Qed.
  
 Lemma wfCth_wfRdy_abort_preservation :
-  forall idx C Cas S pc npc PrimSet T t K M Spec,
-    simImpsPrimSet Spec Cas PrimSet -> C ⊥ Cas -> 
+  forall idx C Cas S pc npc PrimSet T t K M Spec restoreQ,
+    simImpsPrimSet Spec Cas PrimSet restoreQ -> C ⊥ Cas -> 
     HProgSafe (C, PrimSet, (T, t, K, M)) ->
-    wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
+    wfCth restoreQ idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
     (
       forall t' K', (ThrdMap.set t None T) t' = Some K' ->
-                    wfRdy (C, Cas) (C, PrimSet) t' K' 
+                    wfRdy restoreQ (C, Cas) (C, PrimSet) t' K' 
     ) ->
     ~ (exists (LP': LProg) m, LP__ (C ⊎ Cas, (S, pc, npc)) m LP') ->
     exists HP' : HProg, star_tau_step HP__ (C, PrimSet, (T, t, K, M)) HP' /\ ~ (exists (HP'': HProg) m', HP__ HP' m' HP'').
@@ -4216,7 +4217,7 @@ Proof.
     inv H13.
     unfolds simImpsPrimSet.
     lets Hprim : H15.
-    assert (HwdSpec : exists Fp Fq, Spec f = Some (Fp, Fq) /\ wdSpec Fp Fq prim).
+    assert (HwdSpec : exists Fp Fq, Spec f = Some (Fp, Fq) /\ wdSpec restoreQ Fp Fq prim).
     {
       eapply H with (L := nil) in Hprim; eauto.
       simpljoin1.
@@ -4232,7 +4233,7 @@ Proof.
     simpljoin1.
     rewrite H5 in HSpec; inv HSpec.
     unfold simImpPrim in H10.
-    assert (Hinv : INV (Pm prim lv) num lv (S, (T, t, (h, f, f +ᵢ ($ 4)), M), Pm prim lv, num)).
+    assert (Hinv : INV (Pm prim lv) num lv (S, (T, t, (h, f, f +ᵢ ($ 4)), M), Pm prim lv, num) restoreQ).
     {
       unfold INV.
       split; eauto.
@@ -4301,13 +4302,13 @@ Qed.
   
 (* Compositionality Proof *)
 Lemma wfCth_wfRdy_imply_wpsim :
-  forall idx C Cas S pc npc PrimSet T t K M Spec,
-    simImpsPrimSet Spec Cas PrimSet -> C ⊥ Cas -> 
+  forall idx C Cas S pc npc PrimSet T t K M Spec restoreQ,
+    simImpsPrimSet Spec Cas PrimSet restoreQ -> C ⊥ Cas -> 
     HProgSafe (C, PrimSet, (T, t, K, M)) ->
-    wfCth idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
+    wfCth restoreQ idx (C, Cas) (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)) ->
     (
       forall t' K', (ThrdMap.set t None T) t' = Some K' ->
-                    wfRdy (C, Cas) (C, PrimSet) t' K' 
+                    wfRdy restoreQ (C, Cas) (C, PrimSet) t' K' 
     ) ->
     wp_sim idx (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, (T, t, K, M)).
 Proof.
@@ -4671,7 +4672,7 @@ Proof.
               }
               eauto.
             }
-            assert (Hwp_state' : wp_stateRel (LM'0, (LR''0, F'0), D''0) HS' /\
+            assert (Hwp_state' : wp_stateRel restoreQ (LM'0, (LR''0, F'0), D''0) HS' /\
                                  get_Hs_pcont HS' = (x4 +ᵢ ($ 8), x4 +ᵢ ($ 12))).
             {
               eapply H19; eauto.

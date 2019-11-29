@@ -1,5 +1,5 @@
 (** We define high-level Pseudo-SPARCv8 language in this File *)
-Require Import Coqlib.
+Require Import Coqlib. 
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -304,15 +304,17 @@ Definition rel_wf_cdhp (Spec : Funspec) (C : XCodeHeap) :=
     exists I, LookupXC C f I /\ rel_wf_seq Spec (fp L) f I (fq L).
 
 (** Invariant *)
-Definition INV (A : primcom) (w : nat) (lv : list Val) (rls : RelState) :=
+Definition INV (A : primcom) (w : nat) (lv : list Val) (rls : RelState)
+           (restoreQ : Memory -> RState -> Prop) :=
   match rls with
   | (s, hs, A, w) =>
-    wp_stateRel s hs /\ ((exists hs', exec_prim (A, hs) (Pdone, hs') /\ A <> Pdone) \/ A = Pdone)
+    wp_stateRel restoreQ s hs /\
+    ((exists hs', exec_prim (A, hs) (Pdone, hs') /\ A <> Pdone) \/ A = Pdone)
                          /\ args (getHQ hs) (getHM hs) lv
   end.
 
 (** Well-formed Spec *) 
-Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
+Inductive wdSpec (restoreQ : Memory -> RState -> Prop) : Fpre -> Fpost -> ap -> Prop :=
 | consWdSpec : forall Fp Fq (hprim : ap),
     (
       (forall lv hs hs' (f : Word), hprim lv hs hs' -> (getHR hs' r15 = Some (W f)) ->
@@ -324,21 +326,23 @@ Inductive wdSpec : Fpre -> Fpost -> ap -> Prop :=
     ) ->
     (
       forall lv, exists num Pr L,
-        (forall rls, INV (Pm hprim lv) num lv rls -> rls ||= (Fp L) ⋆ Pr) /\
-        (forall rls', rls' ||= (Fq L) ⋆ Pr -> exists num' lv', INV Pdone num' lv' rls') /\ Sta (Pm hprim lv) Pr
+        (forall rls, INV (Pm hprim lv) num lv rls restoreQ -> rls ||= (Fp L) ⋆ Pr) /\
+        (forall rls', rls' ||= (Fq L) ⋆ Pr -> exists num' lv', INV Pdone num' lv' rls' restoreQ)
+        /\ Sta (Pm hprim lv) Pr
     ) ->
-    wdSpec Fp Fq hprim.
+    wdSpec restoreQ Fp Fq hprim.
 
 (** Well-formed Primitive *)
-Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) :=
+Definition rel_wf_prim (Spec : Funspec) (C : XCodeHeap) (PrimSet : apSet) 
+           (restoreQ : Memory -> RState -> Prop) :=
   exists Speci, rel_wf_cdhp Speci C /\
            (forall f L hprim, PrimSet f = Some hprim ->
                               (exists Fp Fq I, Spec f = Some (Fp, Fq) /\ LookupXC C f I /\
                                                   (* Fp L ⇒ RAprim (Pm hprim vl) ⋆ RAtrue /\ *)
-                                               wdSpec Fp Fq hprim /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
+                                               wdSpec restoreQ Fp Fq hprim
+                                               /\ rel_wf_seq Speci (Fp L) f I (Fq L))).
 
 (*+ Logic Soundness +*)
-
 (** index *)
 Definition Index : Type := nat * (nat * nat).
 
@@ -737,11 +741,13 @@ Definition simImpPrim (Cas : XCodeHeap) (f : Word) (P Q : relasrt) (A : primcom)
             exists i, rel_safety 0%nat i (Cas, S, f, f +ᵢ ($ 4)) (A, HS) Q.
 
 (** Well-defined Primitive Set Semantics *) 
-Definition simImpsPrimSet (Spec : Funspec) (Cas : XCodeHeap) (PrimSet : apSet) :=
+Definition simImpsPrimSet (Spec : Funspec) (Cas : XCodeHeap) (PrimSet : apSet)
+           (restoreQ : Memory -> RState -> Prop) :=
   forall f L hprim, PrimSet f = Some hprim ->
                     exists lv Fp Fq, Spec f = Some (Fp, Fq) /\ PrimSet f = Some hprim 
                                      /\ (Fp L ⇒ (RAprim (Pm hprim lv)) ⋆ RAtrue)
-                                     /\ wdSpec Fp Fq hprim /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv).
+                                     /\ wdSpec restoreQ Fp Fq hprim
+                                     /\ simImpPrim Cas f (Fp L) (Fq L) (Pm hprim lv).
 
 Inductive n_tau_step {prog : Type} (step : prog -> msg -> prog -> Prop) :
   nat -> prog -> prog -> Prop :=

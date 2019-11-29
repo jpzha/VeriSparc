@@ -104,28 +104,26 @@ Inductive curTRel : Memory * RState -> Tid * tlocst -> Prop :=
     ctxfm R F F' -> stkRel (b', F', Mk) HF -> Rinj R HR ->
     curTRel (M, (R, F)) (t, ((HR, b, HF), pc, npc)).
 
-Parameter restoreQ : Memory -> RState -> Prop.
-
 (** Ready Thread State Relation *)
-Inductive rdyTsRel : Memory -> ThrdPool -> Prop :=
+Inductive rdyTsRel (restoreQ : Memory -> RState -> Prop) : Memory -> ThrdPool -> Prop :=
 | thrdRel : forall t K M Q,
     restoreQ M Q -> curTRel (M, Q) (t, K) ->
-    rdyTsRel M (ThrdMap.set t (Some K) EmpThrdPool)
+    rdyTsRel restoreQ M (ThrdMap.set t (Some K) EmpThrdPool)
 
 | thrdsRel : forall T1 T2 T M1 M2 M,
-    rdyTsRel M1 T1 -> rdyTsRel M2 T1 ->
+    rdyTsRel restoreQ M1 T1 -> rdyTsRel restoreQ M2 T1 ->
     M1 ⊥ M2 -> T1 ⊥ T2 -> M = M1 ⊎ M2 -> T = T1 ⊎ T2 ->
-    rdyTsRel M T.
+    rdyTsRel restoreQ M T.
 
 (** Whole Program State Relation *)
-Inductive wp_stateRel : State -> HState -> Prop :=
+Inductive wp_stateRel (restoreQ : Memory -> RState -> Prop) : State -> HState -> Prop :=
 | Wp_stateRel : forall (M Mc MT M' : Memory) Q T t K M',
     Mc ⊎ MT ⊎ (MemMap.set TaskCur (Some (Ptr (t, $0))) empM) ⊎ M' = M ->
     Mc ⊥ MT -> (Mc ⊎ MT) ⊥ (MemMap.set TaskCur (Some (Ptr (t, $0))) empM) ->
     (Mc ⊎ MT ⊎ (MemMap.set TaskCur (Some (Ptr (t, $0))) empM)) ⊥ M' ->
     curTRel (Mc, Q) (t, K) ->
-    rdyTsRel MT (ThrdMap.set t None T) ->
-    wp_stateRel (M, Q, nil) (T, t, K, M').
+    rdyTsRel restoreQ MT (ThrdMap.set t None T) ->
+    wp_stateRel restoreQ (M, Q, nil) (T, t, K, M').
 
 Definition get_Hs_pcont (HS : HState) :=
   match HS with
@@ -136,9 +134,9 @@ Definition get_Hs_pcont (HS : HState) :=
   end.
 
 (*+ Primitive Correctness +*)
-Definition correct (Cas : XCodeHeap) (PrimSet : apSet) :=
+Definition correct (Cas : XCodeHeap) (PrimSet : apSet) (restoreQ : Memory -> RState -> Prop) :=
   forall C S HS pc npc,
-    wp_stateRel S HS -> HProgSafe ((C, PrimSet), HS) ->
+    wp_stateRel restoreQ S HS -> HProgSafe ((C, PrimSet), HS) ->
     get_Hs_pcont HS = (pc, npc) -> C ⊥ Cas ->
     Etr_Refinement (C ⊎ Cas, (S, pc, npc)) ((C, PrimSet), HS).
 

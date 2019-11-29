@@ -276,9 +276,9 @@ Qed.
 
 (* Compositionality1 *)
 Lemma compositionality1 :
-  forall Spec C Cas PrimSet S HS pc npc,
-    simImpsPrimSet Spec Cas PrimSet ->
-    wp_stateRel S HS -> HProgSafe (C, PrimSet, HS) ->
+  forall Spec C Cas PrimSet S HS pc npc restoreQ,
+    simImpsPrimSet Spec Cas PrimSet restoreQ ->
+    wp_stateRel restoreQ S HS -> HProgSafe (C, PrimSet, HS) ->
     get_Hs_pcont HS = (pc, npc) -> C ⊥ Cas -> 
     exists idx, wp_sim idx (C ⊎ Cas, (S, pc, npc)) (C, PrimSet, HS).
 Proof.
@@ -300,9 +300,9 @@ Qed.
 
 (** Logic ensures simulation *)
 Lemma logic_ensures_simulation :
-  forall Spec Cas PrimSet,
-    rel_wf_prim Spec Cas PrimSet ->
-    simImpsPrimSet Spec Cas PrimSet.
+  forall Spec Cas PrimSet restoreQ,
+    rel_wf_prim Spec Cas PrimSet restoreQ ->
+    simImpsPrimSet Spec Cas PrimSet restoreQ.
 Proof.
   intros.
   inv H; simpljoin1.
@@ -326,9 +326,9 @@ Qed.
 
 (** Simulation Implies Contexttual Refinement *)
 Lemma sim_imp_ctx_refinement :
-  forall Spec Cas PrimSet,
-    simImpsPrimSet Spec Cas PrimSet ->
-    correct Cas PrimSet.
+  forall Spec Cas PrimSet restoreQ,
+    simImpsPrimSet Spec Cas PrimSet restoreQ ->
+    correct Cas PrimSet restoreQ.
 Proof.
   intros.
   unfold correct; intros.
@@ -339,8 +339,8 @@ Proof.
 Qed.  
 
 (** Final Theorem *)
-Theorem FinalTheorem : forall Spec Cas PrimSet,
-    rel_wf_prim Spec Cas PrimSet -> correct Cas PrimSet.
+Theorem FinalTheorem : forall Spec Cas PrimSet restoreQ,
+    rel_wf_prim Spec Cas PrimSet restoreQ -> correct Cas PrimSet restoreQ.
 Proof.
   intros.
   eapply sim_imp_ctx_refinement.
