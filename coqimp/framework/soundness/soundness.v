@@ -350,8 +350,10 @@ CoInductive safety : CodeHeap -> State -> Label -> Label -> asrt -> nat -> Prop 
     safety C S pc npc q n.
 *)
 
+(*
 Definition cdhp_subst (Spec Spec' : funspec) :=
   forall f fsp, Spec f = Some fsp -> Spec' f = Some fsp.
+*)
 
 (** Instruction Sequence rule Sound *)
 Definition insSeq_sound (Spec : funspec) (p : asrt) (f : Label) (I : InsSeq) (q : asrt) :=
@@ -359,8 +361,8 @@ Definition insSeq_sound (Spec : funspec) (p : asrt) (f : Label) (I : InsSeq) (q 
     LookupC C f I -> S |= p -> safety_insSeq C S f (f +ᵢ ($ 4)) q Spec.
 
 (** Code Heap Sound *)
-Definition cdhp_sound (Spec : funspec) (C : CodeHeap) (Spec' : funspec) :=
+Definition cdhp_sound (Spec : funspec) (C : CodeHeap) :=
   forall f fp fq L S,
-    Spec' f = Some (fp, fq) -> S |= (fp L) ->
-    cdhp_subst Spec Spec' ->
+    Spec f = Some (fp, fq) -> S |= (fp L) ->
+    (*cdhp_subst Spec Spec' ->*)
     exists I, LookupC C f I /\ insSeq_sound Spec (fp L) f I (fq L).

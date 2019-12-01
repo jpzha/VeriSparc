@@ -433,9 +433,9 @@ Notation " Spec '|-' '{{' p '}}' f '#' I '{{' q '}}' " :=
   (wf_seq Spec p f I q) (at level 55).
 
 (*+ Well-formed Code Heap +*)
-Definition wf_cdhp (Spec : funspec) (C : CodeHeap) (Spec' : funspec) :=
+Definition wf_cdhp (Spec : funspec) (C : CodeHeap) :=
   forall f L fp fq,
-    Spec' f = Some (fp, fq) ->
+    Spec f = Some (fp, fq) ->
     exists I, LookupC C f I /\ wf_seq Spec (fp L) f I (fq L).
 
 
