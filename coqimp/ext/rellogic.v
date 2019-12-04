@@ -304,13 +304,18 @@ Definition rel_wf_cdhp (Spec : Funspec) (C : XCodeHeap) :=
     exists I, LookupXC C f I /\ rel_wf_seq Spec (fp L) f I (fq L).
 
 (** Invariant *)
-Definition INV (A : primcom) (w : nat) (lv : list Val) (rls : RelState)
+Definition INV (A : primcom) (lv : list Val) (rls : RelState)
            (restoreQ : Memory -> RState -> Prop) :=
   match rls with
   | (s, hs, A, w) =>
     wp_stateRel restoreQ s hs /\
     ((exists hs', exec_prim (A, hs) (Pdone, hs') /\ A <> Pdone) \/ A = Pdone)
                          /\ args (getHQ hs) (getHM hs) lv
+  end.
+
+Definition upd_rls_token (rls : RelState) (w' : nat) :=
+  match rls with
+  | (s, hs, A, w) => (s, hs, A, w')
   end.
 
 (** Well-formed Spec *) 
@@ -325,11 +330,20 @@ Inductive wdSpec (restoreQ : Memory -> RState -> Prop) : Fpre -> Fpost -> ap -> 
       forall L, exists vl, Fp L ⇒ RAprim (Pm hprim vl) ⋆ RAtrue /\ Fq L ⇒ RAprim Pdone ⋆ RAtrue
     ) ->
     (
+      forall lv rls, INV (Pm hprim lv) lv rls restoreQ ->
+                     exists num Pr L,
+                       upd_rls_token rls num ||= (Fp L) ⋆ Pr /\
+                       (forall rls', rls' ||= (Fq L) ⋆ Pr -> exists lv', INV Pdone lv' rls' restoreQ) /\
+                       Sta (Pm hprim lv) Pr
+    ) ->
+    (*
+    (
       forall lv, exists num Pr L,
         (forall rls, INV (Pm hprim lv) num lv rls restoreQ -> rls ||= (Fp L) ⋆ Pr) /\
         (forall rls', rls' ||= (Fq L) ⋆ Pr -> exists num' lv', INV Pdone num' lv' rls' restoreQ)
         /\ Sta (Pm hprim lv) Pr
     ) ->
+     *)
     wdSpec restoreQ Fp Fq hprim.
 
 (** Well-formed Primitive *)
