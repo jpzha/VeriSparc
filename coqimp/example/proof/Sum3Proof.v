@@ -31,6 +31,7 @@ Require Import tm_dly_lemma.
 
 Require Import code.
 Require Import spec.
+Require Import ChangeYProof.
 
 Open Scope nat.
 Open Scope code_scope.
@@ -56,20 +57,26 @@ Proof.
   hoare_ex_intro_pre.
   renames x' to x, x'0 to y, x'1 to z, x'2 to fret.
   renames x'3 to fmg, x'4 to fmo, x'5 to fml, x'6 to fmi.
-  renames x'7 to id, x'8 to vi, x'9 to F, x'10 to fm1, x'11 to fm2. 
+  renames x'7 to id, x'8 to vi, x'9 to F, x'10 to fm1, x'11 to fm2.
+  renames x'12 to b, x'13 to o.
   eapply Pure_intro_rule; intros.
 
   hoare_lift_pre 4.
   eapply Pure_intro_rule.
   introv Hpure.
   simpljoin1.
-
+ 
   unfold sum3_1.
+  renames H7 to Hsp.
 
   (** save sp, -64, sp *)
   eapply seq_rule.
   ins_tm_reduce_bas.
   eapply save_rule_reg; eauto.
+  simpl.
+  eapply get_frm_nth_to_nth' in Hsp; eauto.
+  rewrite Hsp; eauto.
+  instantiate (1 := W (Int.neg $ 64)); simpl; eauto.
   simpl.
   rewrite inrange_neg_64.
   eauto.
@@ -79,14 +86,17 @@ Proof.
   destruct fm2, fmo.
   simpl get_frame_nth'.
   eapply seq_rule.
-  ins_tm_reduce_bas. 
+  ins_tm_reduce_bas.  
   eapply add_rule_reg; eauto.
+  simpls.
+  inv H0; simpl; eauto.
   simpl upd_genreg.
 
   (** add l7 i2 l7 *)
   eapply seq_rule.
   ins_tm_reduce_bas.
   eapply add_rule_reg; eauto.
+  simpl; eauto.
   simpl upd_genreg.
 
   (** ret ;; restore l7 0 o0  *)
@@ -96,8 +106,9 @@ Proof.
   eapply ins_conseq_rule.
   eauto.
   eapply restore_rule_reg; eauto.
-  simpl.
+  Focus 2. simpl.
   rewrite in_range0; eauto.
+  simpl; eauto.
   rewrite post_pre_stable; eauto.
   simpl upd_genreg.
   introv Hs.

@@ -55,7 +55,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
             Spec f = Some (fp, fq) /\ S2 |= (fp L) ** r /\
             (forall S', S' |= (fq L) ** r ->
                         safety_insSeq C S' (pc +ᵢ ($ 8)) (pc +ᵢ ($ 12)) q Spec) /\
-            (forall S', S' |= fq L -> get_R (getregs S') r15 = Some pc)
+            (forall S', S' |= fq L -> get_R (getregs S') r15 = Some (W pc))
         )
     ) ->
     safety_insSeq C S pc npc q Spec
@@ -91,7 +91,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         P__ C (S, pc, npc) (S1, pc1, npc1) ->
         P__ C (S1, pc1, npc1) (S2, pc2, npc2) ->
         (
-          exists v, get_R (getregs S) z = Some v /\
+          exists v, get_R (getregs S) z = Some (W v) /\
           (
             v <> ($ 0) ->
             (
@@ -120,7 +120,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         P__ C (S, pc, npc) (S1, pc1, npc1) ->
         P__ C (S1, pc1, npc1) (S2, pc2, npc2) ->
         (
-          exists v, get_R (getregs S) z = Some v /\
+          exists v, get_R (getregs S) z = Some (W v) /\
           (
             v = ($ 0) ->
             (
@@ -151,7 +151,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         (
           S2 |= q /\
           (exists f,
-              get_R (getregs S2) r15 = Some f /\
+              get_R (getregs S2) r15 = Some (W f) /\
               pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
           )
         )
@@ -172,7 +172,7 @@ Inductive safety_insSeq : CodeHeap -> State -> Label -> Label -> asrt -> funspec
         (
           S2 |= q /\
           (exists f,
-              get_R (getregs S2) r15 = Some f /\
+              get_R (getregs S2) r15 = Some (W f) /\
               pc2 = f +ᵢ ($ 8) /\ npc2 = f +ᵢ ($ 12)
           )
         )
@@ -350,8 +350,10 @@ CoInductive safety : CodeHeap -> State -> Label -> Label -> asrt -> nat -> Prop 
     safety C S pc npc q n.
 *)
 
+(*
 Definition cdhp_subst (Spec Spec' : funspec) :=
   forall f fsp, Spec f = Some fsp -> Spec' f = Some fsp.
+*)
 
 (** Instruction Sequence rule Sound *)
 Definition insSeq_sound (Spec : funspec) (p : asrt) (f : Label) (I : InsSeq) (q : asrt) :=
@@ -359,8 +361,8 @@ Definition insSeq_sound (Spec : funspec) (p : asrt) (f : Label) (I : InsSeq) (q 
     LookupC C f I -> S |= p -> safety_insSeq C S f (f +ᵢ ($ 4)) q Spec.
 
 (** Code Heap Sound *)
-Definition cdhp_sound (Spec : funspec) (C : CodeHeap) (Spec' : funspec) :=
+Definition cdhp_sound (Spec : funspec) (C : CodeHeap) :=
   forall f fp fq L S,
-    Spec' f = Some (fp, fq) -> S |= (fp L) ->
-    cdhp_subst Spec Spec' ->
+    Spec f = Some (fp, fq) -> S |= (fp L) ->
+    (*cdhp_subst Spec Spec' ->*)
     exists I, LookupC C f I /\ insSeq_sound Spec (fp L) f I (fq L).

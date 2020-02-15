@@ -39,7 +39,7 @@ Fixpoint TimReduce (a : asrt) : asrt :=
   | Aexists t p => Aexists (fun x : t => (TimReduce (p x)))
   | Aregdly t rsp v =>
     match t with
-    | O => rsp |=> v
+    | O => rsp |=> W v
     | S t' => t' @ rsp |==> v
     end
   | ATimReduce p => ATimReduce (TimReduce p)

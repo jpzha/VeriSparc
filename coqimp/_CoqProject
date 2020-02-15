@@ -1,8 +1,8 @@
 -R . CertiOS
-./framework/auxlibs/Coqlib.v
-./framework/auxlibs/extac.v
-./framework/auxlibs/IntBool.v
-./framework/auxlibs/Integers.v
-./framework/auxlibs/MapLib.v
-./framework/auxlibs/Maps.v
-./framework/auxlibs/Modules.v
+./framework/auxiliary/Coqlib.v
+./framework/auxiliary/extac.v
+./framework/auxiliary/IntBool.v
+./framework/auxiliary/Integers.v
+./framework/auxiliary/MapLib.v
+./framework/auxiliary/Maps.v
+./framework/auxiliary/Modules.v

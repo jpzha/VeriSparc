@@ -2,6 +2,7 @@ Require Import Coqlib.
 Require Import Maps.
 
 Require Import Integers.
+Require Import LibTactics.
 Open Scope Z_scope.
 Import ListNotations.
 
@@ -12,7 +13,10 @@ Unset Strict Implicit.
 Definition Word := int.
 
 (* Address *)
-Definition Address := int.
+Definition Address := prod Z int.
+
+(* Val *)
+Inductive Val: Type := W: Word -> Val | Ptr: Address -> Val.
 
 (*** Definition of Registers **)
 (* General Registers *)
@@ -63,14 +67,14 @@ Module RegNameEq.
 End RegNameEq.
 
 Module RegMap := EMap(RegNameEq).
-Definition RegFile := RegMap.t (option Word).
+Definition RegFile := RegMap.t (option Val).
 
 (*** Window Register  **)
 (* Frame *)
 Inductive Frame : Type :=
-  consfm : Word -> Word -> Word -> Word -> Word -> Word -> Word -> Word -> Frame.
-Notation " '[[' w0 , w1 , w2 , w3 , w4 , w5 , w6 , w7 ']]'" :=
-  (consfm w0 w1 w2 w3 w4 w5 w6 w7) (at level 200): code_scope.
+  consfm : Val -> Val -> Val -> Val -> Val -> Val -> Val -> Val -> Frame.
+Notation " '[[' v0 , v1 , v2 , v3 , v4 , v5 , v6 , v7 ']]'" :=
+  (consfm v0 v1 v2 v3 v4 v5 v6 v7) (at level 200): code_scope.
 
 (* Frame List *)
 Definition FrameList : Type := list Frame.
@@ -113,18 +117,26 @@ Inductive AddrExp : Type :=
 | Ao : OpExp -> AddrExp
 | Aro : GenReg -> OpExp -> AddrExp.
 
+Lemma Address_eq: forall (x y : Address),
+    {x = y} + {x <> y}.
+Proof. 
+  intros; destruct x, y.
+  destruct (Z.eq_dec z0 z1); destruct (Int.eq_dec i i0); subst; eauto; 
+    try solve [right; intro; tryfalse].
+Qed.
+
 (* memory *)
 Module AddrEq.
-  Definition t := Word.
-  Definition eq := Int.eq_dec.
+  Definition t := Address.
+  Definition eq := Address_eq.
 End AddrEq.
 
 Module MemMap := EMap(AddrEq).
-Definition Memory := MemMap.t (option Word).
+Definition Memory := MemMap.t (option Val).
 
 (* Some Operations for memory *)
 (* disjoint *)
-Definition disjoint {tp : Type} (M1 : tp -> option Word) (M2 : tp -> option Word) : Prop :=
+Definition disjoint {tp tp': Type} (M1 : tp -> option tp') (M2 : tp -> option tp') : Prop :=
   forall (x : tp),
     match M1 x, M2 x with
     | Some _, Some _ => False
@@ -135,18 +147,18 @@ Definition disjoint {tp : Type} (M1 : tp -> option Word) (M2 : tp -> option Word
 Notation "M1 '⊥' M2" := (disjoint M1 M2) (at level 39) : mem_scope.
 
 (* in dom *)
-Definition indom {tp : Type} (x : tp) (M : tp -> option Word) :=
+Definition indom {tp tp': Type} (x : tp) (M : tp -> option tp') :=
   exists v, M x = Some v.
 
 (* is in dom *)
-Definition is_indom {tp : Type} (x : tp) (M : tp -> option Word) :=
+Definition is_indom {tp tp' : Type} (x : tp) (M : tp -> option tp') :=
   match M x with
   | Some _ => true
   | None => false
   end.
  
 (* merge *)
-Definition merge {tp : Type} (M1 : tp -> option Word) (M2 : tp -> option Word) :=
+Definition merge {tp tp': Type} (M1 : tp -> option tp') (M2 : tp -> option tp') :=
   fun x => match M1 x with
         | None => M2 x
         | Some b => Some b
@@ -212,31 +224,45 @@ Open Scope code_scope.
 
 Definition get_R (R : RegFile) (rn : RegName) :=
   match (R rn) with
-  | Some w => match rn with
-             | Rr r0 => Some ($ 0)
-             | _ => Some w
+  | Some v => match rn with
+             | Rr r0 => Some (W ($ 0))
+             | _ => Some v
              end
   | None => None
   end.
 
-Definition eval_opexp (R : RegFile) (a : OpExp) :=
-  match a with
+Definition eval_opexp (R : RegFile) (o : OpExp) :=
+  match o with
   | Or r => get_R R r
   | Ow w =>
     if andb (($-4096) <=ᵢ w) (w <=ᵢ ($4095)) then
-      Some w
+      Some (W w)
     else
       None
   end.
 
-Definition eval_addrexp (R : RegFile) (b : AddrExp) :=
-  match b with
-  | Ao a => eval_opexp R a
-  | Aro r a =>
+Definition val_add (v1 v2 : Val) :=
+  match v1, v2 with
+  | W w1, W w2 => Some (W (w1 +ᵢ w2))
+  | Ptr (b, ofs), W w => Some (Ptr (b, ofs +ᵢ w))
+  | _, _ => None
+  end.
+
+Definition val_sub (v1 v2 : Val) :=
+  match v1, v2 with
+  | W w1, W w2 => Some (W (w1 -ᵢ w2))
+  | Ptr (b, ofs), W w => Some (Ptr (b, ofs -ᵢ w))
+  | _, _ => None
+  end.
+
+Definition eval_addrexp (R : RegFile) (a : AddrExp) :=
+  match a with
+  | Ao o => eval_opexp R o
+  | Aro r o =>
     match get_R R r with
-    | Some w1 =>
-      match (eval_opexp R a) with
-      | Some w2 => Some (w1 +ᵢ w2)
+    | Some v1 =>
+      match (eval_opexp R o) with
+      | Some v2 => val_add v1 v2
       | None => None
       end 
     | None => None
@@ -244,19 +270,19 @@ Definition eval_addrexp (R : RegFile) (b : AddrExp) :=
   end.
 
 (* set_R set a value in Register *)
-Definition set_R (R : RegFile) (rn : RegName) (w : Word) :=
+Definition set_R (R : RegFile) (rn : RegName) (v : Val) :=
   if is_indom rn R then
-    RegMap.set rn (Some w) R
+    RegMap.set rn (Some v) R
   else
     R.
 
 (* fetch *)
-Definition fetch_frame (R : RegFile) (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : GenReg) :
+Definition fetch_frame {tp} (R : tp -> option Val) (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) :
   option Frame :=
   match (R rr0), (R rr1), (R rr2),
         (R rr3), (R rr4), (R rr5), (R rr6), (R rr7) with
-  | Some w0, Some w1, Some w2, Some w3, Some w4, Some w5, Some w6, Some w7 =>
-    Some ([[w0, w1, w2, w3, w4, w5, w6, w7]])
+  | Some v0, Some v1, Some v2, Some v3, Some v4, Some v5, Some v6, Some v7 =>
+    Some ([[v0, v1, v2, v3, v4, v5, v6, v7]])
   | _, _, _, _, _, _, _, _ => None
   end.
 
@@ -274,7 +300,7 @@ Fixpoint exe_delay (R : RegFile) (D : DelayList) : RegFile * DelayList :=
   match D with
   | (0%nat, rsp, w) :: D =>
     let (R', D') := exe_delay R D in
-    (set_R R' rsp w, D')
+    (set_R R' rsp (W w), D')
   | (S k, rsp, w) :: D =>
     let (R', D') := exe_delay R D in
     (R', (k, rsp, w) :: D')

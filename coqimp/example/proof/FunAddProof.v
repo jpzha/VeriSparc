@@ -56,6 +56,7 @@ Proof.
   eapply seq_rule.
   ins_tm_reduce_bas.
   eapply add_rule; eauto.
+  instantiate (2 := W x); instantiate (1 := W y); simpl; eauto.
   introv Hs.
   split.
   {
@@ -82,6 +83,7 @@ Proof.
   eapply seq_rule.
   ins_tm_reduce_bas.
   eapply add_rule; eauto.
+  instantiate (2 := W x +ᵢ y); instantiate (1 := W z); simpl; eauto.
   introv Hs.
   split.
   {
