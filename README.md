@@ -1,4 +1,4 @@
-# A Framework for Modular Verification of SPARCv8 Code 
+# A Program Logic for Modular Verification of SPARCv8 Code 
 
 All the Coq implememtations are in the direction /coqimp 
 
