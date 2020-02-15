@@ -1,4 +1,4 @@
-Require Import Coqlib.                             
+Require Import Coqlib.                              
 Require Import Maps.
 
 Require Import Classical_Prop.
@@ -2223,19 +2223,24 @@ Proof.
     (* retl rule *) 
     eapply wf_ins_rel_soundness in H.
     eapply wf_retl_rule_relsound; eauto.
+    unfold ImplyPrim; intros; eauto.
   }
   {
     (* Jmpl rule *)
     eapply wf_ins_rel_soundness in H2.
     eapply wf_jmpl_rule_relsound; eauto.
+    unfold ImplyPrim; intros; eauto.
   } 
   {
     (* Be rule *)
     eapply wf_ins_rel_soundness in H1.
     eapply wf_be_rule_relsound; eauto.
+    intros.
+    eapply H4 in H5; simpljoin1; do 2 (split; eauto).
+    unfold ImplyPrim; intros; eauto.
   }
   {
-    (* ABScsq rule *)
+    (* ABScsq rule *) 
     eapply wf_abscseq_rule_relsound; eauto.
   }
 Qed.

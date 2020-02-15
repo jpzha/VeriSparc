@@ -249,20 +249,20 @@ Inductive rel_wf_seq : Funspec -> relasrt -> Label -> InsSeq -> relasrt -> Prop 
     rel_wf_seq Spec P f (call f' # i # I) Q
 
 | rel_retl_rule : forall P P' Q f i Spec,
-    ⊩ {{ (P ⤈) ⤈ }} i {{ P' }} -> P' ⭆ Q -> FretSta ((P ⤈) ⤈) P' ->
+    ⊩ {{ (P ⤈) ⤈ }} i {{ P' }} -> P' ⇒ Q -> FretSta ((P ⤈) ⤈) P' ->
     rel_wf_seq Spec P f (retl ;; i) Q
 
 | rel_J_rule : forall P P1 P' Q (r1 : GenReg) f f' aexp Spec Fp Fq L v Pr i,
     (P ⤈) ⇒ RAlst (aexp ==ₓ W f') -> Spec f' = Some (Fp, Fq) ->
     (P ⤈) ⇒ RAlst (r1 |=> v) ⋆ P1 -> ⊩ {{ (RAlst (r1 |=> W f) ⋆ P1) ⤈ }} i {{ P' ⋆ RAtoken (1%nat) }} ->
-    P' ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⭆ Q -> GoodFrm Pr ->
+    P' ⇒ Fp L ⋆ Pr -> Fq L ⋆ Pr ⇒ Q -> GoodFrm Pr ->
     rel_wf_seq Spec P f (consJ aexp r1 i) Q
 
 | rel_Be_rule : forall P P' Q bv Spec L f f' Pr i I Fp Fq,
     Spec f' = Some (Fp, Fq) ->
     P ⇒ RAlst (z |=> W bv) ⋆ RAtrue -> ⊩ {{ P ⤈⤈ }} i {{ P' ⋆ RAtoken (1%nat) }} ->
     (bv =ᵢ ($ 0) = true -> rel_wf_seq Spec (P' ⋆ RAtoken (1%nat)) (f +ᵢ ($ 8)) I Q) ->
-    ((bv =ᵢ ($ 0) = false) -> ((P' ⇒ Fp L ⋆ Pr) /\ (Fq L ⋆ Pr ⭆ Q) /\ GoodFrm Pr)) ->
+    ((bv =ᵢ ($ 0) = false) -> ((P' ⇒ Fp L ⋆ Pr) /\ (Fq L ⋆ Pr ⇒ Q) /\ GoodFrm Pr)) ->
     rel_wf_seq Spec P f (be f' # i # I) Q
 
 | rel_ABSCSQ_rule : forall P P' Q Q' f I Spec,
