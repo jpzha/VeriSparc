@@ -3,13 +3,13 @@
 All the Coq implememtations are in the direction /coqimp 
 
 ### File Structure
-**/coqimp/framework:** 
+**/coqimp/framework:** the program logic for SPARCv8
 - /auxiliary : some auxiliary definitions like integer
 - /models : the program model including the registers, memory, operational semantics and so on
 - /logic : assertion definitions and logic rules
 - /soundness : soundness prove
 
-**/coqimp/ext**
+**/coqimp/ext** : the extended program logic for refinement verification
 - lowlang.v : the definitions about low-level language
 - highlang.v : the definitions about high-level language
 - rellogic.v : the extended program logic supporting refinement verification
@@ -19,7 +19,7 @@ All the Coq implememtations are in the direction /coqimp
 - rellogic_soundness.v : logic soundness proof
 - finaltheorem.v : logic ensures contextual refinement
 
-**/coqimp/example:** 
+**/coqimp/example:** : three simple examples to show how to use the program logic to verify SPARCv8 code
 - /code : the codes need to be proved
 - /lib : some tactics and derived rules
 - /spec : code specifications
