@@ -31,7 +31,7 @@ Open Scope code_scope.
 
 Lemma ld_rule_sound : 
   forall p q aexp l v v' (rd : GenReg),
-    p ==> aexp ==ₓ l ->
+    p ==> aexp ==ₓ Ptr l ->
     p ==> l |-> v ** rd |=> v' ** q ->
     ins_sound p (l |-> v ** rd |=> v ** q) (ld aexp rd).
 Proof.
@@ -137,7 +137,7 @@ Qed.
 
 Lemma st_rule_sound :
   forall l v (rs : GenReg) v1 p aexp,
-    l |-> v ** p ==> Or rs ==ₑ v1 //\\ aexp ==ₓ l ->
+    l |-> v ** p ==> Or rs ==ₑ v1 //\\ aexp ==ₓ Ptr l ->
     ins_sound (l |-> v ** p) (l |-> v1 ** p) (st rs aexp).
 Proof.
   intros.
@@ -188,12 +188,13 @@ Proof.
 Qed.
 
 Lemma add_rule_sound :
-  forall p (rs rd : GenReg) v1 v2 v oexp q,
+  forall p (rs rd : GenReg) v1 v2 v oexp q res,
+    Some res = val_add v1 v2 ->
     p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
     p ==> rd |=> v ** q ->
-    ins_sound p (rd |=> v1 +ᵢ v2 ** q) (add rs oexp rd).
-Proof.
-  intros.
+    ins_sound p (rd |=> res ** q) (add rs oexp rd).
+Proof. 
+  introv Hres; intros.
   unfold ins_sound.
   intros.
   lets Hoexp : H1.
@@ -206,7 +207,7 @@ Proof.
   sep_star_split_tac.
   simpl in H6.
   simpljoin1.
-  exists (m0 ⊎ m1, (RegMap.set rd (Some (v1 +ᵢ v2)) r0 ⊎ r1, f1), d1).
+  exists (m0 ⊎ m1, (RegMap.set rd (Some res) r0 ⊎ r1, f1), d1).
   split; eauto.
   eapply NormalIns; eauto.
   eapply Add_step; eauto.
@@ -232,7 +233,7 @@ Proof.
   simpljoin1.
   eapply regset_l_l_indom; eauto.
   simpl.
-  exists (m0, (RegMap.set rd (Some v1 +ᵢ v2) r0, f1), d1) (m1, (r1, f1), d1).
+  exists (m0, (RegMap.set rd (Some res) r0, f1), d1) (m1, (r1, f1), d1).
   repeat (split; eauto).
   clear - H4 H3.
   simpls.
@@ -257,12 +258,13 @@ Proof.
 Qed.
 
 Lemma sub_rule_sound :
-  forall p (rs rd : GenReg) v1 v2 v oexp q,
+  forall p (rs rd : GenReg) v1 v2 v oexp q res,
+    Some res = val_sub v1 v2 ->
     p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
     p ==> rd |=> v ** q ->
-    ins_sound p (rd |=> v1 -ᵢ v2 ** q) (sub rs oexp rd).
+    ins_sound p (rd |=> res ** q) (sub rs oexp rd).
 Proof. 
-  intros.
+  introv Hres; intros.
   unfold ins_sound.
   intros.
   lets Hoexp : H1.
@@ -275,7 +277,7 @@ Proof.
   sep_star_split_tac.
   simpl in H6.
   simpljoin1.
-  exists (m0 ⊎ m1, (RegMap.set rd (Some (v1 -ᵢ v2)) r0 ⊎ r1, f1), d1).
+  exists (m0 ⊎ m1, (RegMap.set rd (Some res) r0 ⊎ r1, f1), d1).
   split; eauto. 
   eapply NormalIns; eauto.
   eapply Sub_step; eauto.
@@ -297,11 +299,11 @@ Proof.
   clear - H4.
   simpls.
   unfolds regSt.
-  simpls.
+  simpls. 
   simpljoin1.
   eapply regset_l_l_indom; eauto.
   simpl.
-  exists (m0, (RegMap.set rd (Some v1 -ᵢ v2) r0, f1), d1) (m1, (r1, f1), d1).
+  exists (m0, (RegMap.set rd (Some res) r0, f1), d1) (m1, (r1, f1), d1).
   repeat (split; eauto).
   clear - H4 H3.
   simpls.
@@ -327,9 +329,9 @@ Qed.
 
 Lemma subcc_rule_sound :
   forall p oexp (r1 r2 : GenReg) v1 v2 v vr vn vz q,
-    p ==> Or r1 ==ₑ v1 //\\ oexp ==ₑ v2 -> v = v1 -ᵢ v2 ->
+    p ==> Or r1 ==ₑ W v1 //\\ oexp ==ₑ W v2 -> v = v1 -ᵢ v2 ->
     p ==> r2 |=> vr ** n |=> vn ** z |=> vz ** q ->
-    ins_sound p (r2 |=> v ** n |=> get_range 31 31 v ** z |=> iszero v ** q)
+    ins_sound p (r2 |=> W v ** n |=> W (get_range 31 31 v) ** z |=> W (iszero v) ** q)
               (subcc r1 oexp r2).
 Proof.
   intros.
@@ -346,9 +348,9 @@ Proof.
   simpl in H7, H2, H5.
   simpljoin1.
   exists (m0 ⊎ (m2 ⊎ (m4 ⊎ m5)),
-     (RegMap.set r2 (Some (v1 -ᵢ v2)) r0 ⊎
-                 (RegMap.set n (Some (get_range 31 31 v1 -ᵢ v2)) r4 ⊎
-                             (RegMap.set z (Some (iszero v1 -ᵢ v2)) r6 ⊎ r7)), f5), d5).
+     (RegMap.set r2 (Some (W v1 -ᵢ v2)) r0 ⊎
+                 (RegMap.set n (Some (W (get_range 31 31 v1 -ᵢ v2))) r4 ⊎
+                             (RegMap.set z (Some (W (iszero v1 -ᵢ v2))) r6 ⊎ r7)), f5), d5).
   repeat (split; eauto).
   eapply NormalIns; eauto.
   eapply Subcc_step; eauto.
@@ -510,9 +512,9 @@ Qed.
   
 Lemma and_rule_sound :
   forall p (rs rd : GenReg) v1 v2 v oexp q,
-    p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
+    p ==> Or rs ==ₑ W v1 //\\ oexp ==ₑ W v2 ->
     p ==> rd |=> v ** q ->
-    ins_sound p (rd |=> v1 &ᵢ v2 ** q) (and rs oexp rd).
+    ins_sound p (rd |=> W v1 &ᵢ v2 ** q) (and rs oexp rd).
 Proof.
   intros.
   unfold ins_sound.
@@ -527,7 +529,7 @@ Proof.
   sep_star_split_tac.
   simpl in H6.
   simpljoin1.
-  exists (m0 ⊎ m1, (RegMap.set rd (Some (v1 &ᵢ v2)) r0 ⊎ r1, f1), d1).
+  exists (m0 ⊎ m1, (RegMap.set rd (Some (W v1 &ᵢ v2)) r0 ⊎ r1, f1), d1).
   split; eauto.
   eapply NormalIns; eauto.
   eapply And_step; eauto.
@@ -553,7 +555,7 @@ Proof.
   simpljoin1.
   eapply regset_l_l_indom; eauto.
   simpl.
-  exists (m0, (RegMap.set rd (Some v1 &ᵢ v2) r0, f1), d1) (m1, (r1, f1), d1).
+  exists (m0, (RegMap.set rd (Some (W v1 &ᵢ v2)) r0, f1), d1) (m1, (r1, f1), d1).
   repeat (split; eauto).
   clear - H4 H3.
   simpls.
@@ -579,9 +581,9 @@ Qed.
 
 Lemma andcc_rule_sound :
   forall p oexp (r1 r2 : GenReg) v1 v2 v vr vn vz q,
-    p ==> Or r1 ==ₑ v1 //\\ oexp ==ₑ v2 -> v = v1 &ᵢ v2 ->
+    p ==> Or r1 ==ₑ W v1 //\\ oexp ==ₑ W v2 -> v = v1 &ᵢ v2 ->
     p ==> r2 |=> vr ** n |=> vn ** z |=> vz ** q ->
-    ins_sound p (r2 |=> v ** n |=> get_range 31 31 v ** z |=> iszero v ** q)
+    ins_sound p (r2 |=> W v ** n |=> W (get_range 31 31 v) ** z |=> W (iszero v) ** q)
               (andcc r1 oexp r2).
 Proof.
   intros.
@@ -598,9 +600,9 @@ Proof.
   simpl in H7, H2, H5.
   simpljoin1.
   exists (m0 ⊎ (m2 ⊎ (m4 ⊎ m5)),
-     (RegMap.set r2 (Some (v1 &ᵢ v2)) r0 ⊎
-                 (RegMap.set n (Some (get_range 31 31 v1 &ᵢ v2)) r4 ⊎
-                             (RegMap.set z (Some (iszero v1 &ᵢ v2)) r6 ⊎ r7)), f5), d5).
+     (RegMap.set r2 (Some (W v1 &ᵢ v2)) r0 ⊎
+                 (RegMap.set n (Some (W (get_range 31 31 v1 &ᵢ v2))) r4 ⊎
+                             (RegMap.set z (Some (W (iszero v1 &ᵢ v2))) r6 ⊎ r7)), f5), d5).
   repeat (split; eauto).
   eapply NormalIns; eauto.
   eapply Andcc_step; eauto.
@@ -762,9 +764,9 @@ Qed.
 
 Lemma or_rule_sound :
   forall p (rs rd : GenReg) v1 v2 v oexp q,
-    p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
+    p ==> Or rs ==ₑ W v1 //\\ oexp ==ₑ W v2 ->
     p ==> rd |=> v ** q ->
-    ins_sound p (rd |=> v1 |ᵢ v2 ** q) (or rs oexp rd).
+    ins_sound p (rd |=> W v1 |ᵢ v2 ** q) (or rs oexp rd).
 Proof.
   intros.
   unfold ins_sound.
@@ -779,7 +781,7 @@ Proof.
   sep_star_split_tac.
   simpl in H6.
   simpljoin1.
-  exists (m0 ⊎ m1, (RegMap.set rd (Some (v1 |ᵢ v2)) r0 ⊎ r1, f1), d1).
+  exists (m0 ⊎ m1, (RegMap.set rd (Some (W v1 |ᵢ v2)) r0 ⊎ r1, f1), d1).
   split; eauto.
   eapply NormalIns; eauto.
   eapply Or_step; eauto.
@@ -805,7 +807,7 @@ Proof.
   simpljoin1.
   eapply regset_l_l_indom; eauto.
   simpl.
-  exists (m0, (RegMap.set rd (Some v1 |ᵢ v2) r0, f1), d1) (m1, (r1, f1), d1).
+  exists (m0, (RegMap.set rd (Some (W v1 |ᵢ v2)) r0, f1), d1) (m1, (r1, f1), d1).
   repeat (split; eauto).
   clear - H4 H3.
   simpls.
@@ -844,7 +846,7 @@ Qed.
 
 Lemma rd_rule_sound :
   forall (rsp : SpReg) (r1 : GenReg) v v1 p,
-    ins_sound (rsp |=> v ** r1 |=> v1 ** p) (rsp |=> v ** r1 |=> v ** p) (rd rsp r1).
+    ins_sound (rsp |=> W v ** r1 |=> v1 ** p) (rsp |=> W v ** r1 |=> W v ** p) (rd rsp r1).
 Proof.
   intros.
   unfolds ins_sound.
@@ -854,7 +856,7 @@ Proof.
   simpl in H2, H3.
   simpljoin1.
  
-  exists (m ⊎ (m1 ⊎ m2), (r ⊎ (RegMap.set r1 (Some v) r2 ⊎ r3), f2), d2).
+  exists (m ⊎ (m1 ⊎ m2), (r ⊎ (RegMap.set r1 (Some (W v)) r2 ⊎ r3), f2), d2).
   split; eauto.
   eapply NormalIns; eauto.
   eapply Rd_step with (v := v); eauto.
@@ -917,7 +919,7 @@ Qed.
 
 Lemma wr_rule_sound :
   forall (rsp : SpReg) v p (rs : GenReg) oexp v1 v2,
-    rsp |=> v ** p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
+    rsp |=> v ** p ==> Or rs ==ₑ W v1 //\\ oexp ==ₑ W v2 ->
     ins_sound (rsp |=> v ** p)
               (3 @ rsp |==> (set_spec_reg rsp v1 xor v2) ** p) (wr rs oexp rsp).
 Proof.
@@ -979,7 +981,7 @@ Qed.
 Lemma getcwp_rule_sound :
   forall p id F (rd : GenReg) v' p1,
     p ==> {|id, F|} ** rd |=> v' ** p1 ->
-    ins_sound p ({|id, F|} ** rd |=> id ** p1) (getcwp rd).
+    ins_sound p ({|id, F|} ** rd |=> W id ** p1) (getcwp rd).
 Proof.
   intros.
   unfold ins_sound.
@@ -988,7 +990,7 @@ Proof.
   sep_star_split_tac.
   simpl in H3, H4.
   simpljoin1.
-  exists (m ⊎ (m1 ⊎ m2), (r ⊎ (set_R r1 rd id ⊎ r2), f2), d2).
+  exists (m ⊎ (m1 ⊎ m2), (r ⊎ (set_R r1 rd (W id) ⊎ r2), f2), d2).
   repeat (split; eauto). 
   eapply NormalIns; eauto.
   eapply GetCwp_step; eauto. 
@@ -1051,14 +1053,15 @@ Proof.
 Qed.
   
 Lemma save_rule_sound :
-  forall p q (rs rd : GenReg) v1 v2 v v' id id' F fm1 fm2 fmo fml fmi p1 oexp,
+  forall p q (rs rd : GenReg) v1 v2 v v' id id' F fm1 fm2 fmo fml fmi p1 oexp res,
+    Some res = val_add v1 v2 ->
     p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
     p ==> {|id, F ++ [fm1; fm2]|} ** Regs fmo fml fmi ** p1 ->
     id' = pre_cwp id -> win_masked id' v = false ->
     {|id', fml :: fmi :: F|} ** Regs fm1 fm2 fmo ** p1 ==> rd |=> v' ** q ->
-    ins_sound (Rwim |=> v ** p) (Rwim |=> v ** rd |=> v1 +ᵢ v2 ** q) (save rs oexp rd).
+    ins_sound (Rwim |=> W v ** p) (Rwim |=> W v ** rd |=> res ** q) (save rs oexp rd).
 Proof.
-  intros.
+  introv Hres; intros.
   unfolds ins_sound.
   intros.
   destruct_state s.
@@ -1164,7 +1167,7 @@ Proof.
   Focus 2.
   simpl.
  
-  exists (empM, (RegMap.set Rwim (Some v) empR, fml :: fmi :: F), d0).
+  exists (empM, (RegMap.set Rwim (Some (W v)) empR, fml :: fmi :: F), d0).
   eexists.
   split.
 
@@ -1174,7 +1177,7 @@ Proof.
   simpl.
   repeat (split; eauto).
  
-  exists (empM, (RegMap.set rd (Some (v1 +ᵢ v2)) empR, fml :: fmi :: F), d0).
+  exists (empM, (RegMap.set rd (Some res) empR, fml :: fmi :: F), d0).
   eexists.
   split.
   Focus 2.
@@ -1189,7 +1192,7 @@ Proof.
  
   simpl.
   repeat (split; eauto).
-  eapply disj_dom_eq_still with (m1 := RegMap.set Rwim (Some v) empR)
+  eapply disj_dom_eq_still with (m1 := RegMap.set Rwim (Some (W v)) empR)
                                   (m2 := r ⊎ (r1 ⊎ r3)); eauto.
   eapply dom_eq_memset_same_addr_stable; eauto.
   eapply dom_eq_emp; eauto.
@@ -1240,9 +1243,9 @@ Proof.
     eapply dom_eq_merge_still; eauto.
     eapply dom_eq_sym; eauto.
     eapply same_m_dom_eq; eauto.
-  }
+  } 
   {
-    instantiate (1 := v1).
+    (* instantiate (1 := v1).*)
     clear - H H4 Ht.
     eapply H in Ht; eauto.
     simpl in Ht.
@@ -1250,7 +1253,7 @@ Proof.
     eapply get_R_merge_still2; eauto.
   }
   {
-    instantiate (1 := v2).
+    (*instantiate (1 := v2).*)
     clear - H H4 Ht.
     eapply H in Ht; eauto.
     simpl in Ht.
@@ -1265,8 +1268,8 @@ Proof.
 
     unfold set_Rs.
     rewrite indom_setR_merge_eq2; eauto. 
-    assert (set_R (r ⊎ (r1' ⊎ r3)) cwp (pre_cwp id) =
-            (set_R r cwp (pre_cwp id)) ⊎ (r1' ⊎ r3)).
+    assert (set_R (r ⊎ (r1' ⊎ r3)) cwp (W (pre_cwp id)) =
+            (set_R r cwp (W (pre_cwp id))) ⊎ (r1' ⊎ r3)).
     {
       rewrite indom_setR_merge_eq1; eauto.
       clear - H6.
@@ -1277,7 +1280,7 @@ Proof.
       eapply regset_l_l_indom; eauto.
     }
     rewrite H17; eauto.
-    assert (set_R r cwp (pre_cwp id) = r').
+    assert (set_R r cwp (W (pre_cwp id)) = r').
     {
       clear - H6 H13.
       simpls.
@@ -1337,14 +1340,15 @@ Proof.
 Qed.
   
 Lemma resotre_rule_sound :
-  forall p q (rs rd : GenReg) v1 v2 v v' id id' F fm1 fm2 fmo fml fmi p1 oexp,
+  forall p q (rs rd : GenReg) v1 v2 v v' id id' F fm1 fm2 fmo fml fmi p1 oexp res,
+    Some res = val_add v1 v2 ->
     p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
     p ==> {|id, fm1 :: fm2 :: F|} ** Regs fmo fml fmi ** p1 ->
     id' = post_cwp id -> win_masked id' v = false ->
     {|id', F ++ [fmo; fml]|} ** Regs fmi fm1 fm2 ** p1 ==> rd |=> v' ** q ->
-    ins_sound (Rwim |=> v ** p) (Rwim |=> v ** rd |=> v1 +ᵢ v2 ** q) (restore rs oexp rd).
+    ins_sound (Rwim |=> W v ** p) (Rwim |=> W v ** rd |=> res ** q) (restore rs oexp rd).
 Proof.
-  intros.
+  introv Hres; intros.
   unfolds ins_sound.
   intros.
   destruct_state s.
@@ -1450,7 +1454,7 @@ Proof.
   Focus 2.
   simpl.
  
-  exists (empM, (RegMap.set Rwim (Some v) empR, F ++ [fmo; fml]), d0).
+  exists (empM, (RegMap.set Rwim (Some (W v)) empR, F ++ [fmo; fml]), d0).
   eexists.
   split.
 
@@ -1460,7 +1464,7 @@ Proof.
   simpl.
   repeat (split; eauto).
  
-  exists (empM, (RegMap.set rd (Some (v1 +ᵢ v2)) empR, F ++ [fmo; fml]), d0).
+  exists (empM, (RegMap.set rd (Some res) empR, F ++ [fmo; fml]), d0).
   eexists.
   split.
   Focus 2.
@@ -1475,7 +1479,7 @@ Proof.
  
   simpl.
   repeat (split; eauto).
-  eapply disj_dom_eq_still with (m1 := RegMap.set Rwim (Some v) empR)
+  eapply disj_dom_eq_still with (m1 := RegMap.set Rwim (Some (W v)) empR)
                                   (m2 := r ⊎ (r1 ⊎ r3)); eauto.
   eapply dom_eq_memset_same_addr_stable; eauto.
   eapply dom_eq_emp; eauto.
@@ -1528,7 +1532,7 @@ Proof.
     eapply same_m_dom_eq; eauto.
   }
   {
-    instantiate (1 := v1).
+    (* instantiate (1 := v1). *)
     clear - H H4 Ht.
     eapply H in Ht; eauto.
     simpl in Ht.
@@ -1536,7 +1540,7 @@ Proof.
     eapply get_R_merge_still2; eauto.
   }
   {
-    instantiate (1 := v2).
+    (* instantiate (1 := v2). *)
     clear - H H4 Ht.
     eapply H in Ht; eauto.
     simpl in Ht.
@@ -1551,8 +1555,8 @@ Proof.
 
     unfold set_Rs.
     rewrite indom_setR_merge_eq2; eauto. 
-    assert (set_R (r ⊎ (r1' ⊎ r3)) cwp (post_cwp id) =
-            (set_R r cwp (post_cwp id)) ⊎ (r1' ⊎ r3)).
+    assert (set_R (r ⊎ (r1' ⊎ r3)) cwp (W (post_cwp id)) =
+            (set_R r cwp (W (post_cwp id))) ⊎ (r1' ⊎ r3)).
     {
       rewrite indom_setR_merge_eq1; eauto.
       clear - H6.
@@ -1563,7 +1567,7 @@ Proof.
       eapply regset_l_l_indom; eauto.
     }
     rewrite H17; eauto.
-    assert (set_R r cwp (post_cwp id) = r').
+    assert (set_R r cwp (W (post_cwp id)) = r').
     {
       clear - H6 H13.
       simpls.
@@ -1624,9 +1628,9 @@ Qed.
 
 Lemma sll_rule_sound :
   forall p (rs rd : GenReg) v v1 v2 oexp q,
-    p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
+    p ==> Or rs ==ₑ W v1 //\\ oexp ==ₑ W v2 ->
     p ==> rd |=> v ** q ->
-    ins_sound p (rd |=> v1 <<ᵢ (get_range 0 4 v2) ** q) (sll rs oexp rd).
+    ins_sound p (rd |=> (W v1 <<ᵢ (get_range 0 4 v2)) ** q) (sll rs oexp rd).
 Proof.
   unfold ins_sound.
   intros.
@@ -1637,7 +1641,7 @@ Proof.
   sep_star_split_tac.
   simpl in H6.
   simpljoin1.
-  exists (m ⊎ m0, (set_R r rd (v1 <<ᵢ (get_range 0 4 v2)) ⊎ r0, f0), d0).
+  exists (m ⊎ m0, (set_R r rd (W (v1 <<ᵢ (get_range 0 4 v2))) ⊎ r0, f0), d0).
   repeat (split; eauto).
   eapply NormalIns; eauto.
   eapply Sll_step; eauto.
@@ -1664,7 +1668,7 @@ Proof.
   simpljoin1.
   eapply regset_l_l_indom; eauto.
   simpl.
-  exists (m, (set_R r rd v1 <<ᵢ (get_range 0 4 v2), f0), d0).
+  exists (m, (set_R r rd (W v1 <<ᵢ (get_range 0 4 v2)), f0), d0).
   exists (m0, (r0, f0), d0).
   simpls.
   repeat (split; eauto).
@@ -1686,9 +1690,9 @@ Qed.
 
 Lemma srl_rule_sound :
   forall p (rs rd : GenReg) v v1 v2 oexp q,
-    p ==> Or rs ==ₑ v1 //\\ oexp ==ₑ v2 ->
+    p ==> Or rs ==ₑ W v1 //\\ oexp ==ₑ W v2 ->
     p ==> rd |=> v ** q ->
-    ins_sound p (rd |=> v1 >>ᵢ (get_range 0 4 v2) ** q) (srl rs oexp rd).
+    ins_sound p (rd |=> W v1 >>ᵢ (get_range 0 4 v2) ** q) (srl rs oexp rd).
 Proof.
   unfold ins_sound.
   intros.
@@ -1699,7 +1703,7 @@ Proof.
   sep_star_split_tac.
   simpl in H6.
   simpljoin1.
-  exists (m ⊎ m0, (set_R r rd (v1 >>ᵢ (get_range 0 4 v2)) ⊎ r0, f0), d0).
+  exists (m ⊎ m0, (set_R r rd (W v1 >>ᵢ (get_range 0 4 v2)) ⊎ r0, f0), d0).
   repeat (split; eauto).
   eapply NormalIns; eauto.
   eapply Srl_step; eauto.
@@ -1726,7 +1730,7 @@ Proof.
   simpljoin1.
   eapply regset_l_l_indom; eauto.
   simpl.
-  exists (m, (set_R r rd v1 >>ᵢ (get_range 0 4 v2), f0), d0).
+  exists (m, (set_R r rd (W v1 >>ᵢ (get_range 0 4 v2)), f0), d0).
   exists (m0, (r0, f0), d0).
   simpls.
   repeat (split; eauto).

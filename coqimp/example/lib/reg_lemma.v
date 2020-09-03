@@ -28,7 +28,7 @@ Open Scope code_scope.
 Open Scope mem_scope.
 
 (*+ Auxiliary Definition +*)
-Definition update_frame (fm : Frame) (n : nat) (v : Word) :=
+Definition update_frame (fm : Frame) (n : nat) (v : Val) :=
   match fm with
   | consfm w0 w1 w2 w3 w4 w5 w6 w7 =>
     match n with
@@ -72,13 +72,13 @@ Definition get_frame_nth' (fm : Frame) (n : nat) :=
     | 5 => w5
     | 6 => w6
     | 7 => w7
-    | _ => ($ 0)
+    | _ => W ($ 0)
     end
   end.
 
 Definition GenRegState : Type := Frame * Frame * Frame * Frame.
 
-Fixpoint upd_genreg (greg_st : GenRegState) (rr : GenReg) (w : Word) : GenRegState :=
+Fixpoint upd_genreg (greg_st : GenRegState) (rr : GenReg) (w : Val) : GenRegState :=
   match greg_st with
   | (fmg, fmo, fml, fmi) =>
     match rr with
@@ -119,7 +119,7 @@ Fixpoint upd_genreg (greg_st : GenRegState) (rr : GenReg) (w : Word) : GenRegSta
 
 Definition get_global_frame (fm : Frame) (rr : GenReg) :=
   match rr with
-  | r0 => Some ($ 0)
+  | r0 => Some (W $ 0)
   | r1 => get_frame_nth fm 1
   | r2 => get_frame_nth fm 2
   | r3 => get_frame_nth fm 3
@@ -169,11 +169,11 @@ Definition get_in_frame (fm : Frame) (rr : GenReg) :=
   | _ => None
   end.
     
-Fixpoint get_genreg_val (greg_st : GenRegState) (rr : GenReg) : Word :=
+Fixpoint get_genreg_val (greg_st : GenRegState) (rr : GenReg) : Val :=
   match greg_st with
   | (fmg, fmo, fml, fmi) =>
     match rr with
-    | r0 => ($ 0)
+    | r0 => (W $ 0)
     | r1 => get_frame_nth' fmg 1
     | r2 => get_frame_nth' fmg 2
     | r3 => get_frame_nth' fmg 3
@@ -208,7 +208,7 @@ Fixpoint get_genreg_val (greg_st : GenRegState) (rr : GenReg) : Word :=
     end
   end.
 
-Fixpoint get_genreg_val' (greg_st : GenRegState) (rr : GenReg) : Word :=
+Fixpoint get_genreg_val' (greg_st : GenRegState) (rr : GenReg) : Val :=
   match greg_st with
   | (fmg, fmo, fml, fmi) =>
     match rr with
@@ -263,15 +263,15 @@ Definition GenRegs (grst : GenRegState) : asrt :=
 Definition eval_opexp_reg (grst : GenRegState) (a : OpExp) :=
   match a with
   | Or r => Some (get_genreg_val grst r)
-  | Ow w => if ($ (-4096)) <=ᵢ w && w <=ᵢ ($ 4095) then Some w else None
-  end.
+  | Ow w => if ($ (-4096)) <=ᵢ w && w <=ᵢ ($ 4095) then Some (W w) else None
+  end. 
 
 Definition eval_addrexp_reg (grst : GenRegState) (b : AddrExp) :=
   match b with
   | Ao a => eval_opexp_reg grst a
   | Aro r a =>
     match eval_opexp_reg grst a with
-    | Some w2 => Some ((get_genreg_val grst r) +ᵢ w2)
+    | Some v2 => val_add (get_genreg_val grst r) v2
     | None => None
     end
   end.
@@ -495,7 +495,7 @@ Proof.
   unfolds GenRegs.
   destruct grst.
   destruct p.
-  destruct p.
+  destruct p. 
   destruct f1, f2, f0, f.
   destruct oexp; simpl in H0.
   destruct g; inversion H0; subst; simpl;
@@ -506,7 +506,7 @@ Proof.
                eapply get_local_frame_get_R; [eauto | simpl; eauto] ];
     try solve [sliftn_in H 4;
                eapply get_in_frame_get_R; [eauto | simpl; eauto] ].
-  destruct (($ (-4096)) <=ᵢ w31 && w31 <=ᵢ ($ 4095)) eqn:Heqe; eauto;
+  destruct (($ (-4096)) <=ᵢ w && w <=ᵢ ($ 4095)) eqn:Heqe; eauto;
     inversion H0; subst; eauto.
   simpl; eauto.
   rewrite Heqe; eauto.
@@ -579,6 +579,13 @@ Proof.
         | simpl; eauto
         ]
       ].
+  eapply get_global_frame_get_R in H;
+    [
+      erewrite H; eauto; destruct_eval_opexp_reg; tryfalse;
+      eval_opexp_reg_to_eval_opexp
+    | simpl; eauto
+    ].
+  destruct v32; simpl in H0; tryfalse; eauto.
 Qed.
   
 Ltac asrt_to_line_in H t :=
@@ -894,12 +901,13 @@ Proof.
 Qed.
  
 Theorem add_rule_reg :
-  forall grst rs rd p oexp v1 v2,
+  forall grst rs rd p oexp v1 v2 v,
+    Some v = val_add v1 v2 ->
     get_genreg_val grst rs = v1 -> eval_opexp_reg grst oexp = Some v2 ->
     |- {{ GenRegs grst ** p }} add rs oexp rd
-                              {{ GenRegs (upd_genreg grst rd (v1 +ᵢ v2)) ** p }}.
+                              {{ GenRegs (upd_genreg grst rd v) ** p }}.
 Proof.
-  intros.
+  introv Hres; intros.
   eapply ins_conseq_rule.
   eauto.
   eapply add_rule; eauto.
@@ -908,7 +916,6 @@ Proof.
     simpl.
     split.
     {
-      instantiate (1 := v1).
       sep_star_split_tac.
       simpl in H5.
       simpljoin1.
@@ -917,7 +924,6 @@ Proof.
       eapply get_R_merge_still; eauto.
     }
     {
-      instantiate (1 := v2).
       sep_star_split_tac.
       simpl in H5.
       simpljoin1.
@@ -938,12 +944,13 @@ Proof.
 Qed.
 
 Theorem sub_rule_reg :
-  forall grst rs rd p oexp v1 v2,
+  forall grst rs rd p oexp v1 v2 v,
+    Some v = val_sub v1 v2 ->
     get_genreg_val grst rs = v1 -> eval_opexp_reg grst oexp = Some v2 ->
     |- {{ GenRegs grst ** p }} sub rs oexp rd
-                              {{ GenRegs (upd_genreg grst rd (v1 -ᵢ v2)) ** p }}.
+                              {{ GenRegs (upd_genreg grst rd v) ** p }}.
 Proof.
-  intros.
+  introv Hres; intros.
   eapply ins_conseq_rule.
   eauto.
   eapply sub_rule; eauto.
@@ -952,7 +959,6 @@ Proof.
     simpl.
     split.
     {
-      instantiate (1 := v1).
       sep_star_split_tac.
       simpl in H5.
       simpljoin1.
@@ -961,7 +967,6 @@ Proof.
       eapply get_R_merge_still; eauto.
     }
     {
-      instantiate (1 := v2).
       sep_star_split_tac.
       simpl in H5.
       simpljoin1.
@@ -983,9 +988,9 @@ Qed.
 
 Theorem and_rule_reg :
   forall grst rs rd p oexp v1 v2,
-    get_genreg_val grst rs = v1 -> eval_opexp_reg grst oexp = Some v2 ->
+    get_genreg_val grst rs = W v1 -> eval_opexp_reg grst oexp = Some (W v2) ->
     |- {{ GenRegs grst ** p }} and rs oexp rd
-                              {{ GenRegs (upd_genreg grst rd (v1 &ᵢ v2)) ** p }}.
+                              {{ GenRegs (upd_genreg grst rd (W v1 &ᵢ v2)) ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule.
@@ -995,7 +1000,7 @@ Proof.
     intros.
     simpl.
     split.
-    {
+    { 
       instantiate (1 := v1).
       sep_star_split_tac.
       simpl in H5.
@@ -1003,6 +1008,7 @@ Proof.
       simpl.
       eapply getR_eq_get_genreg_val in H1; eauto.
       eapply get_R_merge_still; eauto.
+      rewrite H in H1; eauto.
     }
     {
       instantiate (1 := v2).
@@ -1027,9 +1033,9 @@ Qed.
 
 Theorem or_rule_reg :
   forall grst rs rd p oexp v1 v2,
-    get_genreg_val grst rs = v1 -> eval_opexp_reg grst oexp = Some v2 ->
+    get_genreg_val grst rs = W v1 -> eval_opexp_reg grst oexp = Some (W v2) ->
     |- {{ GenRegs grst ** p }} or rs oexp rd
-                              {{ GenRegs (upd_genreg grst rd (v1 |ᵢ v2)) ** p }}.
+                              {{ GenRegs (upd_genreg grst rd (W v1 |ᵢ v2)) ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule.
@@ -1047,6 +1053,7 @@ Proof.
       simpl.
       eapply getR_eq_get_genreg_val in H1; eauto.
       eapply get_R_merge_still; eauto.
+      rewrite H in H1; eauto.
     }
     {
       instantiate (1 := v2).
@@ -1071,9 +1078,9 @@ Qed.
 
 Theorem sll_rule_reg :
   forall grst rs rd p oexp v1 v2,
-    get_genreg_val grst rs = v1 -> eval_opexp_reg grst oexp = Some v2 ->
+    get_genreg_val grst rs = W v1 -> eval_opexp_reg grst oexp = Some (W v2) ->
     |- {{ GenRegs grst ** p }} sll rs oexp rd
-                              {{ GenRegs (upd_genreg grst rd (v1 <<ᵢ (get_range 0 4 v2))) ** p }}.
+                              {{ GenRegs (upd_genreg grst rd (W v1 <<ᵢ (get_range 0 4 v2))) ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule.
@@ -1091,6 +1098,7 @@ Proof.
       simpl.
       eapply getR_eq_get_genreg_val in H1; eauto.
       eapply get_R_merge_still; eauto.
+      rewrite H in H1; eauto.
     }
     {
       instantiate (1 := v2).
@@ -1115,9 +1123,9 @@ Qed.
 
 Theorem srl_rule_reg :
   forall grst rs rd p oexp v1 v2,
-    get_genreg_val grst rs = v1 -> eval_opexp_reg grst oexp = Some v2 ->
+    get_genreg_val grst rs = W v1 -> eval_opexp_reg grst oexp = Some (W v2) ->
     |- {{ GenRegs grst ** p }} srl rs oexp rd
-                              {{ GenRegs (upd_genreg grst rd (v1 >>ᵢ (get_range 0 4 v2))) ** p }}.
+                              {{ GenRegs (upd_genreg grst rd (W v1 >>ᵢ (get_range 0 4 v2))) ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule.
@@ -1135,6 +1143,7 @@ Proof.
       simpl.
       eapply getR_eq_get_genreg_val in H1; eauto.
       eapply get_R_merge_still; eauto.
+      rewrite H in H1; eauto.
     }
     {
       instantiate (1 := v2).
@@ -1182,7 +1191,7 @@ Theorem getcwp_rule_reg :
   forall grst rd p id F,
     |- {{ GenRegs grst ** {| id, F|} ** p }}
         getcwp rd
-        {{ GenRegs (upd_genreg grst rd id) ** {| id, F|} ** p }}.
+        {{ GenRegs (upd_genreg grst rd (W id)) ** {| id, F|} ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule.
@@ -1207,10 +1216,10 @@ Qed.
 
 Theorem ld_rule_reg :
   forall p aexp rd grst v l,
-    eval_addrexp_reg grst aexp = Some l ->
+    eval_addrexp_reg grst aexp = Some (Ptr l) ->
     |- {{ GenRegs grst ** l |-> v ** p }}
         ld aexp rd
-        {{ GenRegs (upd_genreg grst rd v) ** l |-> v ** p }}.
+       {{ GenRegs (upd_genreg grst rd v) ** l |-> v ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule.
@@ -1250,7 +1259,7 @@ Qed.
 
 Theorem st_rule_reg :
   forall p aexp rs grst v v' l,
-    eval_addrexp_reg grst aexp = Some l -> get_genreg_val grst rs = v' ->
+    eval_addrexp_reg grst aexp = Some (Ptr l) -> get_genreg_val grst rs = v' ->
     |- {{ GenRegs grst ** l |-> v ** p }}
         st rs aexp
         {{ GenRegs grst ** l |-> v' ** p }}.
@@ -1295,27 +1304,26 @@ Qed.
 
 Theorem save_rule_reg :
   forall p (rs rd : GenReg) (id id' : Word) (F : FrameList)
-    (fm1 fm2 fmg fmo fml fmi : Frame) (v1 v2 v v' : Word) (oexp : OpExp),
+         (fm1 fm2 fmg fmo fml fmi : Frame) (v : Word) v1 v2 res (oexp : OpExp),
+    Some res = val_add v1 v2 ->
     get_genreg_val (fmg, fmo, fml, fmi) rs = v1 ->
     eval_opexp_reg (fmg, fmo, fml, fmi) oexp = Some v2 ->
     id' = pre_cwp id -> win_masked id' v = false ->
-    |- {{ GenRegs (fmg, fmo, fml, fmi) ** Rwim |=> v ** {| id, F ++ [fm1; fm2] |} ** p }}
+    |- {{ GenRegs (fmg, fmo, fml, fmi) ** Rwim |=> W v ** {| id, F ++ [fm1; fm2] |} ** p }}
         save rs oexp rd
-      {{ GenRegs (upd_genreg (fmg, fm1, fm2, fmo) rd (v1 +ᵢ v2)) ** Rwim |=> v **
+      {{ GenRegs (upd_genreg (fmg, fm1, fm2, fmo) rd res) ** Rwim |=> W v **
                  {| id', fml :: fmi :: F |} ** p }}.
 Proof.
-  intros.
+  introv Hres; intros.
   eapply ins_conseq_rule.
-  instantiate (1 := Rwim |=> v ** GenRegs (fmg, fmo, fml, fmi) **
+  instantiate (1 := Rwim |=> W v ** GenRegs (fmg, fmo, fml, fmi) **
                          {|id, F ++ [fm1; fm2]|} ** p).
   intros.
   sep_cancel1 2 1.
   eauto.
-  eapply save_rule.
-  {
+  eapply save_rule; eauto.
+  { 
     intros.
-    instantiate (2 := v1).
-    instantiate (1 := v2).
     sep_star_split_tac.
     simpl in H6, H7.
     simpljoin1.
@@ -1346,12 +1354,6 @@ Proof.
     eapply astar_comm.
     sep_cancel1 1 1.
     eauto.
-  }
-  {
-    eauto.
-  }
-  {
-    eauto.
   } 
   {
     intros.
@@ -1371,18 +1373,19 @@ Qed.
 
 Theorem restore_rule_reg :
   forall p (rs rd : GenReg) (id id' : Word) (F : FrameList)
-    (fm1 fm2 fmg fmo fml fmi : Frame) (v1 v2 v v' : Word) (oexp : OpExp),
+         (fm1 fm2 fmg fmo fml fmi : Frame) v1 v2 v (res : Val) (oexp : OpExp),
+    Some res = val_add v1 v2 ->
     get_genreg_val (fmg, fmo, fml, fmi) rs = v1 ->
     eval_opexp_reg (fmg, fmo, fml, fmi) oexp = Some v2 ->
     id' = post_cwp id -> win_masked id' v = false ->
-    |- {{ GenRegs (fmg, fmo, fml, fmi) ** Rwim |=> v ** {| id, fm1 :: fm2 :: F |} ** p }}
+    |- {{ GenRegs (fmg, fmo, fml, fmi) ** Rwim |=> W v ** {| id, fm1 :: fm2 :: F |} ** p }}
         restore rs oexp rd
-      {{ GenRegs (upd_genreg (fmg, fmi, fm1, fm2) rd (v1 +ᵢ v2)) ** Rwim |=> v **
+      {{ GenRegs (upd_genreg (fmg, fmi, fm1, fm2) rd res) ** Rwim |=> W v **
                  {| id', F ++ [fmo; fml] |} ** p }}.
 Proof.
-  intros.
+  introv Hres; intros.
   eapply ins_conseq_rule.
-  instantiate (1 := Rwim |=> v ** GenRegs (fmg, fmo, fml, fmi) **
+  instantiate (1 := Rwim |=> W v ** GenRegs (fmg, fmo, fml, fmi) **
                          {|id, fm1 :: fm2 :: F|} ** p).
   intros.
   sep_cancel1 1 2.
@@ -1390,8 +1393,6 @@ Proof.
   eapply restore_rule; eauto.
   {
     intros.
-    instantiate (2 := v1).
-    instantiate (1 := v2).
     simpl.
     sep_star_split_tac.
     simpl in H6, H7.
@@ -1434,11 +1435,11 @@ Qed.
 
 Theorem subcc_rule_reg :
   forall oexp (rs rd : GenReg) v1 v2 v grst vn vz p,
-    get_genreg_val grst rs = v1 ->
-    eval_opexp_reg grst oexp = Some v2 -> v = v1 -ᵢ v2 ->
+    get_genreg_val grst rs = W v1 ->
+    eval_opexp_reg grst oexp = Some (W v2) -> v = v1 -ᵢ v2 ->
     |- {{ GenRegs grst ** n |=> vn ** z |=> vz ** p  }}
         subcc rs oexp rd
-      {{ GenRegs (upd_genreg grst rd v) ** n |=> get_range 31 31 v ** z |=> iszero v ** p }}.
+      {{ GenRegs (upd_genreg grst rd (W v)) ** n |=> W (get_range 31 31 v) ** z |=> W (iszero v) ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule.
@@ -1454,8 +1455,8 @@ Proof.
     simpl in H3, H5, H6.
     simpljoin1.
     simpl.
-    eapply get_R_merge_still; eauto.
-    eapply getR_eq_get_genreg_val; eauto.
+    eapply get_R_merge_still; eauto. 
+    eapply getR_eq_get_genreg_val in H4; rewrite H4, H; eauto.
     sep_star_split_tac.
     simpl in H3, H5, H6.
     simpljoin1.
@@ -1486,20 +1487,18 @@ Qed.
 
 Theorem andcc_rule_reg :
   forall oexp (rs rd : GenReg) v1 v2 v grst vn vz p,
-    get_genreg_val grst rs = v1 ->
-    eval_opexp_reg grst oexp = Some v2 -> v = v1 &ᵢ v2 ->
+    get_genreg_val grst rs = W v1 ->
+    eval_opexp_reg grst oexp = Some (W v2) -> v = v1 &ᵢ v2 ->
     |- {{ GenRegs grst ** n |=> vn ** z |=> vz ** p  }}
         andcc rs oexp rd
-      {{ GenRegs (upd_genreg grst rd v) ** n |=> get_range 31 31 v ** z |=> iszero v ** p }}.
+      {{ GenRegs (upd_genreg grst rd (W v)) ** n |=> W (get_range 31 31 v) ** z |=> W (iszero v) ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule.
   eauto.
-  eapply andcc_rule.
+  eapply andcc_rule; eauto.
   {
     introv Hs.
-    instantiate (2 := v1).
-    instantiate (1 := v2).
     simpl.
     split.
     sep_star_split_tac.
@@ -1507,16 +1506,13 @@ Proof.
     simpljoin1.
     simpl.
     eapply get_R_merge_still; eauto.
-    eapply getR_eq_get_genreg_val; eauto.
+    eapply getR_eq_get_genreg_val in H4; eauto; rewrite H4, H; eauto.
     sep_star_split_tac.
     simpl in H3, H5, H6.
     simpljoin1.
     simpl.
     eapply eval_opexp_merge_still; eauto.
     eapply eval_opexp_reg_eq_eval_opexp; eauto.
-  }
-  {
-    eauto.
   }
   {
     introv Hs.
@@ -1538,13 +1534,13 @@ Qed.
 
 Theorem rd_rule_reg :
   forall (rsp : SpReg) v (rr : GenReg) p grst,
-    |- {{ GenRegs grst ** rsp |=> v ** p }}
+    |- {{ GenRegs grst ** rsp |=> W v ** p }}
         rd rsp rr
-      {{ GenRegs (upd_genreg grst rr v) ** rsp |=> v ** p }}.
+      {{ GenRegs (upd_genreg grst rr (W v)) ** rsp |=> W v ** p }}.
 Proof.
   intros.
   eapply ins_conseq_rule with
-  (p1 := rsp |=> v ** rr |=> get_genreg_val' grst rr ** GenRegs_rm_one grst rr ** p).
+  (p1 := rsp |=> W v ** rr |=> get_genreg_val' grst rr ** GenRegs_rm_one grst rr ** p).
   Focus 2.
   eapply rd_rule; eauto.
   introv Hs.
@@ -1557,8 +1553,8 @@ Qed.
 
 Theorem wr_rule_reg :
   forall oexp (rs : GenReg) v1 v2 v grst (rsp : SpReg) p,
-    get_genreg_val grst rs = v1 ->
-    eval_opexp_reg grst oexp = Some v2 ->
+    get_genreg_val grst rs = W v1 ->
+    eval_opexp_reg grst oexp = Some (W v2) ->
     |- {{ GenRegs grst ** rsp |=> v ** p }}
         wr rs oexp rsp
       {{ GenRegs grst ** 3 @ rsp |==> set_spec_reg rsp (v1 xor v2) ** p }}.
@@ -1574,14 +1570,13 @@ Proof.
   simpl.
   split.
   
-    subst.
+    subst. 
     sep_star_split_tac.
-    simpl in H3, H4.
+    simpl in H4, H5.
     simpljoin1.
     simpl.
     eapply get_R_merge_still; eauto.
-    eapply getR_eq_get_genreg_val; eauto.
-  
+    eapply getR_eq_get_genreg_val in H3; eauto; rewrite H3, H; eauto.  
   
     sep_star_split_tac.
     simpl in H4, H5.

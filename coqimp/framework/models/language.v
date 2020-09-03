@@ -24,7 +24,7 @@ Inductive ins: Type :=
 | or : GenReg -> OpExp -> GenReg -> ins
 | sll : GenReg -> OpExp -> GenReg -> ins
 | srl : GenReg -> OpExp -> GenReg -> ins
-| sett : Word -> GenReg -> ins
+| sett : Val -> GenReg -> ins
 | save : GenReg -> OpExp -> GenReg -> ins
 | restore : GenReg -> OpExp -> GenReg -> ins
 | rd : SpReg -> GenReg -> ins
@@ -87,14 +87,13 @@ Notation "'bne' f # i # I" :=
                   ): code_scope.
 
 (* Test code *)
-Definition f1 := ($ 1).
+(* Definition f1 := ($ 1).
 Definition f2 := ($ 2).
 Definition f3 := ($ 3).
 Definition f4 := ($ 4).
 
 Definition code : InsSeq := 
   consJ (Ao (Or r1)) r3 nop. 
-Print code.
 
 Definition code1 : InsSeq :=
   consSeq (add r1 (Or r2) r3) (consJ (Ao (Or r1)) r3 nop).
@@ -111,13 +110,19 @@ Definition code4 : InsSeq :=
   call f3 # nop # code3.
 
 Definition code5 : InsSeq :=
-  be f3 # nop # code3.
+  be f3 # nop # code3.*)
 
 Open Scope code_scope.
 
 (*+ Code Heap +*)
+Module LabEq.
+  Definition t := Word.
+  Definition eq := Int.eq_dec.
+End LabEq.
+Module CodeMap := EMap(LabEq).
+
 (* The definition of code heap *)
-Definition CodeHeap := MemMap.t (option command).
+Definition CodeHeap := CodeMap.t (option command). 
 
 (* basic code block constructor *)
 Inductive LookupC : CodeHeap -> Label -> InsSeq -> Prop :=
@@ -159,95 +164,98 @@ Inductive LookupC : CodeHeap -> Label -> InsSeq -> Prop :=
 Definition get_range: Z -> Z -> Word -> Word :=
   fun i j N =>
     N &ᵢ (((($1)<<ᵢ($(j-i+1))) -ᵢ($1)) <<ᵢ($i)).
-Definition word_aligned: Word -> bool :=
-  fun w => if (get_range 0 1 w) =ᵢ ($0) then true else false.
+Definition word_aligned: Val -> bool :=
+  fun v => match v with
+         | Ptr (b, ofs) => if (get_range 0 1 ofs) =ᵢ ($0) then true else false
+         | W w => if (get_range 0 1 w) =ᵢ ($0) then true else false
+         end.
 
 Definition iszero v :=
   if Int.eq_dec v ($ 0) then $ 1 else $ 0.
 
-Fixpoint set_Rs R (vl : list (RegName * Word)) :=
+Fixpoint set_Rs R (vl : list (RegName * Val)) :=
   match vl with
-  | (rr, w) :: vl =>
-    set_Rs (set_R R rr w) vl
+  | (rr, v) :: vl =>
+    set_Rs (set_R R rr v) vl
   | nil => R
   end.
 
 (* operational Semantics for normal instruction *)
 Inductive R__ : Memory * RegFile -> ins -> Memory * RegFile -> Prop :=
 | Ld_step : forall aexp (ri : GenReg) M R R' addr v,
-    eval_addrexp R aexp = Some addr -> word_aligned addr = true ->
+    eval_addrexp R aexp = Some (Ptr addr) -> word_aligned (Ptr addr) = true ->
     M addr = Some v -> indom ri R -> set_R R ri v = R' ->
     R__ (M, R) (ld aexp ri) (M, R')
 
 | ST_step : forall (ri : GenReg) aexp M M' R addr v,
-    eval_addrexp R aexp = Some addr -> word_aligned addr = true ->
+    eval_addrexp R aexp = Some (Ptr addr) -> word_aligned (Ptr addr) = true ->
     get_R R ri = Some v -> indom addr M -> MemMap.set addr (Some v) M = M' ->
     R__ (M, R) (st ri aexp) (M', R)
 
 | Nop_step : forall M R,
     R__ (M, R) nop (M, R)
 
-| Add_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2,
+| Add_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2 v,
     get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
-    indom rd R -> set_R R rd (v1 +ᵢ v2) = R' ->
+    indom rd R -> set_R R rd v = R' -> val_add v1 v2 = Some v ->
     R__ (M, R) (add rs oexp rd) (M, R')
         
-| Sub_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2,
+| Sub_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2 v,
     get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
-    indom rd R -> set_R R rd (v1 -ᵢ v2) = R' ->
+    indom rd R -> set_R R rd v = R' -> val_sub v1 v2 = Some v ->
     R__ (M, R) (sub rs oexp rd) (M, R')
 
 | Subcc_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2 v,
-    get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
+    get_R R rs = Some (W v1) -> eval_opexp R oexp = Some (W v2) ->
     indom rd R -> indom n R -> indom z R -> v = v1 -ᵢ v2 ->
-    set_Rs R ((Rr rd, v) :: (Rpsr n, get_range 31 31 v) :: (Rpsr z, iszero v) :: nil) = R' ->
+    set_Rs R ((Rr rd, W v) :: (Rpsr n, W (get_range 31 31 v)) :: (Rpsr z, W (iszero v)) :: nil) = R' ->
     R__ (M, R) (subcc rs oexp rd) (M, R')
 
 | And_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2,
-    get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
-    indom rd R -> set_R R rd (v1 &ᵢ v2) = R' ->
+    get_R R rs = Some (W v1) -> eval_opexp R oexp = Some (W v2) ->
+    indom rd R -> set_R R rd (W (v1 &ᵢ v2)) = R' ->
     R__ (M, R) (and rs oexp rd) (M, R')
 
 | Andcc_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2 v,
-    get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
+    get_R R rs = Some (W v1) -> eval_opexp R oexp = Some (W v2) ->
     indom rd R -> indom n R -> indom z R -> v = v1 &ᵢ v2 ->
-    set_Rs R ((Rr rd, v) :: (Rpsr n, get_range 31 31 v) :: (Rpsr z, iszero v) :: nil) = R' ->
+    set_Rs R ((Rr rd, W v) :: (Rpsr n, W (get_range 31 31 v)) :: (Rpsr z, W (iszero v)) :: nil) = R' ->
     R__ (M, R) (andcc rs oexp rd) (M, R')
 
 | Or_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2,
-    get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
-    indom rd R -> set_R R rd (v1 |ᵢ v2) = R' ->
+    get_R R rs = Some (W v1) -> eval_opexp R oexp = Some (W v2) ->
+    indom rd R -> set_R R rd (W (v1 |ᵢ v2)) = R' ->
     R__ (M, R) (or rs oexp rd) (M, R')
 
 | Sll_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2,
-    get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
-    indom rd R -> set_R R rd (v1 <<ᵢ (get_range 0 4 v2)) = R' ->
+    get_R R rs = Some (W v1) -> eval_opexp R oexp = Some (W v2) ->
+    indom rd R -> set_R R rd (W (v1 <<ᵢ (get_range 0 4 v2))) = R' ->
     R__ (M, R) (sll rs oexp rd) (M, R')
 
 | Srl_step : forall M (R R' : RegFile) oexp (rs rd : GenReg) v1 v2,
-    get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
-    indom rd R -> set_R R rd (v1 >>ᵢ (get_range 0 4 v2)) = R' ->
+    get_R R rs = Some (W v1) -> eval_opexp R oexp = Some (W v2) ->
+    indom rd R -> set_R R rd (W (v1 >>ᵢ (get_range 0 4 v2))) = R' ->
     R__ (M, R) (srl rs oexp rd) (M, R')
 
-| Set_step : forall M (R R' : RegFile) (rd : GenReg) w,
-    indom rd R -> set_R R rd w = R' ->
-    R__ (M, R) (sett w rd) (M, R')
+| Set_step : forall M (R R' : RegFile) (rd : GenReg) v,
+    indom rd R -> set_R R rd v = R' ->
+    R__ (M, R) (sett v rd) (M, R')
 
 | Rd_step : forall M (R R' : RegFile) (rsp : SpReg) (ri : GenReg) v,
-    get_R R rsp = Some v -> indom ri R -> set_R R ri v = R' ->
+    get_R R rsp = Some (W v) -> indom ri R -> set_R R ri (W v) = R' ->
     R__ (M, R) (rd rsp ri) (M, R')
 
 | GetCwp_step : forall M (R R' : RegFile) (ri : GenReg) v,
-    get_R R cwp = Some v -> indom ri R -> set_R R ri v = R' ->
+    get_R R cwp = Some (W v) -> indom ri R -> set_R R ri (W v) = R' ->
     R__ (M, R) (getcwp ri) (M, R').
 
 (* Operation to write a frame *)
 Definition set_frame R (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : GenReg) (fm : Frame) :=
   match fm with
-  | consfm w0 w1 w2 w3 w4 w5 w6 w7 =>
+  | consfm v0 v1 v2 v3 v4 v5 v6 v7 =>
     set_Rs R
-           ((Rr rr0, w0) :: (Rr rr1, w1) :: (Rr rr2, w2) :: (Rr rr3, w3) :: (Rr rr4, w4) ::
-                         (Rr rr5, w5) :: (Rr rr6, w6) :: (Rr rr7, w7) :: nil)
+           ((Rr rr0, v0) :: (Rr rr1, v1) :: (Rr rr2, v2) :: (Rr rr3, v3) :: (Rr rr4, v4) ::
+                         (Rr rr5, v5) :: (Rr rr6, v6) :: (Rr rr7, v7) :: nil)
   end.
 
 (* Operation to write a window *)
@@ -282,27 +290,29 @@ Inductive Q__: State -> command -> State -> Prop :=
 
 | SSave :
     forall (M : Memory) (R R' R'': RegFile) D F F' k k' oexp
-           fmo fml fmi fm1 fm2 v1 v2 v (rs rd : GenReg),
-      get_R R cwp = Some k -> get_R R Rwim = Some v ->
+           fmo fml fmi fm1 fm2 v1 v2 v res (rs rd : GenReg),
+      Some res = val_add v1 v2 ->
+      get_R R cwp = Some (W k) -> get_R R Rwim = Some (W v) ->
       fetch R = Some [fmo; fml; fmi] -> indom rd R -> 
       get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 -> F = F' ++ (fm1 :: fm2 :: nil) ->
       R' = set_window R fm1 fm2 fmo -> k' = pre_cwp k -> win_masked k' v = false -> 
-      R'' = set_Rs R' ((Rpsr cwp, k') :: (Rr rd, v1 +ᵢ v2) :: nil) ->
+      R'' = set_Rs R' ((Rpsr cwp, W k') :: (Rr rd, res) :: nil) ->
       Q__ (M, (R, F), D) (cntrans (save rs oexp rd)) (M, (R'', fml :: fmi :: F'), D)
 
 | RRestore :
     forall (M : Memory) (R R' R'': RegFile) D F F' k k' oexp
-           fmo fml fmi fm1 fm2 v1 v2 v (rs rd : GenReg),
-      get_R R cwp = Some k -> get_R R Rwim = Some v ->
+           fmo fml fmi fm1 fm2 v1 v2 v (rs rd : GenReg) res,
+      Some res = val_add v1 v2 ->
+      get_R R cwp = Some (W k) -> get_R R Rwim = Some (W v) ->
       fetch R = Some [fmo; fml; fmi] -> indom rd R ->
       get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 -> F = fm1 :: fm2 :: F' ->
       R' = set_window R fmi fm1 fm2 -> k' = post_cwp k -> win_masked k' v = false ->
-      R'' = set_Rs R' ((Rpsr cwp, post_cwp k) :: (Rr rd, v1 +ᵢ v2) :: nil) ->
+      R'' = set_Rs R' ((Rpsr cwp, W (post_cwp k)) :: (Rr rd, res) :: nil) ->
       Q__ (M, (R, F), D) (cntrans (restore rs oexp rd)) (M, (R'', F' ++ (fmo :: fml :: nil)), D)
 
 | Wr :
     forall M (R : RegFile) F D D' (rs : GenReg) (rsp : SpReg) oexp v1 v2 v,
-      get_R R rs = Some v1 -> eval_opexp R oexp = Some v2 ->
+      get_R R rs = Some (W v1) -> eval_opexp R oexp = Some (W v2) ->
       v = set_spec_reg rsp (v1 xor v2) -> indom rsp R -> D' = set_delay rsp v D ->
       Q__ (M, (R, F), D) (cntrans (wr rs oexp rsp)) (M, (R, F), D').
 
@@ -315,43 +325,43 @@ Inductive H__ : CodeHeap -> State * Label * Label -> State * Label * Label -> Pr
 
 | Jumpl :
     forall C M aexp rd (R R' : RegFile) F D (pc npc f : Label),
-      C pc = Some (cjumpl aexp rd) -> eval_addrexp R aexp = Some f ->
-      word_aligned f = true -> indom rd R -> set_R R rd pc = R' ->
+      C pc = Some (cjumpl aexp rd) -> eval_addrexp R aexp = Some (W f) ->
+      word_aligned (W f) = true -> indom rd R -> set_R R rd (W pc) = R' ->
       H__ C ((M, (R, F), D), pc, npc) ((M, (R', F), D), npc, f)
 
 | Call :
     forall C M (R R' : RegFile) F D pc npc f,
-      C pc = Some (ccall f) -> indom r15 R -> set_R R r15 pc = R' ->
+      C pc = Some (ccall f) -> indom r15 R -> set_R R r15 (W pc) = R' ->
       H__ C ((M, (R, F), D), pc, npc) ((M, (R', F), D), npc, f)
 
 | Retl :
     forall C M (R : RegFile) F D pc npc f,
-      C pc = Some (cretl) -> get_R R r15 = Some f ->
+      C pc = Some (cretl) -> get_R R r15 = Some (W f) ->
       H__ C ((M, (R, F), D), pc, npc) ((M, (R, F), D), npc, f +ᵢ ($ 8))
 
 | Ret :
     forall C M (R : RegFile) F D pc npc f,
-      C pc = Some (cret) -> get_R R r31 = Some f ->
+      C pc = Some (cret) -> get_R R r31 = Some (W f) ->
       H__ C ((M, (R, F), D), pc, npc) ((M, (R, F), D), npc, f +ᵢ ($ 8))
 
 | Be_true :
     forall C M (R : RegFile) F D pc npc f v,
-      C pc = Some (cbe f) -> get_R R z = Some v -> v <> ($ 0) ->
+      C pc = Some (cbe f) -> get_R R z = Some (W v) -> v <> ($ 0) ->
       H__ C ((M, (R, F), D), pc, npc) ((M, (R, F), D), npc, f)
 
 | Be_false :
     forall C M (R : RegFile) F D pc npc f,
-      C pc = Some (cbe f) -> get_R R z = Some ($ 0) ->
+      C pc = Some (cbe f) -> get_R R z = Some (W ($ 0)) ->
       H__ C ((M, (R, F), D), pc, npc) ((M, (R, F), D), npc, npc +ᵢ ($ 4))
 
 | Bne_true :
     forall C M (R : RegFile) F D pc npc f,
-      C pc = Some (cbne f) -> get_R R z = Some ($ 0) ->
+      C pc = Some (cbne f) -> get_R R z = Some (W ($ 0)) ->
       H__ C ((M, (R, F), D), pc, npc) ((M, (R, F), D), npc, f)
 
 | Bne_false :
     forall C M (R : RegFile) F D pc npc f v,
-      C pc = Some (cbne f) -> get_R R z = Some v -> v <> ($ 0) ->
+      C pc = Some (cbne f) -> get_R R z = Some (W v) -> v <> ($ 0) ->
       H__ C ((M, (R, F), D), pc, npc) ((M, (R, F), D), npc, npc +ᵢ ($ 4)).
 
 Inductive P__ : CodeHeap -> State * Label * Label -> State * Label * Label -> Prop :=

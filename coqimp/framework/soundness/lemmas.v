@@ -24,13 +24,13 @@ Open Scope code_scope.
 Open Scope mem_scope.
 
 (*+ Auxiliary Definition +*)
-Fixpoint indoms {tp : Type} (ls : list tp) M :=
+Fixpoint indoms {tp tp' : Type} (ls : list tp) (M : tp -> option tp') :=
   match ls with
   | nil => True
   | l :: ls' => indom l M /\ indoms ls' M
   end.
 
-Fixpoint getRs (vl : list (RegName * Word)) :=
+Fixpoint getRs (vl : list (RegName * Val)) :=
   match vl with
   | nil => nil
   | (rn, w) :: vl' => rn :: getRs vl'
@@ -208,7 +208,7 @@ Proof.
 Qed.
 
 Lemma indom_nor_not :
-  forall (tp : Type) (l : tp) m,
+  forall (tp tp' : Type) (l : tp) (m : tp -> option tp'),
     {indom l m} + {~ indom l m}.
 Proof.
   intros.
@@ -278,7 +278,7 @@ Qed.
 
 (*+ Lemmas for Memory +*)
 Lemma indom_merge_still :
-  forall (tp : Type) (l : tp) M m,
+  forall (tp tp': Type) (l : tp) (M m : tp -> option tp'),
     indom l M ->
     indom l (merge M m).
 Proof.
@@ -291,7 +291,7 @@ Proof.
 Qed.
 
 Lemma indom_merge_still2 :
-  forall (tp : Type) (l : tp) M m,
+  forall (tp tp': Type) (l : tp) (M m : tp -> option tp'),
     indom l m ->
     indom l (merge M m).
 Proof.
@@ -303,7 +303,7 @@ Proof.
 Qed.
 
 Lemma indom_m2_disj_notin_m1 :
-  forall (tp : Type) (l : tp) m1 m2,
+  forall (tp tp': Type) (l : tp) (m1 m2 : tp -> option tp'),
     indom l m2 -> disjoint m1 m2 ->
     ~ indom l m1.
 Proof.
@@ -318,7 +318,7 @@ Proof.
 Qed.
   
 Lemma indom_m1_disj_notin_m2 :
-  forall (tp : Type) (l : tp) m1 m2,
+  forall (tp tp' : Type) (l : tp) (m1 m2 : tp -> option tp'),
     indom l m1 -> disjoint m1 m2 ->
     ~ indom l m2.
 Proof.
@@ -333,7 +333,7 @@ Proof.
 Qed.
 
 Lemma disj_merge_reverse_eq :
-  forall (tp : Type) (m1 m2 : tp -> option Word),
+  forall (tp tp': Type) (m1 m2 : tp -> option tp'),
     disjoint m1 m2 ->
     merge m1 m2 = merge m2 m1.
 Proof.
@@ -350,7 +350,7 @@ Proof.
 Qed.
 
 Lemma disj_sym :
-  forall (tp : Type) (m1 m2 : tp -> option Word),
+  forall (tp tp' : Type) (m1 m2 : tp -> option tp'),
     disjoint m1 m2 -> disjoint m2 m1.
 Proof.
   intros.
@@ -362,7 +362,7 @@ Proof.
 Qed.
 
 Lemma indom_isindom :
-  forall (tp : Type) (l : tp) m,
+  forall (tp tp': Type) (l : tp) (m : tp -> option tp'),
     indom l m -> is_indom l m = true.
 Proof.
   intros.
@@ -374,7 +374,7 @@ Proof.
 Qed.
 
 Lemma disj_sep_merge_still :
-  forall tp (m m1 m2 : tp -> option Word),
+  forall tp tp' (m m1 m2 : tp -> option tp'),
     disjoint m m1 -> disjoint m m2 ->
     disjoint m (merge m1 m2).
 Proof.
@@ -395,7 +395,7 @@ Proof.
 Qed.
 
 Lemma disj_merge_disj_sep1 :
-  forall tp (m1 m2 m3 : tp -> option Word),
+  forall tp tp' (m1 m2 m3 : tp -> option tp'),
     disjoint m1 (merge m2 m3) ->
     disjoint m1 m2.
 Proof.
@@ -411,7 +411,7 @@ Proof.
 Qed.
 
 Lemma disj_merge_disj_sep2 :
-  forall tp (m1 m2 m3 : tp -> option Word),
+  forall tp tp' (m1 m2 m3 : tp -> option tp'),
     disjoint m1 (merge m2 m3) ->
     disjoint m1 m3.
 Proof.
@@ -428,7 +428,7 @@ Proof.
 Qed.
 
 Lemma merge_assoc :
-  forall tp (m1 m2 m3 : tp -> option Word),
+  forall tp tp' (m1 m2 m3 : tp -> option tp'),
     merge m1 (merge m2 m3) = merge (merge m1 m2) m3.
 Proof.
   intros.
@@ -441,7 +441,7 @@ Proof.
 Qed.
 
 Lemma merge_lift :
-  forall tp (m1 m2 m3 : tp -> option Word),
+  forall tp tp' (m1 m2 m3 : tp -> option tp'),
     disjoint m1 m2 ->
     merge m1 (merge m2 m3) = merge m2 (merge m1 m3).
 Proof.
@@ -458,7 +458,7 @@ Proof.
 Qed.
 
 Lemma get_vl_merge_still :
-  forall tp (M m : tp -> option Word) l v,
+  forall tp tp' (M m : tp -> option tp') l v,
     M l = Some v ->
     merge M m l = Some v.
 Proof.
@@ -468,7 +468,7 @@ Proof.
 Qed.
 
 Lemma get_vl_merge_still2 :
-  forall tp (M m : tp -> option Word) l v,
+  forall tp tp' (M m : tp -> option tp') l v,
     disjoint M m -> m l = Some v ->
     merge M m l = Some v.
 Proof.
@@ -484,7 +484,7 @@ Proof.
 Qed.
 
 (*+ Lemmas about register state +*)
-Definition dom_eq {tp : Type} (M m : tp -> option Word) :=
+Definition dom_eq {tp tp' : Type} (M m : tp -> option tp') :=
   (forall l, indom l M -> indom l m) /\ (forall l, indom l m -> indom l M).
 
 Lemma get_R_rn_neq_r0 :
@@ -516,9 +516,9 @@ Proof.
 Qed.
 
 Lemma indom_setR_eq_RegMap_set :
-  forall (s : RegName) R w,
+  forall (s : RegName) R v,
     indom s R ->
-    set_R R s w = RegMap.set s (Some w) R.
+    set_R R s v = RegMap.set s (Some v) R.
 Proof.
   intros.
   unfold set_R.
@@ -531,7 +531,7 @@ Proof.
 Qed.
 
 Lemma regset_l_l_indom :
-  forall rn v m,
+  forall (A : Type) rn (v : A) m,
     indom rn (RegMap.set rn (Some v) m).
 Proof.
   intros.
@@ -554,9 +554,9 @@ Proof.
 Qed.
 
 Lemma not_indom_set_R_stable :
-  forall s R w,
+  forall s R v,
     ~ indom s R ->
-    set_R R s w = R.
+    set_R R s v = R.
 Proof.
   intros.
   unfolds set_R.
@@ -569,7 +569,7 @@ Proof.
 Qed.
 
 Lemma indom_setR_merge_eq :
-  forall M m l v,
+  forall A M m l (v : A),
     indom l M ->
     RegMap.set l (Some v) (merge M m) = merge (RegMap.set l (Some v) M) m.
 Proof.
@@ -664,7 +664,7 @@ Proof.
 Qed.
 
 Lemma disjoint_setR_still1:
-  forall (m1 m2 : RegFile) (rn : RegName) (v : Word),
+  forall (m1 m2 : RegFile) (rn : RegName) (v : Val),
     disjoint m1 m2 ->
     disjoint (set_R m1 rn v) m2.
 Proof.
@@ -699,7 +699,7 @@ Proof.
 Qed.
   
 Lemma disjoint_setR_still2:
-  forall (m1 m2 : RegFile) (rn : RegName) (v : Word),
+  forall (m1 m2 : RegFile) (rn : RegName) (v : Val),
     disjoint m1 m2 ->
     disjoint m1 (set_R m2 rn v).
 Proof.
@@ -761,9 +761,9 @@ Proof.
 Qed.
 
 Lemma RegMap_set_eq :
-  forall (R : RegFile) s w1 w2,
-    RegMap.set s (Some w1) R = RegMap.set s (Some w2) R ->
-    w1 = w2.
+  forall (R : RegFile) s v1 v2,
+    RegMap.set s (Some v1) R = RegMap.set s (Some v2) R ->
+    v1 = v2.
 Proof.
   intros.
   eapply equal_f_dep with (x := s) in H.
@@ -1144,9 +1144,9 @@ Proof.
 Qed.
 
 Lemma dly_reduce_Amapsto_stable :
-  forall D M R R' F D' a w,
-    (M, (R, F), D) |= a |-> w -> (R', D') = exe_delay R D ->
-    (M, (R', F), D') |= a |-> w.
+  forall D M R R' F D' a v,
+    (M, (R, F), D) |= a |-> v -> (R', D') = exe_delay R D ->
+    (M, (R', F), D') |= a |-> v.
 Proof.
   intros D.
   induction D; intros.
@@ -1155,7 +1155,7 @@ Proof.
     inversion H0; eauto.
   -
     destruct a, p.
-    assert ((M, (R, F), D) |= a0 |-> w).
+    assert ((M, (R, F), D) |= a0 |-> v).
     {
       clear - H.
       simpls.
@@ -1404,7 +1404,7 @@ Lemma dlytime_zero_exe_dly :
   forall D M R R' F D' s w,
     (M, (R, F), D) |= 0 @ s |==> w ->
     (R', D') = exe_delay R D ->
-    (M, (R', F), D') |= s |=> w.
+    (M, (R', F), D') |= s |=> W w.
 Proof. 
   intro D.
   induction D; intros.
@@ -1425,7 +1425,7 @@ Proof.
       simpls.
       simpljoin1.
       eapply equal_f in H.
-      assert (RegMap.set s (Some x) empR s = RegMap.set s (Some w) empR s); eauto.
+      assert (RegMap.set s (Some x) empR s = RegMap.set s (Some (W w)) empR s); eauto.
       clear - H.
       unfold RegMap.set in H.
       destruct_rneq_H.
@@ -1644,7 +1644,7 @@ Qed.
 
 Lemma regst_conseq_regdly :
   forall M R F D t (s : SpReg) w,
-    (M, (R, F), D) |= s |=> w ->
+    (M, (R, F), D) |= s |=> W w ->
     (M, (R, F), D) |= t @ s |==> w.
 Proof.
   intros.
@@ -1652,7 +1652,7 @@ Proof.
   unfolds regSt.
   simpls.
   simpljoin1.
-  exists w.
+  exists (W w).
   repeat (split; eauto).
 Qed.
 
@@ -1836,7 +1836,8 @@ Proof.
           destruct (sep_reg_dec s s0).
           {
             subst.
-            exists w0.
+
+            exists (W w0).
             repeat (split; eauto).
             rewrite indom_setR_eq_RegMap_set; eauto.
             rewrite regset_twice; eauto.
@@ -2211,7 +2212,7 @@ Proof.
           eapply regdly_inDuff_eq in H; eauto.
           subst.
           simpl.
-          exists w0.
+          exists (W w0).
           symmetry in Heqe.
           eapply reg_not_in_dlybuff_exe_dly_stable in Heqe; eauto.
           subst.
@@ -2267,7 +2268,8 @@ Proof.
           simpl.
           eapply RegMap_set_eq in H.
           subst.
-          exists w. 
+
+          exists (W w). 
           repeat (split; eauto).
           symmetry in Heqe.
           eapply reg_not_in_dlybuff_exe_dly_stable in Heqe; eauto.
@@ -2429,7 +2431,7 @@ Proof.
         eapply regdlySt_in_vl_eq in H0; eauto.
         subst.
         simpl.
-        exists w0.
+        exists (W w0).
         repeat (split; eauto).
         symmetry in Heqe.
         eapply reg_not_in_dlybuff_exe_dly_stable in Heqe; eauto.
@@ -2567,7 +2569,7 @@ Proof.
     }
   }
   {
-    assert ((empM, (RegMap.set s (Some x) empR, F), D) |= s |=> w).
+    assert ((empM, (RegMap.set s (Some x) empR, F), D) |= s |=> (W w)).
     {
       simpl.
       eauto.
@@ -2707,7 +2709,7 @@ Proof.
 
       destruct (indom_nor_not s R1').
       {
-        exists (set_R R1' s w) R2'.
+        exists (set_R R1' s (W w)) R2'.
         repeat (split; eauto).
         rewrite indom_setR_eq_RegMap_set; eauto.
         rewrite indom_setR_eq_RegMap_set; eauto. 
@@ -2723,7 +2725,7 @@ Proof.
         rewrite not_indom_set_R_stable; eauto.
       }
       {
-        exists R1' (set_R R2' s w).
+        exists R1' (set_R R2' s (W w)).
         repeat (split; eauto).  
         rewrite indom_setR_merge_eq2; eauto. 
         eapply disjoint_setR_still2; eauto.
@@ -2929,7 +2931,7 @@ Proof.
       inversion H; subst.
       eapply IHD in Heqe; eauto.
     }
-Qed.
+Qed. 
 
 Lemma exe_delay_disj_merge :
   forall D D' R1 R1' R2 R2',

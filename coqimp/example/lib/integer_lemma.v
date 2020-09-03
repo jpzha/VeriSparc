@@ -1189,6 +1189,50 @@ Proof.
   }
 Qed.
 
+Lemma pre_2_neq :
+  forall id,
+    $ 0 <=ᵤᵢ id <=ᵤᵢ $ 7 ->
+    id <> pre_cwp (pre_cwp id).
+Proof.
+  intros.
+  intro.
+  rewrite <- Int.repr_unsigned with (i := id) in H0.
+  unfolds pre_cwp.
+  unfolds int_leu.
+  unfolds Int.ltu, Int.eq.
+  unfolds Int.add.
+  unfolds Int.modu.
+  unfolds N.
+  assert (Int.unsigned $ 0 = 0%Z); eauto.
+  assert (Int.unsigned $ 7 = 7%Z); eauto.
+  assert (Int.unsigned $ 1 = 1%Z); eauto.
+  assert (Int.unsigned $ 8 = 8%Z); eauto.
+  try rewrite H1 in *.
+  try rewrite H2 in *.
+  try rewrite H3 in *.
+  try rewrite H4 in *.
+  destruct id.
+  simpl Int.unsigned in *.
+  destruct (zlt 0 intval); destruct (zeq 0 intval);
+    destruct (zlt intval 7); destruct (zeq intval 7); tryfalse; try omega.
+  {
+    destruct intval; eauto; tryfalse.
+    do 3 (try destruct p; simpls; tryfalse; try omega).
+  }
+  {
+    subst.
+    rewrite H2 in H0.
+    simpls; eauto.
+    tryfalse.
+  }
+  {
+    subst.
+    rewrite H1 in H0.
+    simpls; eauto.
+    tryfalse.
+  }
+Qed.
+
 Lemma post_1_neq_pre :
   forall id,
     $ 0 <=ᵤᵢ id <=ᵤᵢ $ 7 ->
@@ -1696,6 +1740,32 @@ Proof.
   destruct intval; tryfalse; eauto 20.
   do 3 (try destruct p; eauto 10; tryfalse).
   do 7 right.
+  eauto.
+Qed.
+
+
+Lemma in_range_0_5_num :
+  forall v,
+    $ 0 <=ᵤᵢ v <=ᵤᵢ $ 5 ->
+    v = ($ 0) \/ v = ($ 1) \/ v = ($ 2) \/ v = ($ 3) \/
+    v = ($ 4) \/ v = ($ 5).
+Proof.
+  intros.
+  rewrite <- Int.repr_unsigned with (i := v).
+  unfolds int_leu.
+  unfolds Int.ltu, Int.eq.
+  assert (Int.unsigned $ 0 = 0%Z); eauto.
+  assert (Int.unsigned $ 5 = 5%Z); eauto.
+  try rewrite H0 in *.
+  try rewrite H1 in *.
+  destruct v.
+  simpl Int.unsigned in *.
+  destruct (zlt 0 intval); destruct (zeq 0 intval);
+    destruct (zlt intval 5); destruct (zeq intval 5); subst; eauto;
+      tryfalse; try omega.
+  destruct intval; tryfalse; eauto 20.
+  do 3 (try destruct p; eauto 10; tryfalse).
+  do 5 right.
   eauto.
 Qed.
 

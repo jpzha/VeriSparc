@@ -88,11 +88,13 @@ Proof.
   ins_tm_reduce_bas.
   eapply rd_rule_reg; eauto.
   simpl upd_genreg.
-
+ 
   (** wr i0 0 Ry *)
   eapply seq_rule.
   ins_tm_reduce_bas.
   eapply wr_rule_reg; eauto.
+  simpl.
+  eapply get_frm_nth_to_nth'; eauto.
   simpl.
   rewrite in_range0; eauto.
   simpl set_spec_reg.
@@ -121,6 +123,9 @@ Proof.
   ins_tm_reduce_bas.
   eapply restore_rule_reg; eauto.
   simpl.
+  rewrite frm_get_upd; eauto; try omega.
+  instantiate (1 := W ($ 0)); simpl; eauto.
+  simpl.
   rewrite in_range0; eauto.
   simpl upd_genreg.
   rewrite Int.add_zero.
@@ -139,9 +144,17 @@ Proof.
   sep_cancel1 1 2.
   instantiate (1 := Aemp).
   eapply astar_emp_intro_r.
-  eauto.
-  eapply sep_pure_l_intro.
   eauto. 
+  eapply sep_pure_l_intro; eauto.
+ 
+  unfold fretSta.
+  introv Hs Hs'.
+  eapply asrt_time_reduce in Hs.
+  rewrite tmreduce_TimReduce in Hs.
+  eapply asrt_time_reduce in Hs.
+  do 2 rewrite GenRegs_TimeReduce in Hs.
+  TimReduce_simpl_in_bas Hs.
+(*  
   erewrite get_frm_nth_to_nth'.
   rewrite frm_get_upd; eauto.
   omega.
@@ -154,16 +167,16 @@ Proof.
   eapply asrt_time_reduce in Hs.
   do 2 rewrite GenRegs_TimeReduce in Hs.
   TimReduce_simpl_in_bas Hs.
-
+*)
   eapply GenRegs_split_one with (rr := r15) in Hs.
   simpl get_genreg_val' in Hs.
   eapply GenRegs_split_one with (rr := r15) in Hs'.
   simpl get_genreg_val' in Hs'.
-  clear - Hs Hs'.
+  clear - Hs Hs' H0.
   destruct_state s.
   destruct_state s'.
   eapply rn_st_v_eval_reg_v in Hs.
   eapply rn_st_v_eval_reg_v in Hs'.
-  simpl.
-  eauto.
+  destruct fmi; simpls.
+  inversion H0; subst; eauto.
 Qed.

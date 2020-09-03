@@ -26,7 +26,7 @@ Open Scope code_scope.
 
 (*+ Lemmas for Memory Model +*)
 Lemma memset_l_l_indom :
-  forall rn v m,
+  forall A rn (v : A) m,
     indom rn (MemMap.set rn (Some v) m).
 Proof.
   intros.
@@ -49,7 +49,7 @@ Proof.
 Qed.
 
 Lemma indom_memset_merge_eq :
-  forall M m l v,
+  forall A M m l (v : A),
     indom l M ->
     MemMap.set l (Some v) (merge M m) = merge (MemMap.set l (Some v) M) m.
 Proof.
@@ -63,7 +63,7 @@ Proof.
 Qed.
 
 Lemma disj_indom_memset_still :
-  forall M1 M2 l v,
+  forall A M1 M2 l (v : A),
     disjoint M1 M2 ->
     indom l M1 ->
     disjoint (MemMap.set l (Some v) M1) M2.
@@ -98,7 +98,7 @@ Proof.
 Qed.
 
 Lemma MemSet_same_addr_disj_stable :
-  forall l v v' M M',
+  forall A l (v v' : A) M M',
     disjoint (MemMap.set l (Some v') M) M' ->
     disjoint (MemMap.set l (Some v) M) M'.
 Proof.
@@ -113,7 +113,7 @@ Proof.
 Qed.
 
 Lemma disj_merge_disj_sep :
-  forall (tp : Type) (m1 m2 m3 : tp -> option Word),
+  forall (tp tp': Type) (m1 m2 m3 : tp -> option tp'),
     disjoint m1 (merge m2 m3) ->
     disjoint m1 m2 /\ disjoint m1 m3.
 Proof.
@@ -173,7 +173,7 @@ Proof.
 Qed.
 
 Lemma disj_dom_eq_still :
-  forall (tp : Type) (m1 m2 m1' m2' : tp -> option Word),
+  forall (tp tp' : Type) (m1 m2 m1' m2' : tp -> option tp'),
     disjoint m1 m2 ->
     dom_eq m1 m1' -> dom_eq m2 m2' ->
     disjoint m1' m2'.
@@ -223,7 +223,7 @@ Proof.
 Qed.
 
 Lemma dom_eq_merge_still :
-  forall tp (m1 m1' m2 m2' : tp -> option Word),
+  forall tp tp' (m1 m1' m2 m2' : tp -> option tp'),
     dom_eq m1 m1' -> dom_eq m2 m2' ->
     dom_eq (merge m1 m2) (merge m1' m2').
 Proof.
@@ -298,7 +298,7 @@ Proof.
 Qed.
 
 Lemma same_m_dom_eq:
-  forall tp (m : tp -> option Word),
+  forall tp tp' (m : tp -> option tp'),
     dom_eq m m.
 Proof.
   unfold dom_eq.
@@ -307,7 +307,7 @@ Proof.
 Qed.
 
 Lemma dom_eq_trans :
-  forall tp (m1 m2 m3 : tp -> option Word),
+  forall tp tp' (m1 m2 m3 : tp -> option tp'),
     dom_eq m1 m2 -> dom_eq m2 m3 ->
     dom_eq m1 m3.
 Proof.
@@ -327,7 +327,7 @@ Proof.
 Qed.
 
 Lemma indom_dom_eq_subst :
-  forall tp l (m m' : tp -> option Word),
+  forall tp tp' l (m m' : tp -> option tp'),
     indom l m ->
     dom_eq m m' ->
     indom l m'.
@@ -339,7 +339,7 @@ Proof.
 Qed.
 
 Lemma indom_dom_eq_merge_subst :
-  forall tp l (m1 m1' m2 : tp -> option Word),
+  forall tp tp' l (m1 m1' m2 : tp -> option tp'),
     indom l (merge m1 m2) ->
     dom_eq m1 m1' ->
     indom l (merge m1' m2).
@@ -365,7 +365,7 @@ Proof.
 Qed.
 
 Lemma indom_dom_eq_merge_subst2 :
-  forall tp l (m1 m2 m2' : tp -> option Word),
+  forall tp l tp' (m1 m2 m2' : tp -> option tp'),
     indom l (merge m1 m2) ->
     dom_eq m2 m2' ->
     indom l (merge m1 m2').
@@ -387,7 +387,7 @@ Proof.
 Qed.
 
 Lemma dom_eq_merge_subst1 :
-  forall tp (m m' m1 m2 : tp -> option Word),
+  forall tp tp' (m m' m1 m2 : tp -> option tp'),
     dom_eq m m' ->
     dom_eq (merge m m1) m2 ->
     dom_eq (merge m' m1) m2.
@@ -412,23 +412,17 @@ Proof.
 Qed.
 
 Lemma dom_eq_sym :
-  forall tp (m m' : tp -> option Word),
+  forall tp tp' (m m' : tp -> option tp'),
     dom_eq m m' -> dom_eq m' m.
 Proof.
   intros.
   unfold dom_eq in *.
   simpljoin1.
-  split.
-  {
-    intros; eauto.
-  }
-  {
-    intros; eauto.
-  }
+  split; intros; eauto.
 Qed.
 
 Lemma disj_in_m1_merge_still :
-  forall tp (m1 m2 : tp -> option Word) l v,
+  forall tp tp' (m1 m2 : tp -> option tp') l v,
     disjoint m1 m2 -> m1 l = Some v ->
     merge m1 m2 l = Some v.
 Proof.
@@ -438,21 +432,18 @@ Proof.
 Qed.
 
 Lemma disj_in_m2_merge_still :
-  forall tp (m1 m2 : tp -> option Word) l v,
+  forall tp tp' (m1 m2 : tp -> option tp') l v,
     disjoint m1 m2 -> m2 l = Some v ->
     merge m1 m2 l = Some v.
 Proof.
   intros.
   unfold merge.
-  destruct (m1 l) eqn:Heqe.
+  destruct (m1 l) eqn:Heqe; eauto.
   {
     unfold disjoint in *.
     specialize (H l).
     rewrite Heqe in H.
     rewrite H0 in H; tryfalse.
-  }
-  {
-    eauto.
   }
 Qed.
 
@@ -533,7 +524,7 @@ Proof.
 Qed.
 
 Lemma indom_regset_still:
-  forall l l' M w,
+  forall tp l l' M (w : tp),
     indom l M ->
     indom l (RegMap.set l' (Some w) M).
 Proof.
@@ -545,7 +536,7 @@ Proof.
 Qed.
 
 Lemma RegSet_same_addr_disj_stable2 :
-  forall l v v' m m',
+  forall tp l (v v' : tp) m m',
     disjoint m (RegMap.set l (Some v') m') ->
     disjoint m (RegMap.set l (Some v) m').
 Proof.
@@ -566,7 +557,7 @@ Proof.
 Qed.
 
 Lemma disj_indom_regset_still :
-  forall R1 R2 rn v,
+  forall A R1 R2 rn (v : A),
     disjoint R1 R2 ->
     indom rn R1 ->
     disjoint (RegMap.set rn (Some v) R1) R2.
@@ -1304,7 +1295,7 @@ Proof.
 Qed.
 
 Lemma dom_eq_memset_same_addr_stable :
-  forall m1 m2 l v v',
+  forall A m1 m2 l (v v' : A),
     dom_eq m1 m2 ->
     dom_eq (RegMap.set l (Some v) m1) (RegMap.set l (Some v') m2).
 Proof.
@@ -1556,11 +1547,11 @@ Proof.
 Qed.
 
 Lemma indoms_merge_still1 :
-  forall tp vl (m1 m2 : tp -> option Word),
+  forall tp tp' vl (m1 m2 : tp -> option tp'),
     indoms vl m1 ->
     indoms vl (merge m1 m2).
 Proof.
-  intros tp vl.
+  intros tp tp' vl.
   induction vl; intros.
   -
     simpl; eauto.
@@ -1574,11 +1565,11 @@ Proof.
 Qed.
 
 Lemma indoms_merge_still2 :
-  forall tp vl (m1 m2 : tp -> option Word),
+  forall tp tp' vl (m1 m2 : tp -> option tp'),
     indoms vl m2 ->
     indoms vl (merge m1 m2).
 Proof.
-  intros tp vl.
+  intros tp tp' vl.
   induction vl; intros.
   -
     simpl; eauto.
@@ -1732,9 +1723,9 @@ Proof.
   -
     destruct a.
     simpl.
-    assert (dom_eq (set_R R r w) (set_Rs (set_R R r w) vl)).
+    assert (dom_eq (set_R R r v) (set_Rs (set_R R r v) vl)).
     eauto.
-    eapply dom_eq_trans with (m2 := (set_R R r w)); eauto.
+    eapply dom_eq_trans with (m2 := (set_R R r v)); eauto.
     eapply dom_eq_setR_stable; eauto.
 Qed.
 
@@ -1882,7 +1873,7 @@ Proof.
   unfolds regSt.
   simpljoin1.
   simpls.
-  exists (RegMap.set cwp (Some id') empR).
+  exists (RegMap.set cwp (Some (W id')) empR).
   repeat (split; eauto).
   {
     subst.
@@ -2071,26 +2062,26 @@ Ltac fetch_frame_merge_solve2 :=
   end.
 
 Lemma fetch_frm_disj_merge_still1 :
-  forall R R1 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R R1 (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     disjoint R R1 ->
     fetch_frame (merge R R1) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
 Proof. 
   intros.
-  unfolds fetch_frame.
+  unfold fetch_frame in *.
   fetch_frame_merge_solve1.
   inversion H.
   eauto.
 Qed.
 
 Lemma fetch_frm_disj_merge_still2 :
-  forall R R1 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R R1 (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     disjoint R1 R ->
     fetch_frame (merge R1 R) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
 Proof.
   intros.
-  unfolds fetch_frame.
+  unfold fetch_frame in *.
   fetch_frame_merge_solve2.
   inversion H.
   eauto.
@@ -2117,27 +2108,25 @@ Ltac eval_reg_merge_solve2 :=
   end.
 
 Lemma fetch_frame_disj_merge_stable1 :
-  forall R1 R2 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R1 R2 (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     disjoint R1 R2 ->
     fetch_frame R1 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     fetch_frame (merge R1 R2) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
 Proof.
   intros.
-  unfolds fetch_frame.
-
+  unfold fetch_frame in *.
   eval_reg_merge_solve1.
   eauto.
 Qed.
 
 Lemma fetch_frame_disj_merge_stable2 :
-  forall R1 R2 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R1 R2 (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     disjoint R1 R2 ->
     fetch_frame R2 rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     fetch_frame (merge R1 R2) rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm.
 Proof.
   intros.
-  unfolds fetch_frame.
-
+  unfold fetch_frame in *.
   eval_reg_merge_solve2.
   eauto.
 Qed.
@@ -2335,7 +2324,7 @@ Qed.
 
 Lemma regfrm_indoms :
   forall M R F D (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : GenReg)
-    (w0 w1 w2 w3 w4 w5 w6 w7 : Word),
+    (w0 w1 w2 w3 w4 w5 w6 w7 : Val),
     (M, (R, F), D) |=
                    rr0 |=> w0 ** rr1 |=> w1 ** rr2 |=> w2 ** rr3 |=> w3 **
                    rr4 |=> w4 ** rr5 |=> w5 ** rr6 |=> w6 ** rr7 |=> w7 ->
@@ -2501,12 +2490,12 @@ Proof.
 Qed.
 
 Lemma fetch_frm_indoms :
-  forall R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 fm,
+  forall tp R (rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 : tp) fm,
     fetch_frame R rr0 rr1 rr2 rr3 rr4 rr5 rr6 rr7 = Some fm ->
     indoms [rr0; rr1; rr2; rr3; rr4; rr5; rr6; rr7] R.
 Proof. 
   intros.   
-  unfolds fetch_frame. 
+  unfold fetch_frame in *. 
   do 8
     match goal with
     | H : context [R ?v] |- _ =>
@@ -3019,25 +3008,23 @@ Proof.
     inversion H6; subst.
     inversion H3; inversion H7; subst.
     eauto.
-
+ 
   - (* add rs aexp rd *)
     inversion H; inversion H0; subst.
     inversion H6; subst.
     inversion H3; inversion H7; subst.
-    rewrite H10 in H21.
-    inversion H21; subst.
-    rewrite H12 in H23.
-    inversion H23; subst.
+    rewrite H11 in H23; inversion H23; subst.
+    rewrite H12 in H24; inversion H24; subst.
+    rewrite H15 in H27; inversion H27; subst.
     eauto.
 
   - (* sub rs aexp rd *)
     inversion H; inversion H0; subst.
     inversion H6; subst.
     inversion H3; inversion H7; subst.
-    rewrite H10 in H21.
-    inversion H21; subst.
-    rewrite H12 in H23.
-    inversion H23; subst.
+    rewrite H11 in H23; inversion H23; subst.
+    rewrite H12 in H24; inversion H24; subst.
+    rewrite H15 in H27; inversion H27; subst.
     eauto.
 
   - (* subcc rs aexp rd *)
@@ -3105,54 +3092,44 @@ Proof.
     inversion H6; subst.
     inversion H3; inversion H7; subst.
     eauto.
-
+ 
   - (* save *)  
     inversion H; inversion H0; subst.
     inversion H3.
-    inversion H3. 
-    inversion H19.
-    inversion H28; subst.
-    rewrite H4 in H20.
+    inversion H3.  
     inversion H20; subst.
-    rewrite H5 in H21.
-    inversion H21; subst.
-    rewrite H8 in H24.
-    inversion H24; subst.
-    rewrite H9 in H25.
-    inversion H25; subst.
+    inversion H30; subst.
+    rewrite H9 in H26;inversion H26; subst; eauto.
+    rewrite H10 in H27; inversion H27; subst; eauto.
+    rewrite <- H4 in H21; inversion H21; subst; eauto.
 
     assert (F'0 = F' /\ fm0 = fm1 /\ fm3 = fm2).
     { 
-      clear - H10.
-      eapply ls_leneq_cons in H10; eauto.
-      destruct H10.
+      clear - H11.
+      eapply ls_leneq_cons in H11; eauto.
+      destruct H11.
       inversion H0.
       eauto. 
     }
 
     destruct H1 as [HF [Hf1 Hf2] ].
     subst.
-    rewrite H6 in H22.
-    inversion H22.
-    subst; eauto.
+    rewrite H7 in H24; inversion H24; subst.
+    rewrite H5 in H22; inversion H22; subst.
+    eauto.
 
   - (* restore *)
     inversion H; inversion H0; subst.
     inversion H3.
     inversion H3.
-    inversion H19.
-    inversion H28; subst.
-    rewrite H4 in H20.
-    inversion H20; subst.
-    rewrite H5 in H21; subst.
-    inversion H21; subst.
-    rewrite H8 in H24.
-    inversion H24; subst.
-    rewrite H9 in H25.
-    inversion H25; subst.
-    rewrite H6 in H22.
-    inversion H22.
-    subst.
+    inversion H20.
+    inversion H30; subst.
+    rewrite H5 in H22; inversion H22; subst.
+    rewrite H6 in H23; inversion H23; subst.
+    rewrite H9 in H26; inversion H26; subst.
+    rewrite H10 in H27; inversion H27; subst.
+    rewrite H7 in H24; inversion H24; subst.
+    rewrite <- H4 in H21; inversion H21; subst.
     eauto.
 
   - (* rd *) 
@@ -3240,7 +3217,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g0 v1 +ᵢ v2) r, f), d).
+    exists (merge M' m, (merge (set_R R g0 v) r, f), d).
     exists (m, (r, f), d).
     simpl.
     repeat (split; eauto).
@@ -3254,7 +3231,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g0 v1 -ᵢ v2) r, f), d).
+    exists (merge M' m, (merge (set_R R g0 v) r, f), d).
     exists (m, (r, f), d).
     simpl.
     repeat (split; eauto).
@@ -3269,8 +3246,8 @@ Proof.
     simpl in H.
     simpljoin1.
     exists (merge M' m,
-       (merge (set_Rs R [(Rr g0, v1 -ᵢ v2);
-                         (Rpsr n, get_range 31 31 v1 -ᵢ v2); (Rpsr z, iszero v1 -ᵢ v2)]) r,
+       (merge (set_Rs R [(Rr g0, W (v1 -ᵢ v2));
+                         (Rpsr n, W (get_range 31 31 v1 -ᵢ v2)); (Rpsr z, W (iszero v1 -ᵢ v2))]) r,
       f), d).
     exists (m, (r, f), d).
     simpl. 
@@ -3285,7 +3262,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g0 v1 &ᵢ v2) r, f), d).
+    exists (merge M' m, (merge (set_R R g0 (W v1 &ᵢ v2)) r, f), d).
     exists (m, (r, f), d).
     simpl.
     repeat (split; eauto).
@@ -3300,8 +3277,8 @@ Proof.
     simpl in H.
     simpljoin1.
     exists (merge M' m,
-       (merge (set_Rs R [(Rr g0, v1 &ᵢ v2);
-                         (Rpsr n, get_range 31 31 v1 &ᵢ v2); (Rpsr z, iszero v1 &ᵢ v2)]) r,
+       (merge (set_Rs R [(Rr g0, W v1 &ᵢ v2);
+                         (Rpsr n, W (get_range 31 31 v1 &ᵢ v2)); (Rpsr z, W (iszero v1 &ᵢ v2))]) r,
       f), d).
     exists (m, (r, f), d).
     simpl. 
@@ -3316,7 +3293,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g0 v1 |ᵢ v2) r, f), d).
+    exists (merge M' m, (merge (set_R R g0 (W v1 |ᵢ v2)) r, f), d).
     exists (m, (r, f), d).
     simpl. 
     repeat (split; eauto).
@@ -3330,7 +3307,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g0 v1 <<ᵢ (get_range 0 4 v2)) r, f), d).
+    exists (merge M' m, (merge (set_R R g0 (W v1 <<ᵢ (get_range 0 4 v2))) r, f), d).
     exists (m, (r, f), d).
     simpl.
     repeat (split; eauto).
@@ -3344,7 +3321,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g0 v1 >>ᵢ (get_range 0 4 v2)) r, f), d).
+    exists (merge M' m, (merge (set_R R g0 (W v1 >>ᵢ (get_range 0 4 v2))) r, f), d).
     exists (m, (r, f), d).
     simpl.
     repeat (split; eauto).
@@ -3358,7 +3335,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g w) r, f), d).
+    exists (merge M' m, (merge (set_R R g v) r, f), d).
     exists (m, (r, f), d).
     simpl.
     repeat (split; eauto).
@@ -3374,7 +3351,7 @@ Proof.
     simpljoin1.
     exists (merge M m,
        (merge (set_Rs (set_window R fm1 fm2 fmo)
-                      [(Rpsr cwp, pre_cwp k); (Rr g0, v1 +ᵢ v2)]) r,
+                      [(Rpsr cwp, W (pre_cwp k)); (Rr g0, res)]) r,
         fml :: fmi :: F'), d).
     exists (m, (r, fml :: fmi :: F'), d).
     simpl. 
@@ -3393,7 +3370,7 @@ Proof.
     simpljoin1.
     exists (merge M m,
        (merge (set_Rs (set_window R fmi fm1 fm2)
-                      [(Rpsr cwp, post_cwp k); (Rr g0, v1 +ᵢ v2)]) r,
+                      [(Rpsr cwp, W (post_cwp k)); (Rr g0, res)]) r,
         F' ++ fmo :: fml :: nil), d).
     exists (m, (r, F' ++ fmo :: fml :: nil), d).
     simpl.
@@ -3409,7 +3386,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g v) r, f), d).
+    exists (merge M' m, (merge (set_R R g (W v)) r, f), d).
     exists (m, (r, f), d).
     simpl.
     repeat (split; eauto).
@@ -3436,7 +3413,7 @@ Proof.
     destruct r.
     simpl in H.
     simpljoin1.
-    exists (merge M' m, (merge (set_R R g v) r, f), d).
+    exists (merge M' m, (merge (set_R R g (W v)) r, f), d).
     exists (m, (r, f), d).
     simpls.
     repeat (split; eauto).
@@ -3526,7 +3503,7 @@ Proof.
     simpljoin1.
     simpls.
     subst.
-    exists (merge M' m0, (merge (set_R R g0 v1 +ᵢ v2) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g0 v) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns; eauto.
@@ -3547,7 +3524,7 @@ Proof.
     simpljoin1.
     simpls.
     subst.
-    exists (merge M' m0, (merge (set_R R g0 v1 -ᵢ v2) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g0 v) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns; eauto.
@@ -3570,8 +3547,8 @@ Proof.
     subst.
     exists (merge M' m0,
        (merge (set_R (set_R
-                        (set_R R g0 v1 -ᵢ v2) n
-                        (get_range 31 31 v1 -ᵢ v2)) z (iszero v1 -ᵢ v2)) r1, f0), d0
+                        (set_R R g0 (W v1 -ᵢ v2)) n
+                        (W (get_range 31 31 v1 -ᵢ v2))) z (W (iszero v1 -ᵢ v2))) r1, f0), d0
       ).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
@@ -3598,7 +3575,7 @@ Proof.
     simpljoin1.
     simpls.
     subst.
-    exists (merge M' m0, (merge (set_R R g0 v1 &ᵢ v2) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g0 (W v1 &ᵢ v2)) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns; eauto.
@@ -3621,8 +3598,8 @@ Proof.
     subst.
     exists (merge M' m0,
        (merge (set_R (set_R
-                        (set_R R g0 v1 &ᵢ v2) n
-                        (get_range 31 31 v1 &ᵢ v2)) z (iszero v1 &ᵢ v2)) r1, f0), d0
+                        (set_R R g0 (W v1 &ᵢ v2)) n
+                        (W (get_range 31 31 v1 &ᵢ v2))) z (W (iszero v1 &ᵢ v2))) r1, f0), d0
       ).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
@@ -3649,7 +3626,7 @@ Proof.
     simpljoin1.
     simpls.
     subst.
-    exists (merge M' m0, (merge (set_R R g0 v1 |ᵢ v2) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g0 (W v1 |ᵢ v2)) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns; eauto.
@@ -3670,7 +3647,7 @@ Proof.
     simpljoin1.
     simpls.
     subst.
-    exists (merge M' m0, (merge (set_R R g0 v1 <<ᵢ (get_range 0 4 v2)) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g0 (W v1 <<ᵢ (get_range 0 4 v2))) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns; eauto.
@@ -3691,7 +3668,7 @@ Proof.
     simpljoin1.
     simpls.
     subst.
-    exists (merge M' m0, (merge (set_R R g0 v1 >>ᵢ (get_range 0 4 v2)) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g0 (W v1 >>ᵢ (get_range 0 4 v2))) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns; eauto.
@@ -3712,7 +3689,7 @@ Proof.
     simpljoin1.
     simpls.
     subst.
-    exists (merge M' m0, (merge (set_R R g w) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g v) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns; eauto.
@@ -3732,7 +3709,7 @@ Proof.
     simpls.
     subst.
     exists (merge M m0,
-       (merge (set_R (set_R (set_window R fm1 fm2 fmo) cwp (pre_cwp k)) g0 v1 +ᵢ v2) r1,
+       (merge (set_R (set_R (set_window R fm1 fm2 fmo) cwp (W (pre_cwp k))) g0 res) r1,
         fml :: fmi :: F'), d0
       ).
     exists (m0, (r1, fml :: fmi :: F'), d0).  
@@ -3747,13 +3724,13 @@ Proof.
     erewrite fetch_some_set_win_merge_eq; eauto.
     eapply indom_setwin_still; eauto.
     unfold indom.
-    clear - H8.
+    clear - H9.
     unfolds get_R.
     destruct (R cwp); eauto.
     eapply indom_setR_still; eauto.
     eapply indom_setwin_still; eauto. 
     eapply dlyfrmfree_changeFrm_stable; eauto.
-    clear - H6 H8.
+    clear - H6 H9.
     intro.  
     eapply indom_m2_disj_notin_m1 with (l := cwp) in H6; eauto.
     eapply H6.
@@ -3774,7 +3751,7 @@ Proof.
     simpls. 
     subst.
     exists (merge M m0,
-       (merge (set_R (set_R (set_window R fmi fm1 fm2) cwp (post_cwp k)) g0 v1 +ᵢ v2) r1,
+       (merge (set_R (set_R (set_window R fmi fm1 fm2) cwp (W (post_cwp k))) g0 res) r1,
         F' ++ fmo :: fml :: nil), d0
       ).
     exists (m0, (r1, F' ++ fmo :: fml :: nil), d0).
@@ -3789,13 +3766,13 @@ Proof.
     erewrite fetch_some_set_win_merge_eq; eauto.
     eapply indom_setwin_still; eauto.
     unfold indom. 
-    clear - H8.
+    clear - H9.
     unfolds get_R.
     destruct (R cwp); eauto.
     eapply indom_setR_still; eauto.
     eapply indom_setwin_still; eauto.
     eapply dlyfrmfree_changeFrm_stable; eauto.
-    clear - H6 H8.
+    clear - H6 H9.
     intro.  
     eapply indom_m2_disj_notin_m1 with (l := cwp) in H6; eauto.
     eapply H6.
@@ -3815,7 +3792,7 @@ Proof.
     simpljoin1.
     simpls.
     subst.
-    exists (merge M' m0, (merge (set_R R g v) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g (W v)) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns.
@@ -3848,7 +3825,7 @@ Proof.
     destruct s2', p, r1.
     simpls.
     simpljoin1. 
-    exists (merge M' m0, (merge (set_R R g v) r1, f0), d0).
+    exists (merge M' m0, (merge (set_R R g (W v)) r1, f0), d0).
     exists (m0, (r1, f0), d0).
     repeat (split; simpl; eauto).
     eapply NormalIns.
