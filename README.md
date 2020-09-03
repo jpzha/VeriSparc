@@ -26,7 +26,10 @@ All the Coq implememtations are in the direction /coqimp
 - /proof : the proofscripts
 
 ### Compilation Coq files
-Require Coq.8.9.1 and use "make all" command under folder /coqimp to compile all the coq files
+Require Coq.8.9.1 and use "make all" command under folder /coqimp to compile all the coq files.
 
 ### Coq Installation 
 [Install Coq with opam](https://coq.inria.fr/opam-using.html)
+
+### Technical Report
+The paper.pdf is the technical report.
