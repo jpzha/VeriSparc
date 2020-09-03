@@ -1,4 +1,4 @@
-# A Framework for Modular Verification of SPARCv8 Code 
+# A Program Logic for Modular Verification of SPARCv8 Code 
 
 > All the coq implementation is in the direction /coqimp
 
@@ -14,4 +14,6 @@
 - spec : code specifications
 - proof : the proofscripts
 
-All of the coqfile can be compiled by "make filename.vo"
+All of the coqfiles can be compiled by "make filename.vo" individually.
+
+The file paper.pdf is the **technical report**.
